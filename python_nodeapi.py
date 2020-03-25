@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
 
-from python_src import PopulationModel, AgeDistribution
+from pydemic import PopulationModel, AgeDistribution
 
-from python_src import population_models as pm
+import pydemic.population_models as pm
 
-URL = "http://localhost:8080"
+URL = "http://localhost:8081"
 
 if __name__ == "__main__":
 
@@ -63,8 +63,8 @@ if __name__ == "__main__":
       [ 2020, 3, 15, 0, 0, 0 ],
       [ 2020, 9, 1, 0, 0, 0 ]
     ],
-    "factors": [ 
-      1.0, 
+    "factors": [
+      1.0,
       1.0,
       mitigation_factor,
       mitigation_factor
@@ -81,7 +81,7 @@ if __name__ == "__main__":
   # example of kludge on how to load population data
   #age_data = AgeDistribution.AgeDistribution(AGE_DATA_NAME)
   #population = PopulationModel.PopulationModel(POPULATION_NAME, age_data=age_data)
-  
+
 
 
 
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
   for key in dkeys[1:]:
     ax1.plot(dates, data[key], label=key)
-  
+
   # plot on y log scale
   ax1.set_yscale('log')
   ax1.set_ylim(ymin=1)

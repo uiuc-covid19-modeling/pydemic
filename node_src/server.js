@@ -20,7 +20,7 @@ http.createServer(function (req, res) {
     let body = '';
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
-  
+
       var argdata = JSON.parse(body);
 
       exports.wrapper(argdata).then(function(result) {
@@ -52,18 +52,18 @@ http.createServer(function (req, res) {
           dead.push(traj[i].dead.total);
         }
 
-        var data = 
+        var data =
         {
-          "times": times, 
-          "suspectible": susceptible, 
-          "exposed": exposed, 
-          "infectious": infectious, 
-          "recovered": recovered, 
-          "hospitalized": hospitalized, 
-          "critical": critical, 
-          "overflow": overflow, 
-          "discharged": discharged, 
-          "intensive": intensive, 
+          "times": times,
+          "suspectible": susceptible,
+          "exposed": exposed,
+          "infectious": infectious,
+          "recovered": recovered,
+          "hospitalized": hospitalized,
+          "critical": critical,
+          "overflow": overflow,
+          "discharged": discharged,
+          "intensive": intensive,
           "dead": dead
         };
         var text = JSON.stringify(data);
@@ -77,7 +77,7 @@ http.createServer(function (req, res) {
 
   }
 
-}).listen(8080);
+}).listen(8081);
 
 
 
