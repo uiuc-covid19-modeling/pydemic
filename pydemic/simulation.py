@@ -27,7 +27,7 @@ THE SOFTWARE.
 from pydemic import AttrDict
 
 
-class Population(AttrDict):
+class SimulationState(AttrDict):
     expected_kwargs = {
         'infections',
         'time',
@@ -69,7 +69,7 @@ class Simulation:
 
         new_cases = (
             sample(self.population.imports_per_day * self.dt_days)
-            + sample((1 - self.isolatedFrac) * self.infection_rate(new_time)
+            + sample((1 - self.isolated_frac) * self.infection_rate(new_time)
                      * state.susceptible * frac_infected * self.dt_days)
         )
         new_infectious = min(
@@ -106,7 +106,7 @@ class Simulation:
         )
         new_overflow_dead = min(
             state.overflow - new_overflow_stabilized,
-            sample(state.overflow * self.dt_days * self.overflowDeath_rate)
+            sample(state.overflow * self.dt_days * self.overflow_death_rate)
         )
 
         new_state.susceptible = state.susceptible - new_cases
@@ -135,11 +135,11 @@ class Simulation:
                 new_state.overflow[age] = (- new_overflow_dead[age]
                                         - new_overflow_stabilized[age])
             elif free_ICU_beds > 0:
-                newOverflow = new_critical[age] - free_ICU_beds
+                new_overflow = new_critical[age] - free_ICU_beds
                 new_state.critical[age] = (free_ICU_beds - new_stabilized[age]
                                                 - new_ICU_dead[age])
-                new_state.overflow[age] = (newOverflow - new_overflow_dead[age]
-                                                - new_overflow_stabilized[age])
+                new_state.overflow[age] = (new_overflow - new_overflow_dead[age]
+                                           - new_overflow_stabilized[age])
                 free_ICU_beds = 0
             else:
                 new_state.critical[age] = - new_stabilized[age] - new_ICU_dead[age]
@@ -169,22 +169,21 @@ class Simulation:
 
         return new_state
 
-
     def initialize_population(self):
         init = {key: np.zeros_like(age_distribution)
-                for key in Population.expected_kwargs}
+                for key in SimulationState.expected_kwargs}
         init['susceptible'] = age_distribution.copy()
-        initial_state = Population(**init)
+        initial_state = SimulationState(**init)
 
         return initial_state
 
     def __call__(self, start_time, end_time, sample):
-        population = self.initialize_population()
-        result = SimulationResult(population)
+        state = self.initialize_population()
+        result = SimulationResult(state)
 
         time = start_time
         while time < end_time:
-            population = self.step(time, population, sample)
-            result.extend(population)
+            state = self.step(time, state, sample)
+            result.extend(state)
 
         return result
