@@ -272,7 +272,7 @@ class Simulation:
         init['time'] = start_time
 
         fracs = ages / np.sum(ages)
-        init['susceptible'] = fracs * self.population.population_served
+        init['susceptible'] = np.round(fracs * self.population.population_served)
 
         i_middle = round(ages.shape[0] / 2) + 1
         initial_cases = self.population.suspected_cases_today
@@ -292,8 +292,6 @@ class Simulation:
         while time < end_time:
             state = self.step(time, state, sample)
             result.extend(state)
-            print(state)
             time += self.dt
-            1/0
 
         return result
