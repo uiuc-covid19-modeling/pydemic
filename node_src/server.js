@@ -25,6 +25,8 @@ http.createServer(function (req, res) {
 
       exports.wrapper(argdata).then(function(result) {
 
+        console.log(result);
+
         var times = [];
         var susceptible = [];
         var exposed = [];
