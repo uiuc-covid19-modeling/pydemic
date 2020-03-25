@@ -4,99 +4,57 @@
  *
  */
 
-
-
-
-var runFilename = "run.js";
-
-/*
-import { run } from './run';
- */
-
 var fs = require('fs');
-var text = fs.readFileSync(runFilename).toString();
+var text = fs.readFileSync("run.js").toString();
 eval(text);
 
-console.log("got run as exports.default");
+exports.wrapper().then(function(result) {
 
-console.log(exports.wrapper());
+  var times = [];
+  var susceptible = [];
+  var exposed = [];
+  var infectious = [];
+  var recovered = [];
+  var hospitalized = [];
+  var critical = [];
+  var overflow = [];
+  var discharged = [];
+  var intensive = [];
+  var dead = [];
+  var traj = result.deterministicTrajectory
 
-/*
-var text = fs.readFileSync("types/Param.types.js").toString();
-eval(text);
+  for (var i in traj) {
+    times.push(traj[i].time);
+    susceptible.push(traj[i].susceptible.total);
+    exposed.push(traj[i].exposed.total);
+    infectious.push(traj[i].infectious.total);
+    recovered.push(traj[i].recovered.total);
+    hospitalized.push(traj[i].hospitalized.total);
+    critical.push(traj[i].critical.total);
+    overflow.push(traj[i].overflow.total);
+    discharged.push(traj[i].discharged.total);
+    intensive.push(traj[i].intensive.total);
+    dead.push(traj[i].dead.total);
+  }
 
-var params = new AllParamsFlat();
- */
+  var data = 
+  {
+    "times": times, 
+    "suspectible": susceptible, 
+    "exposed": exposed, 
+    "infectious": infectious, 
+    "recovered": recovered, 
+    "hospitalized": hospitalized, 
+    "critical": critical, 
+    "overflow": overflow, 
+    "discharged": discharged, 
+    "intensive": intensive, 
+    "dead": dead
+  };
+  var text = JSON.stringify(data);
 
-
-/*
-var runFunction = exports.default;
-console.log(runFunction);
-
-
-
-// AllParamsFlat
-var params;
-
-// SeverityTableRow[]
-var severity;
-
-// OneCountryAgeDistribution
-var ageDistribution;
-
-// TimeSeries
-var containment;
-
-runFunction(params, severity, ageDistribution, containment);
- */
-
-
-
-/*
- */
-
-
-/*
-
-
-eval(fs.readFileSync(runFilename).toString());
- */
-
-
-// load neherlab files
-//var filenameMainjs = "neherlab/main.js";
-//var filenameHomejs = "neherlab/Home.js";
-/*
-var fs = require('fs');
-eval(fs.readFileSync(filenameHomejs).toString());
- */
-
-//var Home = require("neherlab/Home.js");
-
-
-/*
-var tools = require('./examples/tools.js');
-console.log(tools.zemba);
-console.log(tools.foo);
-tools.foo();
- */
-
-/*
-var tools = require('./examples/tools.js');
-//eval(tools.readFileSync(tools));
-
-//console.log(fs.readFileSync('./examples/tools.js').toString());
-
-eval(fs.readFileSync('./examples/tools.js').toString());
-
-//console.log(fs.readFileSync(tools).toString());
-//console.log(tools.zemba);
-//console.log(tools.foo);
-
-zemba();
-foo();
- */
-
+  console.log(text);
+});
 
 
 // set up ad hoc webserver
@@ -106,7 +64,6 @@ http.createServer(function (req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World!');
 }).listen(8080);
-
 
 
 
