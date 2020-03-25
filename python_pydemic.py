@@ -39,7 +39,7 @@ if __name__ == "__main__":
         infectious_period=3,
         length_hospital_stay=4,
         length_ICU_stay=14,
-        seasonal_forcing=0.2,
+        seasonal_forcing=0.,
         peak_month=0,
         overflow_severity=2
     )
@@ -56,18 +56,19 @@ if __name__ == "__main__":
     end_time = date_to_ms(end_date)
     result = sim(start_time, end_time, lambda x: x)
 
-    exit()
-
     data = {}
-    dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
-    dates = [ datetime.utcfromtimestamp(x//1000) for x in data['times'] ]
+    dkeys = [ 'time', 'susceptible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
+    dates = [ datetime.utcfromtimestamp(x//1000) for x in result['time'] ]
 
     """
     r = requests.post(url=URL, data=json.dumps(body))
     data = r.json()
-    dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
+    dkeys = [ 'times', 'susceptible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
     dates = [ datetime.utcfromtimestamp(x//1000) for x in data['times'] ]
     """
+
+    for key in dkeys:
+        data[key] = np.sum(result[key], axis=-1)
 
     # make figure
     fig = plt.figure(figsize=(10,8))
@@ -83,9 +84,9 @@ if __name__ == "__main__":
     ax1.axhline(y=population['ICU_beds'],ls=':',c='#999999')
 
     # plot containment
-    mitigation_dates = [ datetime(*x[:-2]) for x in containment["times"] ]
-    ax2.plot(mitigation_dates, containment["factors"], 'ok-', lw=2)
-    ax2.set_ylim(0,1.2)
+    # mitigation_dates = [ datetime(*x[:-2]) for x in containment["times"] ]
+    # ax2.plot(mitigation_dates, containment["factors"], 'ok-', lw=2)
+    # ax2.set_ylim(0,1.2)
 
     # plot on y log scale
     ax1.set_yscale('log')
