@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
-from scipy.interpolate import interp1d 
+from scipy.interpolate import interp1d
 
-class ContainmentModel():
 
+class ContainmentModel:
     _interp = None
 
     def __init__(self, start_time, end_time):

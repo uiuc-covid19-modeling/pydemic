@@ -33,8 +33,10 @@ class AttrDict(dict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+
 from pydemic.containment import ContainmentModel
 from pydemic.simulation import Simulation
+
 
 class AgeDistribution(AttrDict):
     expected_kwargs = {
@@ -42,28 +44,31 @@ class AgeDistribution(AttrDict):
         'counts'
     }
 
+
 class PopulationModel(AttrDict):
     expected_kwargs = {
         'country',
         'cases',
-        'populationServed',
-        'hospitalBeds',
-        'ICUBeds',
-        'suspectedCasesToday',
-        'importsPerDay'
+        'population_served',
+        'hospital_beds',
+        'ICU_beds',
+        'suspected_cases_today',
+        'imports_per_day'
     }
+
 
 class EpidemiologyModel(AttrDict):
     expected_kwargs = {
         'r0',
-        'incubationTime',
-        'infectiousPeriod',
-        'lengthHospitalStay',
-        'lengthICUStay',
-        'seasonalForcing',
-        'peakMonth',
-        'overflowSeverity'
+        'incubtation_time',
+        'infectious_period',
+        'length_hospital_stay',
+        'length_ICU_stay',
+        'seasonal_forcing',
+        'peak_month',
+        'overflow_severity'
     }
+
 
 class SeverityModel(AttrDict):
     expected_kwargs = {
@@ -80,8 +85,8 @@ __all__ = [
     "AttrDict",
     "AgeDistribution",
     "PopulationModel",
-    "SeverityModel",
     "EpidemiologyModel",
+    "SeverityModel",
     "ContainmentModel",
     "Simulation"
 ]

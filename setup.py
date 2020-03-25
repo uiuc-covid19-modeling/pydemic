@@ -59,6 +59,7 @@ setup(name=package,
 
       install_requires=[
           "numpy",
+          "scipy",
           ],
 
     #   author="George Wong",

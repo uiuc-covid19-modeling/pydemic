@@ -29,11 +29,11 @@ from pydemic import AttrDict
 
 class Parameters(AttrDict):
     expected_kwargs = {
-        'importsPerDay',
+        'imports_per_day',
         'time_delta_days',
         'isolatedFrac',
         'infectionRate',
-        'incubationTime',
+        'incubtation_time',
         'recoveryRate',
         'hospitalizedRate',
         'dischargeRate',
@@ -41,7 +41,7 @@ class Parameters(AttrDict):
         'stabilizationRate',
         'deathRate',
         'overflowDeathRate',
-        'ICUBeds',
+        'ICU_beds',
     }
 
 
@@ -65,13 +65,13 @@ def evolve(population, pars, sample):
     new_population = population.copy()
 
     new_cases = (
-        sample(pars.importsPerDay * pars.time_delta_days)
+        sample(pars.imports_per_day * pars.time_delta_days)
         + sample((1 - pars.isolatedFrac) * pars.infectionRate(new_time)
                  * population.susceptible * frac_infected * pars.time_delta_days)
     )
     new_infectious = min(
         population.exposed,
-        sample(population.exposed * pars.time_delta_days / pars.incubationTime)
+        sample(population.exposed * pars.time_delta_days / pars.incubtation_time)
     )
     new_recovered = min(
         population.infectious,
@@ -120,7 +120,7 @@ def evolve(population, pars, sample):
     new_population.dead = new_ICU_dead + new_overflow_dead
 
     free_ICU_beds = (
-        pars.ICUBeds
+        pars.ICU_beds
         - (sum(population.critical) - sum(new_stabilized) - sum(new_ICU_dead))
     )
 
@@ -183,7 +183,7 @@ def run(population, simulation, epidemiology,
     #                                   interpolateTimeSeries(containment))
     # tMin = params.simulationTimeRange.tMin.getTime()  # int ms
     # tMax = params.simulationTimeRange.tMax.getTime()  # int ms
-    # initialCases = params.suspectedCasesToday
+    # initialCases = params.suspected_cases_today
     # initialState = initializePopulation(modelParams.populationServed,
     #                                     initialCases, tMin, age_distribution)
 

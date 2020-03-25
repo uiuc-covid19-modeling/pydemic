@@ -18,11 +18,11 @@ if __name__ == "__main__":
     "cases": "Switzerland",
     "populationServed": 8600000,
     # reported medical facilities
-    "hospitalBeds": 30799,
-    "ICUBeds": 1400,
+    "hospital_beds": 30799,
+    "ICU_beds": 1400,
     # estimated infectivity model parameters
-    "suspectedCasesToday": 1148,
-    "importsPerDay": 4.0,
+    "suspected_cases_today": 1148,
+    "imports_per_day": 4.0,
     # granular population statistics
     "populationsByDecade": [
       4994996,
@@ -44,13 +44,13 @@ if __name__ == "__main__":
 
   epidemiology = {
       "r0": 3.7,
-      "incubationTime": 5,
-      "infectiousPeriod": 3,
-      "lengthHospitalStay": 4,
-      "lengthICUStay": 14,
-      "seasonalForcing": 0.2,
-      "peakMonth": 0,
-      "overflowSeverity": 2
+      "incubtation_time": 5,
+      "infectious_period": 3,
+      "length_hospital_stay": 4,
+      "length_ICU_stay": 14,
+      "seasonal_forcing": 0.2,
+      "peak_month": 0,
+      "overflow_severity": 2
   }
 
   mitigation_factor = 0.8
@@ -101,10 +101,10 @@ if __name__ == "__main__":
 
   for key in dkeys[1:]:
     ax1.plot(dates, data[key], label=key)
-  
+
   # plot nice hint data
-  ax1.axhline(y=population['hospitalBeds'],ls=':',c='#999999')
-  ax1.axhline(y=population['ICUBeds'],ls=':',c='#999999')
+  ax1.axhline(y=population['hospital_beds'],ls=':',c='#999999')
+  ax1.axhline(y=population['ICU_beds'],ls=':',c='#999999')
 
   # plot containment
   mitigation_dates = [ datetime(*x[:-2]) for x in containment["times"] ]

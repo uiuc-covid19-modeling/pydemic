@@ -36,13 +36,13 @@ if __name__ == "__main__":
     ## set epidemiology model
     epidemiology = EpidemiologyModel(
         r0=3.7,
-        incubationTime=5,
-        infectiousPeriod=3,
-        lengthHospitalStay=4,
-        lengthICUStay=14,
-        seasonalForcing=0.2,
-        peakMonth=0,
-        overflowSeverity=2
+        incubtation_time=5,
+        infectious_period=3,
+        length_hospital_stay=4,
+        length_ICU_stay=14,
+        seasonal_forcing=0.2,
+        peak_month=0,
+        overflow_severity=2
     )
 
     ## set containment model
@@ -88,8 +88,8 @@ if __name__ == "__main__":
         ax1.plot(dates, data[key], label=key)
 
     # plot nice hint data
-    ax1.axhline(y=population['hospitalBeds'],ls=':',c='#999999')
-    ax1.axhline(y=population['ICUBeds'],ls=':',c='#999999')
+    ax1.axhline(y=population['hospital_beds'],ls=':',c='#999999')
+    ax1.axhline(y=population['ICU_beds'],ls=':',c='#999999')
 
     # plot containment
     mitigation_dates = [ datetime(*x[:-2]) for x in containment["times"] ]

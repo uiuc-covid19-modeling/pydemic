@@ -38,6 +38,10 @@ class Population(AttrDict):
         'overflow',
     }
 
+    def get_total_population(self):
+        # FIXME: does this work?
+        return sum(self[key] for key in self.expected_kwargs)
+
 
 class SimulationResult:
     def __init__(self):
@@ -56,90 +60,90 @@ class Simulation:
         self.age_distribution = age_distribution
         self.containment = containment
 
-    def step(self, time, population):
-        frac_infected = sum(population.infectious) / self.population_served
+    def step(self, time, state, sample):
+        frac_infected = sum(state.infectious) / self.population_served
         new_time = time + self.dt
-        age_groups = population.infectious.keys().sort()
+        age_groups = state.infectious.keys().sort()
 
-        new_pop = population.copy()
+        new_state = state.copy()
 
         new_cases = (
-            sample(self.importsPerDay * self.dt_days)
+            sample(self.population.imports_per_day * self.dt_days)
             + sample((1 - self.isolatedFrac) * self.infection_rate(new_time)
-                     * population.susceptible * frac_infected * self.dt_days)
+                     * state.susceptible * frac_infected * self.dt_days)
         )
         new_infectious = min(
-            population.exposed,
-            sample(population.exposed * self.dt_days / self.incubation_time)
+            state.exposed,
+            sample(state.exposed * self.dt_days / self.incubation_time)
         )
         new_recovered = min(
-            population.infectious,
-            sample(population.infectious * self.dt_days * self.recovery_rate)
+            state.infectious,
+            sample(state.infectious * self.dt_days * self.recovery_rate)
         )
         new_hospitalized = min(
-            population.infectious - new_recovered,
-            sample(population.infectious * self.dt_days * self.hospitalized_rate)
+            state.infectious - new_recovered,
+            sample(state.infectious * self.dt_days * self.hospitalized_rate)
         )
         new_discharged = min(
-            population.hospitalized,
-            sample(population.hospitalized * self.dt_days * self.discharge_rate)
+            state.hospitalized,
+            sample(state.hospitalized * self.dt_days * self.discharge_rate)
         )
         new_critical = min(
-            population.hospitalized - new_discharged,
-            sample(population.hospitalized * self.dt_days * self.critical_rate)
+            state.hospitalized - new_discharged,
+            sample(state.hospitalized * self.dt_days * self.critical_rate)
         )
         new_stabilized = min(
-            population.critical,
-            sample(population.critical * self.dt_days * self.stabilization_rate)
+            state.critical,
+            sample(state.critical * self.dt_days * self.stabilization_rate)
         )
         new_ICU_dead = min(
-            population.critical - new_stabilized,
-            sample(population.critical * self.dt_days * self.death_rate)
+            state.critical - new_stabilized,
+            sample(state.critical * self.dt_days * self.death_rate)
         )
         new_overflow_stabilized = min(
-            population.overflow,
-            sample(population.overflow * self.dt_days * self.stabilization_rate)
+            state.overflow,
+            sample(state.overflow * self.dt_days * self.stabilization_rate)
         )
         new_overflow_dead = min(
-            population.overflow - new_overflow_stabilized,
-            sample(population.overflow * self.dt_days * self.overflowDeath_rate)
+            state.overflow - new_overflow_stabilized,
+            sample(state.overflow * self.dt_days * self.overflowDeath_rate)
         )
 
-        new_pop.susceptible = population.susceptible - new_cases
-        new_pop.exposed = new_cases - new_infectious
-        new_pop.infectious = new_infectious - new_recovered - new_hospitalized
-        new_pop.hospitalized = (new_hospitalized + new_stabilized
+        new_state.susceptible = state.susceptible - new_cases
+        new_state.exposed = new_cases - new_infectious
+        new_state.infectious = new_infectious - new_recovered - new_hospitalized
+        new_state.hospitalized = (new_hospitalized + new_stabilized
                                 + new_overflow_stabilized - new_discharged
                                 - new_critical)
 
         # Cumulative categories
-        new_pop.recovered = new_recovered + new_discharged
-        new_pop.intensive = new_critical
-        new_pop.discharged = new_discharged
-        new_pop.dead = new_ICU_dead + new_overflow_dead
+        new_state.recovered = new_recovered + new_discharged
+        new_state.intensive = new_critical
+        new_state.discharged = new_discharged
+        new_state.dead = new_ICU_dead + new_overflow_dead
 
         free_ICU_beds = (
             self.total_ICU_beds
-            - (sum(population.critical) - sum(new_stabilized) - sum(new_ICU_dead))
+            - (sum(state.critical) - sum(new_stabilized) - sum(new_ICU_dead))
         )
 
         for age in age_groups:
             if free_ICU_beds > new_critical[age]:
                 free_ICU_beds -= new_critical[age]
-                new_pop.critical[age] = (new_critical[age] - new_stabilized[age]
+                new_state.critical[age] = (new_critical[age] - new_stabilized[age]
                                         - new_ICU_dead[age])
-                new_pop.overflow[age] = (- new_overflow_dead[age]
+                new_state.overflow[age] = (- new_overflow_dead[age]
                                         - new_overflow_stabilized[age])
             elif free_ICU_beds > 0:
                 newOverflow = new_critical[age] - free_ICU_beds
-                new_pop.critical[age] = (free_ICU_beds - new_stabilized[age]
+                new_state.critical[age] = (free_ICU_beds - new_stabilized[age]
                                                 - new_ICU_dead[age])
-                new_pop.overflow[age] = (newOverflow - new_overflow_dead[age]
+                new_state.overflow[age] = (newOverflow - new_overflow_dead[age]
                                                 - new_overflow_stabilized[age])
                 free_ICU_beds = 0
             else:
-                new_pop.critical[age] = - new_stabilized[age] - new_ICU_dead[age]
-                new_pop.overflow[age] = (
+                new_state.critical[age] = - new_stabilized[age] - new_ICU_dead[age]
+                new_state.overflow[age] = (
                     new_critical[age] - new_overflow_dead[age]
                     - new_overflow_stabilized[age]
                 )
@@ -149,21 +153,21 @@ class Simulation:
         i = 0
         while free_ICU_beds > 0 and i < len(age_groups):
             age = age_groups[i]
-            if new_pop.overflow[age] < free_ICU_beds:
-                new_pop.critical[age] += new_pop.overflow[age]
-                free_ICU_beds -= new_pop.overflow[age]
-                new_pop.overflow[age] = 0
+            if new_state.overflow[age] < free_ICU_beds:
+                new_state.critical[age] += new_state.overflow[age]
+                free_ICU_beds -= new_state.overflow[age]
+                new_state.overflow[age] = 0
             else:
-                new_pop.critical[age] += free_ICU_beds
-                new_pop.overflow[age] -= free_ICU_beds
+                new_state.critical[age] += free_ICU_beds
+                new_state.overflow[age] -= free_ICU_beds
                 free_ICU_beds = 0
             i += 1
 
         # NOTE: For debug purposes only.
-        # const popSum = sum(new_pop.susceptible) + sum(new_pop.exposed) + sum(new_pop.infectious) + sum(new_pop.recovered) + sum(new_pop.hospitalized) + sum(new_pop.critical) + sum(new_pop.overflow) + sum(new_pop.dead);
+        # const popSum = new_state.get_total_population()
         # console.log(math.abs(popSum - self.population_served));
 
-        return new_pop
+        return new_state
 
 
     def initialize_population(self):
@@ -174,13 +178,13 @@ class Simulation:
 
         return initial_state
 
-    def __call__(self, start_time, end_time):
+    def __call__(self, start_time, end_time, sample):
         population = self.initialize_population()
         result = SimulationResult(population)
 
         time = start_time
         while time < end_time:
-            population = self.step(time, population)
+            population = self.step(time, population, sample)
             result.extend(population)
 
         return result
