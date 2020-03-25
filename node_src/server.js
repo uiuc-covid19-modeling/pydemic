@@ -5,7 +5,7 @@
  */
 
 var fs = require('fs');
-var text = fs.readFileSync("run.js").toString();
+var text = fs.readFileSync("wrapper.js").toString();
 eval(text);
 
 // set up ad hoc webserver
@@ -22,6 +22,8 @@ http.createServer(function (req, res) {
     req.on('end', () => {
 
       var argdata = JSON.parse(body);
+
+      console.log(argdata);
 
       exports.wrapper(argdata).then(function(result) {
 

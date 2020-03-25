@@ -9,6 +9,7 @@
     "types/SeverityTableRow.types.ts",
     "types/TimeSeries.types.ts",
     "model.ts",
-    "run.ts"
+    "run.ts",
+    "wrapper.ts"
   ]
 }

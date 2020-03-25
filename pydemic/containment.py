@@ -28,7 +28,8 @@ class ContainmentModel:
         self._interp = interp1d(self.times, self.factors)
 
     def get_dictionary(self):
-        
+        obj = {}
+        return obj
 
 
     def __call__(self, time):
