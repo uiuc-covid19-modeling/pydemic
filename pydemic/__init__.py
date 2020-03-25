@@ -33,7 +33,7 @@ class AttrDict(dict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
-from pydemic.containmentmodel import ContainmentModel
+from pydemic.containment import ContainmentModel
 from pydemic.simulation import Simulation
 
 class AgeDistribution(AttrDict):
