@@ -28,7 +28,7 @@ class AttrDict(dict):
     expected_kwargs = set()
 
     def __init__(self, *args, **kwargs):
-        if self.expected_kwargs.issubset(set(kwargs.keys())):
+        if not self.expected_kwargs.issubset(set(kwargs.keys())):
             raise ValueError
 
         super(AttrDict, self).__init__(*args, **kwargs)
@@ -40,8 +40,16 @@ class AgeDistribution(AttrDict):
 
 
 class PopulationModel(AttrDict):
-    pass
-
+    expected_kwargs = {
+        'country',
+        'cases',
+        'populationServed',
+        'hospitalBeds',
+        'ICUBeds',
+        'suspectedCasesToday',
+        'importsPerDay',
+        'populationsByDecade'
+    }
 
 
 __all__ = [
