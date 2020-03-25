@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     # set epidemiology model
     epidemiology = EpidemiologyModel(
-        r0=3.7,
+        r0=2.7,
         incubation_time=5,
         infectious_period=3,
         length_hospital_stay=4,
@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     # set containment model
     containment = ContainmentModel(start_date, end_date)
-    containment.add_sharp_event((2020, 3, 15), 0.5)
+    containment.add_sharp_event((2020, 3, 15), 1.0)
 
     # create simulation object
     sim = Simulation(population, epidemiology, severity, age_distribution,

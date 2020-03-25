@@ -35,7 +35,11 @@ class SimulationState(AttrDict):
         'susceptible',
         'exposed',
         'hospitalized',
+        'intensive',
+        'discharged',
+        'recovered',
         'critical',
+        'dead',
         'overflow',
     }
 
@@ -55,14 +59,14 @@ class SimulationState(AttrDict):
 
 
 class SimulationResult(AttrDict):
-    def __init__(self, start_time, initial_state):
+    def __init__(self, initial_state):
         input_vals = {key: initial_state[key]
                       for key in initial_state.expected_kwargs}
-        input_vals['times'] = np.array(start_time)
+        # input_vals['times'] = np.array(start_time)
         super().__init__(**input_vals)
 
-    def extend(self, time, population):
-        self.times = np.append(self.times, time)
+    def extend(self, population):
+        # self.times = np.append(self.times, time)
         for key in population.expected_kwargs:
             self[key] = np.vstack((self[key], population[key]))
 
@@ -116,7 +120,8 @@ class Simulation:
         avg_isolated_frac = np.sum(freqs * severity.isolated) / 100
 
         # assume flat distribution of imports among age groups
-        self.imports_per_day = population.imports_per_day / self.num_age_groups
+        fractional_imports = population.imports_per_day / self.num_age_groups
+        self.imports_per_day = fractional_imports * np.ones(self.num_age_groups)
 
         self.totals = {
             'recovery_rate': (
@@ -157,6 +162,7 @@ class Simulation:
         frac_infected = sum(state.infectious) / self.population.population_served
         new_time = time + self.dt
         new_state = state.copy()
+        new_state.time = new_time
 
         new_cases = (
             sample(self.imports_per_day * self.dt_days)
@@ -200,18 +206,18 @@ class Simulation:
             sample(state.overflow * self.dt_days * self.overflow_death_rate)
         )
 
-        new_state.susceptible = state.susceptible - new_cases
-        new_state.exposed = new_cases - new_infectious
-        new_state.infectious = new_infectious - new_recovered - new_hospitalized
-        new_state.hospitalized = (new_hospitalized + new_stabilized
-                                  + new_overflow_stabilized - new_discharged
-                                  - new_critical)
+        new_state.susceptible += - new_cases
+        new_state.exposed += new_cases - new_infectious
+        new_state.infectious += new_infectious - new_recovered - new_hospitalized
+        new_state.hospitalized += (new_hospitalized + new_stabilized
+                                   + new_overflow_stabilized - new_discharged
+                                   - new_critical)
 
         # Cumulative categories
-        new_state.recovered = new_recovered + new_discharged
-        new_state.intensive = new_critical
-        new_state.discharged = new_discharged
-        new_state.dead = new_ICU_dead + new_overflow_dead
+        new_state.recovered += new_recovered + new_discharged
+        new_state.intensive += new_critical
+        new_state.discharged += new_discharged
+        new_state.dead += new_ICU_dead + new_overflow_dead
 
         free_ICU_beds = (
             self.population.ICU_beds
@@ -263,6 +269,7 @@ class Simulation:
 
         init = {key: np.zeros(len(ages))
                 for key in SimulationState.expected_kwargs}
+        init['time'] = start_time
 
         fracs = ages / np.sum(ages)
         init['susceptible'] = fracs * self.population.population_served
@@ -279,14 +286,14 @@ class Simulation:
 
     def __call__(self, start_time, end_time, sample):
         state = self.initialize_population(start_time)
-        result = SimulationResult(start_time, state)
+        result = SimulationResult(state)
 
         time = start_time
         while time < end_time:
             state = self.step(time, state, sample)
-            result.extend(time, state)
+            result.extend(state)
+            print(state)
             time += self.dt
-            print(time, state)
             1/0
 
         return result
