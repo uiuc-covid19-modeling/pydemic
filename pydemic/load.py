@@ -44,7 +44,7 @@ with open(_agedata_filename, 'r') as f:
 
 
 def get_valid_pops():
-    return [x['name'] for x in _populations]
+    return _population_dict.keys()
 
 
 def get_valid_ages():
