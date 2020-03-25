@@ -45,7 +45,7 @@ class Parameters(AttrDict):
     }
 
 
-class Population:
+class Population(AttrDict):
     expected_kwargs = {
         'infections',
         'time',
@@ -167,5 +167,35 @@ def evolve(population, pars, sample):
     return new_population
 
 
+
+def simulate(initial_state, func):
+    dynamics = [initialState]
+    while (dynamics[dynamics.length - 1].time < tMax):
+        pop = dynamics[dynamics.length - 1]
+        dynamics.push(evolve(pop, modelParams, func))
+
+    return collectTotals(dynamics)
+
+
 def run(params, severity, age_distribution, contaiments):
-    pass
+    modelParams = getPopulationParams(params, severity, age_distribution,
+                                      interpolateTimeSeries(containment))
+    tMin = params.simulationTimeRange.tMin.getTime()
+    tMax = params.simulationTimeRange.tMax.getTime()
+    initialCases = params.suspectedCasesToday
+    initialState = initializePopulation(modelParams.populationServed,
+                                        initialCases, tMin, age_distribution)
+
+    # sim: AlgorithmResult = {
+    # deterministicTrajectory: simulate(initialState, identity),
+    # stochasticTrajectories: [],
+    # params: modelParams,
+    # }
+
+    for i in range(modelParams.numberStochasticRuns):
+        initialState = initializePopulation(
+            modelParams.populationServed, initialCases, tMin, age_distribution
+        )
+        sim.stochasticTrajectories.push(simulate(initialState, poisson))
+
+    return sim
