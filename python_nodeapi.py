@@ -51,7 +51,6 @@ if __name__ == "__main__":
 
     ## set containment model
     containment = ContainmentModel(start_time, end_time)
-    containment.add_sharp_event([2020,3,15], 0.5)
 
 
     ## the node/javascript wrapper expects some things in a certain foramt
@@ -61,10 +60,28 @@ if __name__ == "__main__":
     }
     population.populations_by_decade = age_distribution.counts
     containment_dict = containment.get_dictionary()
-
+    severities = []
+    severity_labels = ["0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"]
+    for i in range(len(severity.id)):
+      dobj = {
+        "id": int(severity.id[i]),
+        "ageGroup": severity_labels[i],
+        "isolated": severity.isolated[i],
+        "confirmed": severity.confirmed[i],
+        "severe": severity.severe[i],
+        "critical": severity.critical[i],
+        "fatal": severity.fatal[i]
+      }
+      severities.append(dobj)
 
     ## generate and POST request to javascript api
-    body = { "simulation":simulation, "population":population, "containment":containment_dict, "epidemiology":epidemiology }
+    body = { 
+        "simulation": simulation, 
+        "population": population, 
+        "containment": containment_dict, 
+        "epidemiology": epidemiology,
+        "severities": severities
+    }
     r = requests.post(url=URL, data=json.dumps(body))
     data = r.json()
     dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
@@ -84,8 +101,8 @@ if __name__ == "__main__":
     ax1.axhline(y=population['ICU_beds'],ls=':',c='#999999')
 
     # plot containment
-    mitigation_dates = [ datetime(*x[:-2]) for x in containment["times"] ]
-    ax2.plot(mitigation_dates, containment["factors"], 'ok-', lw=2)
+    mitigation_dates = [ datetime(*x[:-2]) for x in containment_dict["times"] ]
+    ax2.plot(mitigation_dates, containment_dict["factors"], 'ok-', lw=2)
     ax2.set_ylim(0,1.2)
 
     # plot on y log scale
