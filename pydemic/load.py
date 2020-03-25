@@ -59,8 +59,8 @@ def get_country_population_model(country):
 def get_age_distribution_model(subregion):
     age_data = list(_age_data[subregion].values())
     from pydemic import AgeDistribution
-    binedges = [ 0, 10, 20, 30, 40, 50, 60, 70, 80 ]
-    return AgeDistribution(binedges=binedges, counts=age_data)
+    bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
+    return AgeDistribution(bin_edges=bin_edges, counts=age_data)
 
 
 if __name__ == "__main__":

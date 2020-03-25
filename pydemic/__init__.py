@@ -36,8 +36,8 @@ class AttrDict(dict):
 
 
 class AgeDistribution(AttrDict):
-    expected_kwargs = { 
-        'binedges',
+    expected_kwargs = {
+        'bin_edges',
         'counts'
     }
 

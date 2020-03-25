@@ -177,20 +177,27 @@ def simulate(initial_state, func):
     return collectTotals(dynamics)
 
 
-def run(params, severity, age_distribution, contaiments):
-    modelParams = getPopulationParams(params, severity, age_distribution,
-                                      interpolateTimeSeries(containment))
-    tMin = params.simulationTimeRange.tMin.getTime()
-    tMax = params.simulationTimeRange.tMax.getTime()
-    initialCases = params.suspectedCasesToday
-    initialState = initializePopulation(modelParams.populationServed,
-                                        initialCases, tMin, age_distribution)
+def run(population, simulation, epidemiology,
+        severity, age_distribution, containments):
+    # modelParams = getPopulationParams(params, severity, age_distribution,
+    #                                   interpolateTimeSeries(containment))
+    # tMin = params.simulationTimeRange.tMin.getTime()  # int ms
+    # tMax = params.simulationTimeRange.tMax.getTime()  # int ms
+    # initialCases = params.suspectedCasesToday
+    # initialState = initializePopulation(modelParams.populationServed,
+    #                                     initialCases, tMin, age_distribution)
 
     # sim: AlgorithmResult = {
     # deterministicTrajectory: simulate(initialState, identity),
     # stochasticTrajectories: [],
     # params: modelParams,
     # }
+
+    init = {key: np.zeros_like(age_distribution)
+            for key in Population.expected_kwargs}
+    init['susceptible'] = age_distribution.copy()
+    initial_state = Population(**init)
+    print(initial_state.items())
 
     for i in range(modelParams.numberStochasticRuns):
         initialState = initializePopulation(
@@ -199,3 +206,133 @@ def run(params, severity, age_distribution, contaiments):
         sim.stochasticTrajectories.push(simulate(initialState, poisson))
 
     return sim
+
+
+if __name__ == "__main__":
+    simulation = {
+        "start": [ 2020, 3, 1, 0, 0, 0 ],
+        "end": [ 2020, 9, 1, 0, 0, 0 ]
+    }
+
+    epidemiology = {
+        "r0": 3.7,
+        "incubationTime": 5,
+        "infectiousPeriod": 3,
+        "lengthHospitalStay": 4,
+        "lengthICUStay": 14,
+        "seasonalForcing": 0.2,
+        "peakMonth": 0,
+        "overflowSeverity": 2
+    }
+
+    mitigation_factor = 0.8
+    containments = {
+        "times": [
+        [ 2020, 3, 1, 0, 0, 0 ],
+        [ 2020, 3, 14, 0, 0, 0 ],
+        [ 2020, 3, 15, 0, 0, 0 ],
+        [ 2020, 9, 1, 0, 0, 0 ]
+        ],
+        "factors": [
+        1.0,
+        1.0,
+        mitigation_factor,
+        mitigation_factor
+        ]
+    }
+
+    severity = [
+        {
+        "id": 0,
+        "ageGroup": "0-9",
+        "isolated": 0.0,
+        "confirmed": 5.0,
+        "severe": 1.0,
+        "critical": 5,
+        "fatal": 30
+        },
+        {
+        "id": 2,
+        "ageGroup": "10-19",
+        "isolated": 0.0,
+        "confirmed": 5.0,
+        "severe": 3.0,
+        "critical": 10,
+        "fatal": 30
+        },
+        {
+        "id": 4,
+        "ageGroup": "20-29",
+        "isolated": 0.0,
+        "confirmed": 10.0,
+        "severe": 3.0,
+        "critical": 10,
+        "fatal": 30
+        },
+        {
+        "id": 6,
+        "ageGroup": "30-39",
+        "isolated": 0.0,
+        "confirmed": 15.0,
+        "severe": 3.0,
+        "critical": 15,
+        "fatal": 30
+        },
+        {
+        "id": 8,
+        "ageGroup": "40-49",
+        "isolated": 0.0,
+        "confirmed": 20.0,
+        "severe": 6.0,
+        "critical": 20,
+        "fatal": 30
+        },
+        {
+        "id": 10,
+        "ageGroup": "50-59",
+        "isolated": 0.0,
+        "confirmed": 25.0,
+        "severe": 10.0,
+        "critical": 25,
+        "fatal": 40
+        },
+        {
+        "id": 12,
+        "ageGroup": "60-69",
+        "isolated": 0.0,
+        "confirmed": 30.0,
+        "severe": 25.0,
+        "critical": 35,
+        "fatal": 40
+        },
+        {
+        "id": 14,
+        "ageGroup": "70-79",
+        "isolated": 0.0,
+        "confirmed": 40.0,
+        "severe": 35.0,
+        "critical": 45,
+        "fatal": 50
+        },
+        {
+        "id": 16,
+        "ageGroup": "80+",
+        "isolated": 0.0,
+        "confirmed": 50.0,
+        "severe": 50.0,
+        "critical": 55,
+        "fatal": 50
+        }
+    ]
+
+    severity = {}
+
+    POPULATION_NAME = "USA-Illinois"
+    AGE_DATA_NAME = "United States of America"
+
+    from pydemic.load import get_country_population_model
+    population = get_country_population_model(POPULATION_NAME, AGE_DATA_NAME)
+    age_distribution = population['populationsByDecade']
+
+    run(population, simulation, epidemiology,
+        severity, age_distribution, containments)
