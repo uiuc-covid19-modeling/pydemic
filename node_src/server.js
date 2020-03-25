@@ -23,15 +23,7 @@ http.createServer(function (req, res) {
 
       var argdata = JSON.parse(body);
 
-      console.log(argdata);
-
-      console.log(exports.myfunc(argdata).simulationTimeRange.tMin);
-      console.log(exports.myfunc(argdata).simulationTimeRange.tMin.valueOf());
-      
-
       exports.wrapper(argdata).then(function(result) {
-
-        console.log(result);
 
         var times = [];
         var susceptible = [];
@@ -58,22 +50,6 @@ http.createServer(function (req, res) {
           discharged.push(traj[i].discharged.total);
           intensive.push(traj[i].intensive.total);
           dead.push(traj[i].dead.total);
-
-          console.log(traj[i].time);
-          console.log('susceptible');
-          console.log(traj[i].susceptible);
-          //console.log(traj[i].exposed);
-          console.log('infectious');
-          console.log(traj[i].infectious);
-          console.log('recovered');
-          console.log(traj[i].recovered);
-          console.log('hospitalized');
-          console.log(traj[i].hospitalized);
-          //console.log(traj[i].critical);
-          //console.log(traj[i].overflow);
-          //console.log(traj[i].discharged);
-          //console.log(traj[i].intensive);
-          //console.log(traj[i].dead);
         }
 
         var data =
