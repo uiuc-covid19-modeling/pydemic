@@ -25,6 +25,10 @@ http.createServer(function (req, res) {
 
       console.log(argdata);
 
+      console.log(exports.myfunc(argdata).simulationTimeRange.tMin);
+      console.log(exports.myfunc(argdata).simulationTimeRange.tMin.valueOf());
+      
+
       exports.wrapper(argdata).then(function(result) {
 
         console.log(result);

@@ -8,6 +8,25 @@ function getDate(datelist) {
   return new Date(datelist[0], datelist[1]-1, datelist[2], datelist[3], datelist[4], datelist[5]);
 } 
 
+export function myfunc(argdata) {
+  
+  // get data from argument
+  var passedEpidemiology = argdata.epidemiology;
+  var passedSim = argdata.simulation;
+  var passedPop = argdata.population;
+  var passedContainment = argdata.containment;
+
+  var simData : SimulationData = {
+    simulationTimeRange: {
+      tMin: getDate(passedSim.start),
+      tMax: getDate(passedSim.end),
+    },
+    numberStochasticRuns: 0,
+  };
+
+  return simData;
+}
+
 export function wrapper(argdata) {
   
   // get data from argument
