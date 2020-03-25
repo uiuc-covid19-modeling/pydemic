@@ -36,7 +36,7 @@ if __name__ == "__main__":
     ## set epidemiology model
     epidemiology = EpidemiologyModel(
         r0=3.7,
-        incubtation_time=5,
+        incubation_time=5,
         infectious_period=3,
         length_hospital_stay=4,
         length_ICU_stay=14,

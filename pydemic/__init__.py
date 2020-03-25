@@ -60,7 +60,7 @@ class PopulationModel(AttrDict):
 class EpidemiologyModel(AttrDict):
     expected_kwargs = {
         'r0',
-        'incubtation_time',
+        'incubation_time',
         'infectious_period',
         'length_hospital_stay',
         'length_ICU_stay',

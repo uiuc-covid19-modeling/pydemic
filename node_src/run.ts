@@ -48,8 +48,6 @@ export function interpolateTimeSeries(containment: TimeSeries): (t: Date) => num
   }
 }
 
-
-
 import * as d3 from 'd3'
 export function uniformDatesBetween(min: number, max: number, n: number): Date[] {
   const d = (max - min) / (n - 1)
@@ -70,170 +68,13 @@ export function makeTimeSeries(simulationTimeRange: DateRange, values: number[])
   return tSeries
 }
 
-
-function getDate(datelist) {
-  return new Date(datelist[0], datelist[1]-1, datelist[2], datelist[3], datelist[4], datelist[5]);
-} 
-
-export function wrapper(argdata) {
-  
-  // get data from argument
-  var passedEpidemiology = argdata.epidemiology;
-  var passedSim = argdata.simulation;
-  var passedPop = argdata.population;
-  var passedContainment = argdata.containment;
-
-  // javascript run function expects data in this format
-  var popData : PopulationData = {
-    "populationServed": passedPop.populationServed, 
-    "country": passedPop.country, 
-    "hospitalBeds": passedPop.hospitalBeds, 
-    "ICUBeds": passedPop.ICUBeds, 
-    "suspectedCasesToday": passedPop.suspectedCasesToday, 
-    "importsPerDay": passedPop.importsPerDay, 
-    "cases": passedPop.cases
-  };
-
-  var epiData : EpidemiologicalData = { 
-    "r0": passedEpidemiology.r0,
-    "incubationTime": passedEpidemiology.incubationTime,
-    "infectiousPeriod": passedEpidemiology.infectiousPeriod,
-    "lengthHospitalStay": passedEpidemiology.lengthHospitalStay,
-    "lengthICUStay": passedEpidemiology.lengthICUStay,
-    "seasonalForcing": passedEpidemiology.seasonalForcing,
-    "peakMonth": passedEpidemiology.peakMonth,
-    "overflowSeverity": passedEpidemiology.overflowSeverity
-  };
-
-  var simData : SimulationData = {
-    simulationTimeRange: {
-      tMin: getDate(passedSim.start),
-      tMax: getDate(passedSim.end),
-    },
-    numberStochasticRuns: 0,
-  };
-
-  var params : AllParamsFlat = {
-    ...popData,
-    ...epiData,
-    ...simData
-  };
-
-  var severity = [
-    {
-      "id": 0,
-      "ageGroup": "0-9",
-      "isolated": 0.0,
-      "confirmed": 5.0,
-      "severe": 1.0,
-      "critical": 5,
-      "fatal": 30
-    },
-    {
-      "id": 2,
-      "ageGroup": "10-19",
-      "isolated": 0.0,
-      "confirmed": 5.0,
-      "severe": 3.0,
-      "critical": 10,
-      "fatal": 30
-    },
-    {
-      "id": 4,
-      "ageGroup": "20-29",
-      "isolated": 0.0,
-      "confirmed": 10.0,
-      "severe": 3.0,
-      "critical": 10,
-      "fatal": 30
-    },
-    {
-      "id": 6,
-      "ageGroup": "30-39",
-      "isolated": 0.0,
-      "confirmed": 15.0,
-      "severe": 3.0,
-      "critical": 15,
-      "fatal": 30
-    },
-    {
-      "id": 8,
-      "ageGroup": "40-49",
-      "isolated": 0.0,
-      "confirmed": 20.0,
-      "severe": 6.0,
-      "critical": 20,
-      "fatal": 30
-    },
-    {
-      "id": 10,
-      "ageGroup": "50-59",
-      "isolated": 0.0,
-      "confirmed": 25.0,
-      "severe": 10.0,
-      "critical": 25,
-      "fatal": 40
-    },
-    {
-      "id": 12,
-      "ageGroup": "60-69",
-      "isolated": 0.0,
-      "confirmed": 30.0,
-      "severe": 25.0,
-      "critical": 35,
-      "fatal": 40
-    },
-    {
-      "id": 14,
-      "ageGroup": "70-79",
-      "isolated": 0.0,
-      "confirmed": 40.0,
-      "severe": 35.0,
-      "critical": 45,
-      "fatal": 50
-    },
-    {
-      "id": 16,
-      "ageGroup": "80+",
-      "isolated": 0.0,
-      "confirmed": 50.0,
-      "severe": 50.0,
-      "critical": 55,
-      "fatal": 50
-    }
-  ];
-
-  var ageDistribution : OneCountryAgeDistribution = {
-    "0-9": passedPop.populationsByDecade[0],
-    "10-19": passedPop.populationsByDecade[1],
-    "20-29": passedPop.populationsByDecade[2],
-    "30-39": passedPop.populationsByDecade[3],
-    "40-49": passedPop.populationsByDecade[4],
-    "50-59": passedPop.populationsByDecade[5],
-    "60-69": passedPop.populationsByDecade[6],
-    "70-79": passedPop.populationsByDecade[7],
-    "80+": passedPop.populationsByDecade[8]
-  };
-
-  var containment_ts = [];
-  for (var i in passedContainment.factors) {
-    containment_ts.push({"t": getDate(passedContainment.times[i]), "y": passedContainment.factors[i]});
-  }
-
-  return run(params, severity, ageDistribution, containment_ts);
-
-}
-
-
-
-
-
 /**
  *
  * Entry point for the algorithm
  *
  */
-export default async function run(
+//export default async function run(
+export async function runfunc(
   params: AllParamsFlat,
   severity: SeverityTableRow[],
   ageDistribution: OneCountryAgeDistribution,

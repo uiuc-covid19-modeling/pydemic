@@ -27,5 +27,9 @@ class ContainmentModel:
     def _regenerate(self):
         self._interp = interp1d(self.times, self.factors)
 
+    def get_dictionary(self):
+        
+
+
     def __call__(self, time):
         return self._interp(time)
