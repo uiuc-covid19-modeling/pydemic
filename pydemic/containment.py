@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from scipy.interpolate import interp1d
 
 
@@ -6,11 +6,11 @@ class ContainmentModel:
     _interp = None
 
     def __init__(self, start_time, end_time):
-        self.times = [ int(datetime(*start_time).timestamp()*1000), int(datetime(*end_time).timestamp()*1000) ]
+        self.times = [ int(datetime(*start_time,tzinfo=timezone.utc).timestamp()*1000), int(datetime(*end_time,tzinfo=timezone.utc).timestamp()*1000) ]
         self.factors = [1., 1.]
 
     def add_sharp_event(self, time, factor):
-        time_ts = int(datetime(*time).timestamp()*1000)
+        time_ts = int(datetime(*time,tzinfo=timezone.utc).timestamp()*1000)
         index_before = [ i for i,v in enumerate(self.times) if v<time_ts ][-1]
         index_after = [ i for i,v in enumerate(self.times) if v>time_ts ][0]
         self.times.append(time_ts-30000)
@@ -29,6 +29,9 @@ class ContainmentModel:
 
     def get_dictionary(self):
         obj = {}
+        dts = [datetime.utcfromtimestamp(x//1000) for x in self.times]
+        obj['times'] = [ [ x.year, x.month, x.day, x.hour, x.minute, x.second ] for x in dts ]
+        obj['factors'] = self.factors
         return obj
 
 
