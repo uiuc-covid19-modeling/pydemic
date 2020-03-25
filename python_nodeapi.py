@@ -90,12 +90,25 @@ if __name__ == "__main__":
   dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
   dates = [ datetime.utcfromtimestamp(x//1000) for x in data['times'] ]
 
+
+
   ## make figure
-  fig = plt.figure(figsize=(10,6))
-  ax1 = plt.subplot(1,1,1)
+  fig = plt.figure(figsize=(10,8))
+  gs = fig.add_gridspec(3, 1)
+  ax1 = fig.add_subplot(gs[:2,0])
+  ax2 = fig.add_subplot(gs[2,0], sharex=ax1)
 
   for key in dkeys[1:]:
     ax1.plot(dates, data[key], label=key)
+  
+  # plot nice hint data
+  ax1.axhline(y=population['hospitalBeds'],ls=':',c='#999999')
+  ax1.axhline(y=population['ICUBeds'],ls=':',c='#999999')
+
+  # plot containment
+  mitigation_dates = [ datetime(*x[:-2]) for x in containment["times"] ]
+  ax2.plot(mitigation_dates, containment["factors"], 'ok-', lw=2)
+  ax2.set_ylim(0,1.2)
 
   # plot on y log scale
   ax1.set_yscale('log')
@@ -109,12 +122,14 @@ if __name__ == "__main__":
 
   # formatting hints
   ax1.legend()
-  ax1.set_xlabel('time')
+  ax2.set_xlabel('time')
+  ax2.set_ylabel('mitigation factor')
   ax1.set_ylabel('count (persons)')
 
+  plt.tight_layout(rect=[0, 0.03, 1, 0.95])
   plt.savefig('example.png')
 
 
-  print(data)
+
 
 
