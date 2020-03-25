@@ -237,20 +237,20 @@ class Simulation:
         for age in range(self.num_age_groups):
             if free_ICU_beds > new_critical[age]:
                 free_ICU_beds -= new_critical[age]
-                new_state.critical[age] = (new_critical[age] - new_stabilized[age]
+                new_state.critical[age] += (new_critical[age] - new_stabilized[age]
                                            - new_ICU_dead[age])
-                new_state.overflow[age] = (- new_overflow_dead[age]
+                new_state.overflow[age] += (- new_overflow_dead[age]
                                            - new_overflow_stabilized[age])
             elif free_ICU_beds > 0:
                 new_overflow = new_critical[age] - free_ICU_beds
-                new_state.critical[age] = (free_ICU_beds - new_stabilized[age]
+                new_state.critical[age] += (free_ICU_beds - new_stabilized[age]
                                            - new_ICU_dead[age])
-                new_state.overflow[age] = (new_overflow - new_overflow_dead[age]
+                new_state.overflow[age] += (new_overflow - new_overflow_dead[age]
                                            - new_overflow_stabilized[age])
                 free_ICU_beds = 0
             else:
-                new_state.critical[age] = - new_stabilized[age] - new_ICU_dead[age]
-                new_state.overflow[age] = (
+                new_state.critical[age] += - new_stabilized[age] - new_ICU_dead[age]
+                new_state.overflow[age] += (
                     new_critical[age] - new_overflow_dead[age]
                     - new_overflow_stabilized[age]
                 )
