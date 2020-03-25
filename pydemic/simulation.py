@@ -24,12 +24,13 @@ THE SOFTWARE.
 """
 
 
+import numpy as np
 from pydemic import AttrDict
 
 
 class SimulationState(AttrDict):
     expected_kwargs = {
-        'infections',
+        'infectious',
         'time',
         'susceptible',
         'exposed',
@@ -42,13 +43,31 @@ class SimulationState(AttrDict):
         # FIXME: does this work?
         return sum(self[key] for key in self.expected_kwargs)
 
+    def copy(self):
+        input_vals = {key: self[key] for key in self.expected_kwargs}
+        return SimulationState(**input_vals)
 
-class SimulationResult:
-    def __init__(self):
-        pass
+    def __repr__(self):
+        string = ""
+        for key in self.expected_kwargs:
+            string += key + '\t' + str(self[key]) + '\n'
+        return string
 
-    def extend(self, population):
-        pass
+
+class SimulationResult(AttrDict):
+    def __init__(self, start_time, initial_state):
+        input_vals = {key: initial_state[key]
+                      for key in initial_state.expected_kwargs}
+        input_vals['times'] = np.array(start_time)
+        super().__init__(**input_vals)
+
+    def extend(self, time, population):
+        self.times = np.append(self.times, time)
+        for key in population.expected_kwargs:
+            self[key] = np.vstack((self[key], population[key]))
+
+
+ms_per_day = 24 * 60 * 60 * 1000
 
 
 class Simulation:
@@ -60,51 +79,123 @@ class Simulation:
         self.age_distribution = age_distribution
         self.containment = containment
 
-    def step(self, time, state, sample):
-        frac_infected = sum(state.infectious) / self.population_served
-        new_time = time + self.dt
-        age_groups = state.infectious.keys().sort()
+        # infer parameters
+        self.dt_days = .25
+        self.dt = .25 * ms_per_day
 
+        self.num_age_groups = len(age_distribution.counts)
+        total = np.sum(age_distribution)
+
+        freqs = age_distribution.counts / np.sum(age_distribution.counts)
+        self.infection_severity_ratio = (
+            severity.severe / 100 * severity.confirmed / 100
+        )
+
+        self.infection_critical = (
+            self.infection_severity_ratio * (severity.critical / 100)
+        )
+        self.infection_fatality = self.infection_critical * (severity.fatal / 100)
+
+        dHospital = self.infection_severity_ratio
+        dCritical = severity.critical / 100
+        dFatal = severity.fatal / 100
+
+        # Age specific rates
+        self.isolated_frac = severity.isolated / 100
+        self.recovery_rate = (1 - dHospital) / epidemiology.infectious_period
+        self.hospitalized_rate = dHospital / epidemiology.infectious_period
+        self.discharge_rate = (1 - dCritical) / epidemiology.length_hospital_stay
+        self.critical_rate = dCritical / epidemiology.length_hospital_stay
+        self.stabilization_rate = (1 - dFatal) / epidemiology.length_ICU_stay
+        self.death_rate = dFatal / epidemiology.length_ICU_stay
+        self.overflow_death_rate = epidemiology.overflow_severity * self.death_rate
+
+        hospitalized_frac = np.sum(freqs * dHospital)
+        critical_frac_hospitalized = np.sum(freqs * dCritical)
+        fatal_frac_critical = np.sum(freqs * dFatal)
+        avg_isolated_frac = np.sum(freqs * severity.isolated) / 100
+
+        # assume flat distribution of imports among age groups
+        self.imports_per_day = population.imports_per_day / self.num_age_groups
+
+        self.totals = {
+            'recovery_rate': (
+                (1 - hospitalized_frac) / epidemiology.infectious_period
+            ),
+            'hospitalized_rate': hospitalized_frac / epidemiology.infectious_period,
+            'discharge_rate': (
+                (1 - critical_frac_hospitalized) / epidemiology.length_hospital_stay
+            ),
+            'critical_rate': (
+                critical_frac_hospitalized / epidemiology.length_hospital_stay
+            ),
+            'death_rate': fatal_frac_critical / epidemiology.length_ICU_stay,
+            'stabilization_rate': (
+                (1 - fatal_frac_critical) / epidemiology.length_ICU_stay
+            ),
+            'overflowDeath_rate': (
+                epidemiology.overflow_severity
+                * fatal_frac_critical
+                / epidemiology.length_ICU_stay
+            ),
+            'isolatedFrac': avg_isolated_frac,
+        }
+
+        # nfectivity dynamics
+        self.avg_infection_rate = epidemiology.r0 / epidemiology.infectious_period
+
+    def infection_rate(self, time):
+        from pydemic import date_to_ms
+        jan_2020 = date_to_ms((2020, 1, 1))
+        peak_day = 30 * self.epidemiology.peak_month + 15
+        time_offset = (time - jan_2020) / ms_per_day - peak_day
+        phase = 2 * np.pi * time_offset / 365
+        cont = self.containment(time)
+        return cont * (1 + self.epidemiology.seasonal_forcing * np.cos(phase))
+
+    def step(self, time, state, sample):
+        frac_infected = sum(state.infectious) / self.population.population_served
+        new_time = time + self.dt
         new_state = state.copy()
 
         new_cases = (
-            sample(self.population.imports_per_day * self.dt_days)
+            sample(self.imports_per_day * self.dt_days)
             + sample((1 - self.isolated_frac) * self.infection_rate(new_time)
                      * state.susceptible * frac_infected * self.dt_days)
         )
-        new_infectious = min(
+        new_infectious = np.minimum(
             state.exposed,
-            sample(state.exposed * self.dt_days / self.incubation_time)
+            sample(state.exposed * self.dt_days / self.epidemiology.incubation_time)
         )
-        new_recovered = min(
+        new_recovered = np.minimum(
             state.infectious,
             sample(state.infectious * self.dt_days * self.recovery_rate)
         )
-        new_hospitalized = min(
+        new_hospitalized = np.minimum(
             state.infectious - new_recovered,
             sample(state.infectious * self.dt_days * self.hospitalized_rate)
         )
-        new_discharged = min(
+        new_discharged = np.minimum(
             state.hospitalized,
             sample(state.hospitalized * self.dt_days * self.discharge_rate)
         )
-        new_critical = min(
+        new_critical = np.minimum(
             state.hospitalized - new_discharged,
             sample(state.hospitalized * self.dt_days * self.critical_rate)
         )
-        new_stabilized = min(
+        new_stabilized = np.minimum(
             state.critical,
             sample(state.critical * self.dt_days * self.stabilization_rate)
         )
-        new_ICU_dead = min(
+        new_ICU_dead = np.minimum(
             state.critical - new_stabilized,
             sample(state.critical * self.dt_days * self.death_rate)
         )
-        new_overflow_stabilized = min(
+        new_overflow_stabilized = np.minimum(
             state.overflow,
             sample(state.overflow * self.dt_days * self.stabilization_rate)
         )
-        new_overflow_dead = min(
+        new_overflow_dead = np.minimum(
             state.overflow - new_overflow_stabilized,
             sample(state.overflow * self.dt_days * self.overflow_death_rate)
         )
@@ -113,8 +204,8 @@ class Simulation:
         new_state.exposed = new_cases - new_infectious
         new_state.infectious = new_infectious - new_recovered - new_hospitalized
         new_state.hospitalized = (new_hospitalized + new_stabilized
-                                + new_overflow_stabilized - new_discharged
-                                - new_critical)
+                                  + new_overflow_stabilized - new_discharged
+                                  - new_critical)
 
         # Cumulative categories
         new_state.recovered = new_recovered + new_discharged
@@ -123,21 +214,21 @@ class Simulation:
         new_state.dead = new_ICU_dead + new_overflow_dead
 
         free_ICU_beds = (
-            self.total_ICU_beds
+            self.population.ICU_beds
             - (sum(state.critical) - sum(new_stabilized) - sum(new_ICU_dead))
         )
 
-        for age in age_groups:
+        for age in range(self.num_age_groups):
             if free_ICU_beds > new_critical[age]:
                 free_ICU_beds -= new_critical[age]
                 new_state.critical[age] = (new_critical[age] - new_stabilized[age]
-                                        - new_ICU_dead[age])
+                                           - new_ICU_dead[age])
                 new_state.overflow[age] = (- new_overflow_dead[age]
-                                        - new_overflow_stabilized[age])
+                                           - new_overflow_stabilized[age])
             elif free_ICU_beds > 0:
                 new_overflow = new_critical[age] - free_ICU_beds
                 new_state.critical[age] = (free_ICU_beds - new_stabilized[age]
-                                                - new_ICU_dead[age])
+                                           - new_ICU_dead[age])
                 new_state.overflow[age] = (new_overflow - new_overflow_dead[age]
                                            - new_overflow_stabilized[age])
                 free_ICU_beds = 0
@@ -151,39 +242,51 @@ class Simulation:
         # If any overflow patients are left AND there are free beds, move them back.
         # Again, move w/ lower age as priority.
         i = 0
-        while free_ICU_beds > 0 and i < len(age_groups):
-            age = age_groups[i]
-            if new_state.overflow[age] < free_ICU_beds:
-                new_state.critical[age] += new_state.overflow[age]
-                free_ICU_beds -= new_state.overflow[age]
-                new_state.overflow[age] = 0
+        while free_ICU_beds > 0 and i < self.num_age_groups:
+            if new_state.overflow[i] < free_ICU_beds:
+                new_state.critical[i] += new_state.overflow[i]
+                free_ICU_beds -= new_state.overflow[i]
+                new_state.overflow[i] = 0
             else:
-                new_state.critical[age] += free_ICU_beds
-                new_state.overflow[age] -= free_ICU_beds
+                new_state.critical[i] += free_ICU_beds
+                new_state.overflow[i] -= free_ICU_beds
                 free_ICU_beds = 0
             i += 1
 
         # NOTE: For debug purposes only.
-        # const popSum = new_state.get_total_population()
-        # console.log(math.abs(popSum - self.population_served));
+        # popSum = new_state.get_total_population()
 
         return new_state
 
-    def initialize_population(self):
-        init = {key: np.zeros_like(age_distribution)
+    def initialize_population(self, start_time):
+        ages = np.array(self.age_distribution.counts, dtype='float64')
+
+        init = {key: np.zeros(len(ages))
                 for key in SimulationState.expected_kwargs}
-        init['susceptible'] = age_distribution.copy()
+
+        fracs = ages / np.sum(ages)
+        init['susceptible'] = fracs * self.population.population_served
+
+        i_middle = round(ages.shape[0] / 2) + 1
+        initial_cases = self.population.suspected_cases_today
+        init['susceptible'][i_middle] -= initial_cases
+        init['infectious'][i_middle] = 0.3 * initial_cases
+        init['exposed'][i_middle] = 0.7 * initial_cases
+
         initial_state = SimulationState(**init)
 
         return initial_state
 
     def __call__(self, start_time, end_time, sample):
-        state = self.initialize_population()
-        result = SimulationResult(state)
+        state = self.initialize_population(start_time)
+        result = SimulationResult(start_time, state)
 
         time = start_time
         while time < end_time:
             state = self.step(time, state, sample)
-            result.extend(state)
+            result.extend(time, state)
+            time += self.dt
+            print(time, state)
+            1/0
 
         return result

@@ -81,6 +81,12 @@ class SeverityModel(AttrDict):
         'fatal'
     }
 
+
+def date_to_ms(date):
+    from datetime import datetime, timezone
+    return int(datetime(*date, tzinfo=timezone.utc).timestamp() * 1000)
+
+
 __all__ = [
     "AttrDict",
     "AgeDistribution",
@@ -88,8 +94,6 @@ __all__ = [
     "EpidemiologyModel",
     "SeverityModel",
     "ContainmentModel",
-    "Simulation"
+    "Simulation",
+    "date_to_ms",
 ]
-
-
-

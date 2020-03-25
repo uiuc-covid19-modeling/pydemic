@@ -4,24 +4,23 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
 
-from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel
+from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
 from pydemic import Simulation
 from pydemic.load import get_country_population_model, get_age_distribution_model
 
 
 if __name__ == "__main__":
+    # define simulation parameters
+    start_date = (2020, 3, 1, 0, 0, 0)
+    end_date = (2020, 9, 1, 0, 0, 0)
 
-    ## define simulation parameters
-    start_time = (2020, 3, 1, 0, 0, 0)
-    end_time = (2020, 9, 1, 0, 0, 0)
-
-    ## load population from remote data
+    # load population from remote data
     POPULATION_NAME = "USA-Illinois"
     AGE_DATA_NAME = "United States of America"
     population = get_country_population_model(POPULATION_NAME)
     age_distribution = get_age_distribution_model(AGE_DATA_NAME)
 
-    ## set severity model
+    # set severity model
     n_age_groups = 9
     severity = SeverityModel(
         id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
@@ -33,7 +32,7 @@ if __name__ == "__main__":
         fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
     )
 
-    ## set epidemiology model
+    # set epidemiology model
     epidemiology = EpidemiologyModel(
         r0=3.7,
         incubation_time=5,
@@ -45,25 +44,17 @@ if __name__ == "__main__":
         overflow_severity=2
     )
 
-    ## set containment model
-    containment = ContainmentModel(start_time, end_time)
-    containment.add_sharp_event([2020,3,15], 0.5)
+    # set containment model
+    containment = ContainmentModel(start_date, end_date)
+    containment.add_sharp_event((2020, 3, 15), 0.5)
 
+    # create simulation object
+    sim = Simulation(population, epidemiology, severity, age_distribution,
+                     containment)
 
-    ## create simulation object
-    simulation = Simulation(population, epidemiology, severity, age_distribution, containment)
-
-
-
-    # load population from json data
-
-    body = {
-        "population": population,
-        "containment": containment,
-        "epidemiology": epidemiology,
-        "agedistribution": age_distribution
-    }
-    #data = pydemic.run(body)
+    start_time = date_to_ms(start_date)
+    end_time = date_to_ms(end_date)
+    result = sim(start_time, end_time, lambda x: x)
 
     exit()
 
@@ -78,7 +69,7 @@ if __name__ == "__main__":
     dates = [ datetime.utcfromtimestamp(x//1000) for x in data['times'] ]
     """
 
-    ## make figure
+    # make figure
     fig = plt.figure(figsize=(10,8))
     gs = fig.add_gridspec(3, 1)
     ax1 = fig.add_subplot(gs[:2,0])

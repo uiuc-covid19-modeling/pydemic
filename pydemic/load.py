@@ -70,12 +70,12 @@ def get_age_distribution_model(subregion):
 
 
 if __name__ == "__main__":
-  print("valid populations are:")
-  print(get_valid_pops())
-  print("valid age distributions are:")
-  print(get_valid_ages())
+    print("valid populations are:")
+    print(get_valid_pops())
+    print("valid age distributions are:")
+    print(get_valid_ages())
 
-  popdata = get_country_population_model("USA-Illinois", "Ukraine")
+    popdata = get_country_population_model("USA-Illinois")
 
-  for key, val in popdata.__dict__.items():
-      print(key, val)
+    for key, val in popdata.__dict__.items():
+        print(key, val)
