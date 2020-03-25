@@ -48,7 +48,12 @@ class SimulationState(AttrDict):
         return sum(self[key] for key in self.expected_kwargs)
 
     def copy(self):
-        input_vals = {key: self[key] for key in self.expected_kwargs}
+        input_vals = {}
+        for key in self.expected_kwargs:
+            if isinstance(self[key], np.ndarray):
+                input_vals[key] = self[key].copy()
+            else:
+                input_vals[key] = self[key]
         return SimulationState(**input_vals)
 
     def __repr__(self):
