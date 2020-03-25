@@ -34,6 +34,7 @@ class AttrDict(dict):
         self.__dict__ = self
 
 from pydemic.containmentmodel import ContainmentModel
+from pydemic.simulation import Simulation
 
 class AgeDistribution(AttrDict):
     expected_kwargs = {
@@ -81,7 +82,8 @@ __all__ = [
     "PopulationModel",
     "SeverityModel",
     "EpidemiologyModel",
-    "ContainmentModel"
+    "ContainmentModel",
+    "Simulation"
 ]
 
 

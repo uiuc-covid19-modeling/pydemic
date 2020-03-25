@@ -1,5 +1,3 @@
-import requests
-import json
 import numpy as np
 import matplotlib as mpl ; mpl.use('agg')
 import matplotlib.pyplot as plt
@@ -7,30 +5,23 @@ import matplotlib.dates as mdates
 from datetime import datetime
 
 from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel
+from pydemic import Simulation
+from pydemic.load import get_country_population_model, get_age_distribution_model
 
-URL = "http://localhost:8081"
 
 if __name__ == "__main__":
 
-
-
+    ## define simulation parameters
     start_time = (2020, 3, 1, 0, 0, 0)
     end_time = (2020, 9, 1, 0, 0, 0)
 
-    epidemiology = EpidemiologyModel(
-        r0=3.7,
-        incubationTime=5,
-        infectiousPeriod=3,
-        lengthHospitalStay=4,
-        lengthICUStay=14,
-        seasonalForcing=0.2,
-        peakMonth=0,
-        overflowSeverity=2
-    )
+    ## load population from remote data
+    POPULATION_NAME = "USA-Illinois"
+    AGE_DATA_NAME = "United States of America"
+    population = get_country_population_model(POPULATION_NAME)
+    age_distribution = get_age_distribution_model(AGE_DATA_NAME)
 
-    containment = ContainmentModel(start_time, end_time)
-    containment.add_sharp_event([2020,3,15], 0.5)
-
+    ## set severity model
     n_age_groups = 9
     severity = SeverityModel(
         id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
@@ -42,22 +33,35 @@ if __name__ == "__main__":
         fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
     )
 
+    ## set epidemiology model
+    epidemiology = EpidemiologyModel(
+        r0=3.7,
+        incubationTime=5,
+        infectiousPeriod=3,
+        lengthHospitalStay=4,
+        lengthICUStay=14,
+        seasonalForcing=0.2,
+        peakMonth=0,
+        overflowSeverity=2
+    )
+
+    ## set containment model
+    containment = ContainmentModel(start_time, end_time)
+    containment.add_sharp_event([2020,3,15], 0.5)
+
+
+    ## create simulation object
+    simulation = Simulation(population, epidemiology, severity, age_distribution, containment)
+
+
 
     # load population from json data
-    from pydemic.load import get_country_population_model, get_age_distribution_model
-
-    POPULATION_NAME = "USA-Illinois"
-    AGE_DATA_NAME = "United States of America"
-
-    population = get_country_population_model(POPULATION_NAME)
-    agedistribution = get_age_distribution_model(AGE_DATA_NAME)
 
     body = {
-        "simulation": simulation,
         "population": population,
         "containment": containment,
         "epidemiology": epidemiology,
-        "agedistribution": agedistribution
+        "agedistribution": age_distribution
     }
     #data = pydemic.run(body)
 

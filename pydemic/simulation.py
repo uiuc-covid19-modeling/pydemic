@@ -49,12 +49,12 @@ class SimulationResult:
 
 class Simulation:
     def __init__(self, population, epidemiology, severity, age_distribution,
-                 containments):
+                 containment):
         self.population = population
         self.epidemiology = epidemiology
         self.severity = severity
         self.age_distribution = age_distribution
-        self.containments = containments
+        self.containment = containment
 
     def step(self, time, population):
         frac_infected = sum(population.infectious) / self.population_served
