@@ -37,6 +37,12 @@ _agedata_filename = os.path.join(
 
 with open(_popdata_filename, 'r') as f:
     _populations = json.load(f)
+    for el in _populations:
+      el["data"]["population_served"] = el["data"].pop("populationServed")
+      el["data"]["suspected_cases_today"] = el["data"].pop("suspectedCasesToday")
+      el["data"]["ICU_beds"] = el["data"].pop("ICUBeds")
+      el["data"]["hospital_beds"] = el["data"].pop("hospitalBeds")
+      el["data"]["imports_per_day"] = el["data"].pop("importsPerDay")
     _population_dict = {pop['name']: pop['data'] for pop in _populations}
 
 with open(_agedata_filename, 'r') as f:
