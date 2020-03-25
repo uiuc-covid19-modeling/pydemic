@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "lib": [ "ES2017" ]
+  },
+  "files" : [
+    "types/Param.types.ts",
+    "types/CountryAgeDistribution.types.ts",
+    "types/Result.types.ts",
+    "types/SeverityTableRow.types.ts",
+    "types/TimeSeries.types.ts",
+    "model.ts",
+    "run.ts"
+  ]
+}
