@@ -156,7 +156,10 @@ class Simulation:
         time_offset = (time - jan_2020) / ms_per_day - peak_day
         phase = 2 * np.pi * time_offset / 365
         cont = self.containment(time)
-        return cont * (1 + self.epidemiology.seasonal_forcing * np.cos(phase))
+        return (
+            self.avg_infection_rate *
+            (1 + self.epidemiology.seasonal_forcing  * np.cos(phase))
+        )
 
     def step(self, time, state, sample):
         frac_infected = sum(state.infectious) / self.population.population_served
@@ -166,7 +169,9 @@ class Simulation:
 
         new_cases = (
             sample(self.imports_per_day * self.dt_days)
-            + sample((1 - self.isolated_frac) * self.infection_rate(new_time)
+            + sample((1 - self.isolated_frac)
+                     * self.containment(time)
+                     * self.infection_rate(new_time)
                      * state.susceptible * frac_infected * self.dt_days)
         )
         new_infectious = np.minimum(
