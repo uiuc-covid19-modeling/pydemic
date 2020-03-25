@@ -89,6 +89,10 @@ if __name__ == "__main__":
   body = { "simulation":simulation, "population":population, "containment":containment, "epidemiology":epidemiology, "agedistribution":agedistribution }
   #data = pydemic.run(body)
 
+
+  exit()
+
+  data = {}
   dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
   dates = [ datetime.utcfromtimestamp(x//1000) for x in data['times'] ]
 

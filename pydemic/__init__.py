@@ -52,6 +52,16 @@ class PopulationModel(AttrDict):
         'importsPerDay'
     }
 
+class SeverityModel(AttrDict):
+    expected_kwargs = {
+        'id',
+        'age_group',
+        'isolated',
+        'confirmed',
+        'severe',
+        'critical',
+        'fatal'
+    }
 
 __all__ = [
     "AttrDict",

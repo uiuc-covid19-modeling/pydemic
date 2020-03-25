@@ -10,6 +10,7 @@
 # blacklist
 build
 dist
+*.png
 *.pyc
 *.pyo
 *.egg-info
