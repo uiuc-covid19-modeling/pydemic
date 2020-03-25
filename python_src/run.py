@@ -1,130 +1,146 @@
 import numpy as np
+from common import AttrDict
 
 
-# this should be named better
-def evolve(pop, P, sample):
-    fracInfected = sum(pop.infectious) / P.populationServed
-    newTime = pop.time + P.timeDelta
-    Keys = pop.infectious.keys().sort()
+class Parameters(AttrDict):
+    expected_kwargs = {
+        'importsPerDay',
+        'time_delta_days',
+        'isolatedFrac',
+        'infectionRate',
+        'incubationTime',
+        'recoveryRate',
+        'hospitalizedRate',
+        'dischargeRate',
+        'criticalRate',
+        'stabilizationRate',
+        'deathRate',
+        'overflowDeathRate',
+        'ICUBeds',
+    }
 
-    newPop = dict()
 
-    def push(sub, age, delta):
-        newPop[age] = pop[sub][age] + delta
+class Population:
+    expected_kwargs = {
+        'infections',
+        'time',
+        'susceptible',
+        'exposed',
+        'hospitalized',
+        'critical',
+        'overflow',
+    }
 
-    newCases = dict()
-    newInfectious = dict()
-    newRecovered = dict()
-    newHospitalized = dict()
-    newDischarged = dict()
-    newCritical = dict()
-    newStabilized = dict()
-    newICUDead = dict()
-    newOverflowStabilized = dict()
-    newOverflowDead = dict()
 
-    for age in Keys:
-        newCases[age] = (
-            sample(P.importsPerDay[age] * P.timeDeltaDays) +
-            sample(
-                (1 - P.isolatedFrac[age]) * P.infectionRate(newTime) * pop.susceptible[age] * fracInfected * P.timeDeltaDays,
-            )
-        )
-        newInfectious[age] = (
-            min(pop.exposed[age],
-                sample((pop.exposed[age] * P.timeDeltaDays) / P.incubationTime))
-        )
-        newRecovered[age] = (
-            min(pop.infectious[age],
-                sample(pop.infectious[age] * P.timeDeltaDays * P.recoveryRate[age]))
-        )
-        newHospitalized[age] = (
-            min(pop.infectious[age] - newRecovered[age],
-                sample(pop.infectious[age] * P.timeDeltaDays * P.hospitalizedRate[age]))
-        )
-        newDischarged[age] = (
-            min(pop.hospitalized[age],
-                sample(pop.hospitalized[age] * P.timeDeltaDays * P.dischargeRate[age]))
-        )
-        newCritical[age] = (
-            min(pop.hospitalized[age] - newDischarged[age],
-                sample(pop.hospitalized[age] * P.timeDeltaDays * P.criticalRate[age]))
-        )
-        newStabilized[age] = (
-            min(pop.critical[age],
-                sample(pop.critical[age] * P.timeDeltaDays * P.stabilizationRate[age]))
-        )
-        newICUDead[age] = (
-            min(pop.critical[age] - newStabilized[age],
-                sample(pop.critical[age] * P.timeDeltaDays * P.deathRate[age]))
-        )
-        newOverflowStabilized[age] = (
-            min(pop.overflow[age],
-                sample(pop.overflow[age] * P.timeDeltaDays * P.stabilizationRate[age]))
-        )
-        newOverflowDead[age] = (
-            min(pop.overflow[age] - newOverflowStabilized[age],
-                sample(pop.overflow[age] * P.timeDeltaDays * P.overflowDeathRate[age]))
-        )
+def evolve(population, pars, sample):
+    frac_infected = sum(population.infectious) / pars.population_served
+    new_time = population.time + pars.time_delta
+    age_groups = population.infectious.keys().sort()
 
-        push('susceptible', age, -newCases[age])
-        push('exposed', age, newCases[age] - newInfectious[age])
-        push('infectious', age,
-                newInfectious[age] - newRecovered[age] - newHospitalized[age])
-        push('hospitalized', age,
-                newHospitalized[age] + newStabilized[age]
-                + newOverflowStabilized[age] - newDischarged[age]
-                - newCritical[age]
-        )
-        # Cumulative categories
-        push('recovered', age, newRecovered[age] + newDischarged[age])
-        push('intensive', age, newCritical[age])
-        push('discharged', age, newDischarged[age])
-        push('dead', age, newICUDead[age] + newOverflowDead[age])
+    new_population = population.copy()
 
-    freeICUBeds = (
-        P.ICUBeds - (sum(pop.critical) - sum(newStabilized) - sum(newICUDead))
+    new_cases = (
+        sample(pars.importsPerDay * pars.time_delta_days)
+        + sample((1 - pars.isolatedFrac) * pars.infectionRate(new_time)
+                 * population.susceptible * frac_infected * pars.time_delta_days)
+    )
+    new_infectious = min(
+        population.exposed,
+        sample(population.exposed * pars.time_delta_days / pars.incubationTime)
+    )
+    new_recovered = min(
+        population.infectious,
+        sample(population.infectious * pars.time_delta_days * pars.recoveryRate)
+    )
+    new_hospitalized = min(
+        population.infectious - new_recovered,
+        sample(population.infectious * pars.time_delta_days * pars.hospitalizedRate)
+    )
+    new_discharged = min(
+        population.hospitalized,
+        sample(population.hospitalized * pars.time_delta_days * pars.dischargeRate)
+    )
+    new_critical = min(
+        population.hospitalized - new_discharged,
+        sample(population.hospitalized * pars.time_delta_days * pars.criticalRate)
+    )
+    new_stabilized = min(
+        population.critical,
+        sample(population.critical * pars.time_delta_days * pars.stabilizationRate)
+    )
+    new_ICU_dead = min(
+        population.critical - new_stabilized,
+        sample(population.critical * pars.time_delta_days * pars.deathRate)
+    )
+    new_overflow_stabilized = min(
+        population.overflow,
+        sample(population.overflow * pars.time_delta_days * pars.stabilizationRate)
+    )
+    new_overflow_dead = min(
+        population.overflow - new_overflow_stabilized,
+        sample(population.overflow * pars.time_delta_days * pars.overflowDeathRate)
     )
 
-    for ag in Keys:
-        if freeICUBeds > newCritical[age]:
-            freeICUBeds -= newCritical[age]
-            push('critical', age,
-                 newCritical[age] - newStabilized[age] - newICUDead[age])
-            push('overflow', age,
-                 -newOverflowDead[age] - newOverflowStabilized[age])
-        elif freeICUBeds > 0:
-            newOverflow = newCritical[age] - freeICUBeds
-            push('critical', age,
-                 freeICUBeds - newStabilized[age] - newICUDead[age])
-            push('overflow', age,
-                 newOverflow - newOverflowDead[age] - newOverflowStabilized[age])
-            freeICUBeds = 0
+    new_population.susceptible = population.susceptible - new_cases
+    new_population.exposed = new_cases - new_infectious
+    new_population.infectious = new_infectious - new_recovered - new_hospitalized
+    new_population.hospitalized = (new_hospitalized + new_stabilized
+                                   + new_overflow_stabilized - new_discharged
+                                   - new_critical)
+
+    # Cumulative categories
+    new_population.recovered = new_recovered + new_discharged
+    new_population.intensive = new_critical
+    new_population.discharged = new_discharged
+    new_population.dead = new_ICU_dead + new_overflow_dead
+
+    free_ICU_beds = (
+        pars.ICUBeds
+        - (sum(population.critical) - sum(new_stabilized) - sum(new_ICU_dead))
+    )
+
+    for age in age_groups:
+        if free_ICU_beds > new_critical[age]:
+            free_ICU_beds -= new_critical[age]
+            new_population.critical[age] = (new_critical[age] - new_stabilized[age]
+                                    - new_ICU_dead[age])
+            new_population.overflow[age] = (- new_overflow_dead[age]
+                                    - new_overflow_stabilized[age])
+        elif free_ICU_beds > 0:
+            newOverflow = new_critical[age] - free_ICU_beds
+            new_population.critical[age] = (free_ICU_beds - new_stabilized[age]
+                                            - new_ICU_dead[age])
+            new_population.overflow[age] = (newOverflow - new_overflow_dead[age]
+                                            - new_overflow_stabilized[age])
+            free_ICU_beds = 0
         else:
-            push('critical', age, -newStabilized[age] - newICUDead[age])
-            push('overflow', age,
-                 newCritical[age] - newOverflowDead[age] - newOverflowStabilized[age])
+            new_population.critical[age] = - new_stabilized[age] - new_ICU_dead[age]
+            new_population.overflow[age] = (
+                new_critical[age] - new_overflow_dead[age]
+                - new_overflow_stabilized[age]
+            )
 
     # If any overflow patients are left AND there are free beds, move them back.
     # Again, move w/ lower age as priority.
     i = 0
-    while freeICUBeds > 0 and i < len(Keys):
-        age = Keys[i]
-        if newPop.overflow[age] < freeICUBeds:
-            newPop.critical[age] += newPop.overflow[age]
-            freeICUBeds -= newPop.overflow[age]
-            newPop.overflow[age] = 0
+    while free_ICU_beds > 0 and i < len(age_groups):
+        age = age_groups[i]
+        if new_population.overflow[age] < free_ICU_beds:
+            new_population.critical[age] += new_population.overflow[age]
+            free_ICU_beds -= new_population.overflow[age]
+            new_population.overflow[age] = 0
         else:
-            newPop.critical[age] += freeICUBeds
-            newPop.overflow[age] -= freeICUBeds
-            freeICUBeds = 0
+            new_population.critical[age] += free_ICU_beds
+            new_population.overflow[age] -= free_ICU_beds
+            free_ICU_beds = 0
         i += 1
 
     # NOTE: For debug purposes only.
-    # const popSum = sum(newPop.susceptible) + sum(newPop.exposed) + sum(newPop.infectious) + sum(newPop.recovered) + sum(newPop.hospitalized) + sum(newPop.critical) + sum(newPop.overflow) + sum(newPop.dead);
-    # console.log(math.abs(popSum - P.populationServed));
+    # const popSum = sum(new_population.susceptible) + sum(new_population.exposed) + sum(new_population.infectious) + sum(new_population.recovered) + sum(new_population.hospitalized) + sum(new_population.critical) + sum(new_population.overflow) + sum(new_population.dead);
+    # console.log(math.abs(popSum - pars.population_served));
 
-    return newPop
+    return new_population
+
 
 def run(params, severity, age_distribution, contaiments):
     pass
