@@ -7,8 +7,6 @@ from datetime import datetime
 
 from pydemic import PopulationModel, AgeDistribution
 
-import pydemic.population_models as pm
-
 URL = "http://localhost:8081"
 
 if __name__ == "__main__":
@@ -74,9 +72,10 @@ if __name__ == "__main__":
   ## automatically load population from json data
   POPULATION_NAME = "USA-Illinois"
   AGE_DATA_NAME = "United States of America"
-  age_data = pm._age_data[AGE_DATA_NAME]
-  population = [ x for x in pm._populations if x['name']==POPULATION_NAME ][0]['data']
-  population['populationsByDecade'] = [ age_data[key] for key in age_data.keys() ]
+#   import pydemic.population_models as pm
+#   age_data = pm._age_data[AGE_DATA_NAME]
+#   population = [ x for x in pm._populations if x['name']==POPULATION_NAME ][0]['data']
+#   population['populationsByDecade'] = [ age_data[key] for key in age_data.keys() ]
 
   # example of kludge on how to load population data
   from pydemic.load import get_country_population_model
@@ -116,6 +115,6 @@ if __name__ == "__main__":
   plt.savefig('example.png')
 
 
-
+  print(data)
 
 
