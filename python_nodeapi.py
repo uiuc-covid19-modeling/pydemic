@@ -79,10 +79,9 @@ if __name__ == "__main__":
   population['populationsByDecade'] = [ age_data[key] for key in age_data.keys() ]
 
   # example of kludge on how to load population data
-  #age_data = AgeDistribution.AgeDistribution(AGE_DATA_NAME)
-  #population = PopulationModel.PopulationModel(POPULATION_NAME, age_data=age_data)
+  from pydemic.load import get_country_population_model
 
-
+  population = get_country_population_model(POPULATION_NAME, AGE_DATA_NAME)
 
 
   ## generate and POST request to javascript api
