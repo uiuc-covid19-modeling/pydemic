@@ -107,7 +107,6 @@ export function wrapper() {
     ...simData
   };
 
-
   var severity = [
     {
       "id": 0,
