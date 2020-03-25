@@ -78,6 +78,7 @@ function getDate(datelist) {
 export function wrapper(argdata) {
   
   // get data from argument
+  var passedEpidemiology = argdata.epidemiology;
   var passedSim = argdata.simulation;
   var passedPop = argdata.population;
   var passedContainment = argdata.containment;
@@ -94,14 +95,14 @@ export function wrapper(argdata) {
   };
 
   var epiData : EpidemiologicalData = { 
-    "r0": 2.2,
-    "incubationTime": 5,
-    "infectiousPeriod": 3,
-    "lengthHospitalStay": 4,
-    "lengthICUStay": 14,
-    "seasonalForcing": 0.2,
-    "peakMonth": 0,
-    "overflowSeverity": 2
+    "r0": passedEpidemiology.r0,
+    "incubationTime": passedEpidemiology.incubationTime,
+    "infectiousPeriod": passedEpidemiology.infectiousPeriod,
+    "lengthHospitalStay": passedEpidemiology.lengthHospitalStay,
+    "lengthICUStay": passedEpidemiology.lengthICUStay,
+    "seasonalForcing": passedEpidemiology.seasonalForcing,
+    "peakMonth": passedEpidemiology.peakMonth,
+    "overflowSeverity": passedEpidemiology.overflowSeverity
   };
 
   var simData : SimulationData = {

@@ -42,6 +42,17 @@ if __name__ == "__main__":
     "end": [ 2020, 9, 1, 0, 0, 0 ]
   }
 
+  epidemiology = {
+      "r0": 3.7,
+      "incubationTime": 5,
+      "infectiousPeriod": 3,
+      "lengthHospitalStay": 4,
+      "lengthICUStay": 14,
+      "seasonalForcing": 0.2,
+      "peakMonth": 0,
+      "overflowSeverity": 2
+  }
+
   mitigation_factor = 0.8
   containment = {
     "times": [
@@ -69,7 +80,7 @@ if __name__ == "__main__":
 
 
   ## generate and POST request to javascript api
-  body = { "simulation":simulation, "population":population, "containment":containment }
+  body = { "simulation":simulation, "population":population, "containment":containment, "epidemiology":epidemiology }
   r = requests.post(url=URL, data=json.dumps(body))
   data = r.json()
   dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]

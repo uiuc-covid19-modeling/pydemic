@@ -51,28 +51,46 @@ population = {
 }
 ```
 
-## containment data 
-
-*this will change in the near future to enable finer granularity in time*
-
+## simulation times
 ```python
-containemnt = {
-  "factors": [ 
-    1.0, 
-    0.9, 
-    0.8, 
-    0.8, 
-    0.8, 
-    0.8, 
-    0.8, 
-    0.8, 
-    0.8, 
-    0.8
-  ]
+simulation = {
+  "start": [ 2020, 3, 1, 0, 0, 0 ],
+  "end": [ 2020, 9, 1, 0, 0, 0 ]
 }
 ```
 
+## containment data 
 
+```python
+containment = {
+    "times": [
+      [ 2020, 3, 1, 0, 0, 0 ],
+      [ 2020, 3, 14, 0, 0, 0 ],
+      [ 2020, 3, 15, 0, 0, 0 ],
+      [ 2020, 9, 1, 0, 0, 0 ]
+    ],
+    "factors": [ 
+      1.0, 
+      1.0,
+      0.4,
+      0.4
+    ]
+}
+```
+
+## epidemiological model
+```python
+epidemiology = {
+    "r0": 2.2,
+    "incubationTime": 5,
+    "infectiousPeriod": 3,
+    "lengthHospitalStay": 4,
+    "lengthICUStay": 14,
+    "seasonalForcing": 0.2,
+    "peakMonth": 0,
+    "overflowSeverity": 2
+}
+```
 
 
 
