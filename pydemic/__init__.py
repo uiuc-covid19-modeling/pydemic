@@ -23,7 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
 class AttrDict(dict):
     expected_kwargs = set()
 
@@ -34,6 +33,7 @@ class AttrDict(dict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+from pydemic.containmentmodel import ContainmentModel
 
 class AgeDistribution(AttrDict):
     expected_kwargs = {
@@ -52,6 +52,18 @@ class PopulationModel(AttrDict):
         'importsPerDay'
     }
 
+class EpidemiologyModel(AttrDict):
+    expected_kwargs = {
+        'r0',
+        'incubationTime',
+        'infectiousPeriod',
+        'lengthHospitalStay',
+        'lengthICUStay',
+        'seasonalForcing',
+        'peakMonth',
+        'overflowSeverity'
+    }
+
 class SeverityModel(AttrDict):
     expected_kwargs = {
         'id',
@@ -67,6 +79,9 @@ __all__ = [
     "AttrDict",
     "AgeDistribution",
     "PopulationModel",
+    "SeverityModel",
+    "EpidemiologyModel",
+    "ContainmentModel"
 ]
 
 

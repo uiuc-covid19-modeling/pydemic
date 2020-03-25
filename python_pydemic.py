@@ -6,40 +6,30 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
 
-from pydemic import PopulationModel, AgeDistribution, SeverityModel
+from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel
 
 URL = "http://localhost:8081"
 
 if __name__ == "__main__":
+
+
+
     start_time = (2020, 3, 1, 0, 0, 0)
     end_time = (2020, 9, 1, 0, 0, 0)
 
-    epidemiology = {
-        "r0": 3.7,
-        "incubationTime": 5,
-        "infectiousPeriod": 3,
-        "lengthHospitalStay": 4,
-        "lengthICUStay": 14,
-        "seasonalForcing": 0.2,
-        "peakMonth": 0,
-        "overflowSeverity": 2
-    }
+    epidemiology = EpidemiologyModel(
+        r0=3.7,
+        incubationTime=5,
+        infectiousPeriod=3,
+        lengthHospitalStay=4,
+        lengthICUStay=14,
+        seasonalForcing=0.2,
+        peakMonth=0,
+        overflowSeverity=2
+    )
 
-    mitigation_factor = 0.8
-    containment = {
-    "times": [
-        [ 2020, 3, 1, 0, 0, 0 ],
-        [ 2020, 3, 14, 0, 0, 0 ],
-        [ 2020, 3, 15, 0, 0, 0 ],
-        [ 2020, 9, 1, 0, 0, 0 ]
-    ],
-    "factors": [
-        1.0,
-        1.0,
-        mitigation_factor,
-        mitigation_factor
-    ]
-    }
+    containment = ContainmentModel(start_time, end_time)
+    containment.add_sharp_event([2020,3,15], 0.5)
 
     n_age_groups = 9
     severity = SeverityModel(
