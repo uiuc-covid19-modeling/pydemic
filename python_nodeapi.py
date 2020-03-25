@@ -81,7 +81,7 @@ if __name__ == "__main__":
   from pydemic.load import get_country_population_model, get_age_distribution_model
 
   population = get_country_population_model(POPULATION_NAME)
-  population['populationsByDecade'] = get_age_distribution_model(AGE_DATA_NAME)
+  population['populationsByDecade'] = get_age_distribution_model(AGE_DATA_NAME).counts
 
 
   ## generate and POST request to javascript api
