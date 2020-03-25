@@ -44,7 +44,7 @@ if __name__ == "__main__":
         infectious_period=3,
         length_hospital_stay=4,
         length_ICU_stay=14,
-        seasonal_forcing=0.2,
+        seasonal_forcing=0.,
         peak_month=0,
         overflow_severity=2
     )

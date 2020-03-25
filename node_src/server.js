@@ -27,6 +27,8 @@ http.createServer(function (req, res) {
 
       exports.wrapper(argdata).then(function(result) {
 
+        console.log(result);
+
         var times = [];
         var susceptible = [];
         var exposed = [];
@@ -54,10 +56,14 @@ http.createServer(function (req, res) {
           dead.push(traj[i].dead.total);
 
           console.log(traj[i].time);
+          console.log('susceptible');
           console.log(traj[i].susceptible);
           //console.log(traj[i].exposed);
+          console.log('infectious');
           console.log(traj[i].infectious);
-          //console.log(traj[i].recovered);
+          console.log('recovered');
+          console.log(traj[i].recovered);
+          console.log('hospitalized');
           console.log(traj[i].hospitalized);
           //console.log(traj[i].critical);
           //console.log(traj[i].overflow);
