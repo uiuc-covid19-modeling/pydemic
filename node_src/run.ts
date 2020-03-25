@@ -89,7 +89,7 @@ export function wrapper(argdata) {
     "hospitalBeds": passedPop.hospitalBeds, 
     "ICUBeds": passedPop.ICUBeds, 
     "suspectedCasesToday": passedPop.suspectedCasesToday, 
-    "importsPerDay": passedPop.importedPerDay, 
+    "importsPerDay": passedPop.importsPerDay, 
     "cases": passedPop.cases
   };
 

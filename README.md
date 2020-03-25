@@ -35,7 +35,7 @@ population = {
   "ICUBeds": 1400,
   # estimated infectivity model parameters
   "suspectedCasesToday": 1148,
-  "importedPerDay": 4.0,
+  "importsPerDay": 4.0,
   # granular population statistics
   "populationsByDecade": [
     4994996,

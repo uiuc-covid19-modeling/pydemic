@@ -5,16 +5,13 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
 
+from python_src import population_models as pm
+
 URL = "http://localhost:8080"
 
 if __name__ == "__main__":
 
-  mitigation_factor = 0.4
-
-  simulation = {
-    "start": [ 2020, 3, 1, 0, 0, 0 ],
-    "end": [ 2020, 9, 1, 0, 0, 0 ]
-  }
+  ## example parameter sets here
   population = {
     # total demographic information and labels
     "country": "Switzerland",
@@ -25,7 +22,7 @@ if __name__ == "__main__":
     "ICUBeds": 1400,
     # estimated infectivity model parameters
     "suspectedCasesToday": 1148,
-    "importedPerDay": 4.0,
+    "importsPerDay": 4.0,
     # granular population statistics
     "populationsByDecade": [
       4994996,
@@ -39,6 +36,13 @@ if __name__ == "__main__":
       4528548
     ]
   }
+
+  simulation = {
+    "start": [ 2020, 3, 1, 0, 0, 0 ],
+    "end": [ 2020, 9, 1, 0, 0, 0 ]
+  }
+
+  mitigation_factor = 0.8
   containment = {
     "times": [
       [ 2020, 3, 1, 0, 0, 0 ],
@@ -53,20 +57,30 @@ if __name__ == "__main__":
       mitigation_factor
     ]
   }
-  
-  body = { "simulation":simulation, "population":population, "containment":containment }
 
+
+
+  ## automatically load population from json data
+  POPULATION_NAME = "USA-Illinois"
+  AGE_DATA_NAME = "United States of America"
+  age_data = pm._age_data[AGE_DATA_NAME]
+  population = [ x for x in pm._populations if x['name']==POPULATION_NAME ][0]['data']
+  population['populationsByDecade'] = [ age_data[key] for key in age_data.keys() ]
+
+
+  ## generate and POST request to javascript api
+  body = { "simulation":simulation, "population":population, "containment":containment }
   r = requests.post(url=URL, data=json.dumps(body))
   data = r.json()
   dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
   dates = [ datetime.utcfromtimestamp(x//1000) for x in data['times'] ]
 
-  # make figure
+  ## make figure
   fig = plt.figure(figsize=(10,6))
   ax1 = plt.subplot(1,1,1)
 
   for key in dkeys[1:]:
-    ax1.plot(dates, data[key])
+    ax1.plot(dates, data[key], label=key)
   
   # plot on y log scale
   ax1.set_yscale('log')
@@ -76,6 +90,12 @@ if __name__ == "__main__":
   ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
   #ax1.set_xlim(dates[0],dates[-1])
   fig.autofmt_xdate()
+
+
+  # formatting hints
+  ax1.legend()
+  ax1.set_xlabel('time')
+  ax1.set_ylabel('count (persons)')
 
   plt.savefig('example.png')
 
