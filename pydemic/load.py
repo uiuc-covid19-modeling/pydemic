@@ -51,12 +51,16 @@ def get_valid_ages():
     return _age_data.keys()
 
 
-def get_country_population_model(country, subregion):
+def get_country_population_model(country):
     country_data = _population_dict[country]
-    age_data = list(_age_data[subregion].values())
-
     from pydemic import PopulationModel
-    return PopulationModel(**country_data, populationsByDecade=age_data)
+    return PopulationModel(**country_data)
+
+def get_age_distribution_model(subregion):
+    age_data = list(_age_data[subregion].values())
+    from pydemic import AgeDistribution
+    binedges = [ 0, 10, 20, 30, 40, 50, 60, 70, 80 ]
+    return AgeDistribution(binedges=binedges, counts=age_data)
 
 
 if __name__ == "__main__":

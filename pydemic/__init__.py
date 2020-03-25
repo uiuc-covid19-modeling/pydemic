@@ -36,8 +36,10 @@ class AttrDict(dict):
 
 
 class AgeDistribution(AttrDict):
-    pass
-
+    expected_kwargs = { 
+        'binedges',
+        'counts'
+    }
 
 class PopulationModel(AttrDict):
     expected_kwargs = {
@@ -47,8 +49,7 @@ class PopulationModel(AttrDict):
         'hospitalBeds',
         'ICUBeds',
         'suspectedCasesToday',
-        'importsPerDay',
-        'populationsByDecade'
+        'importsPerDay'
     }
 
 
@@ -57,3 +58,6 @@ __all__ = [
     "AgeDistribution",
     "PopulationModel",
 ]
+
+
+
