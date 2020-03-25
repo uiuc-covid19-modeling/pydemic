@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
 
+from python_src import PopulationModel, AgeDistribution
+
 from python_src import population_models as pm
 
 URL = "http://localhost:8080"
@@ -69,14 +71,17 @@ if __name__ == "__main__":
     ]
   }
 
-
-
   ## automatically load population from json data
   POPULATION_NAME = "USA-Illinois"
   AGE_DATA_NAME = "United States of America"
   age_data = pm._age_data[AGE_DATA_NAME]
   population = [ x for x in pm._populations if x['name']==POPULATION_NAME ][0]['data']
   population['populationsByDecade'] = [ age_data[key] for key in age_data.keys() ]
+
+  # example of kludge on how to load population data
+  #population = PopulationModel.PopulationModel(POPULATION_NAME)
+  #age_data = AgeDistribution.AgeDistribution(AGE_DATA_NAME)
+
 
 
   ## generate and POST request to javascript api
