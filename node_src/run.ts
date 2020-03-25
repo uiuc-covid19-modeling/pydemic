@@ -70,16 +70,27 @@ export function makeTimeSeries(simulationTimeRange: DateRange, values: number[])
   return tSeries
 }
 
-export function wrapper() {
+
+function getDate(datelist) {
+  return new Date(datelist[0], datelist[1]-1, datelist[2], datelist[3], datelist[4], datelist[5]);
+} 
+
+export function wrapper(argdata) {
   
+  // get data from argument
+  var passedSim = argdata.simulation;
+  var passedPop = argdata.population;
+  var passedContainment = argdata.containment;
+
+  // javascript run function expects data in this format
   var popData : PopulationData = {
-    "populationServed": 8600000, 
-    "country": "Switzerland", 
-    "hospitalBeds": 30799, 
-    "ICUBeds": 1400, 
-    "suspectedCasesToday": 1148, 
-    "importsPerDay": 4.0, 
-    "cases": "Switzerland"
+    "populationServed": passedPop.populationServed, 
+    "country": passedPop.country, 
+    "hospitalBeds": passedPop.hospitalBeds, 
+    "ICUBeds": passedPop.ICUBeds, 
+    "suspectedCasesToday": passedPop.suspectedCasesToday, 
+    "importsPerDay": passedPop.importedPerDay, 
+    "cases": passedPop.cases
   };
 
   var epiData : EpidemiologicalData = { 
@@ -95,8 +106,8 @@ export function wrapper() {
 
   var simData : SimulationData = {
     simulationTimeRange: {
-      tMin: new Date(2020, 3, 3),
-      tMax: new Date(2020, 9, 3)
+      tMin: getDate(passedSim.start),
+      tMax: getDate(passedSim.end),
     },
     numberStochasticRuns: 0,
   };
@@ -192,24 +203,28 @@ export function wrapper() {
   ];
 
   var ageDistribution : OneCountryAgeDistribution = {
-    "0-9": 4994996,
-    "10-19": 5733447,
-    "20-29": 6103437,
-    "30-39": 6998434,
-    "40-49": 9022004,
-    "50-59": 9567192,
-    "60-69": 7484860,
-    "70-79": 6028907,
-    "80+": 4528548
+    "0-9": passedPop.populationsByDecade[0],
+    "10-19": passedPop.populationsByDecade[1],
+    "20-29": passedPop.populationsByDecade[2],
+    "30-39": passedPop.populationsByDecade[3],
+    "40-49": passedPop.populationsByDecade[4],
+    "50-59": passedPop.populationsByDecade[5],
+    "60-69": passedPop.populationsByDecade[6],
+    "70-79": passedPop.populationsByDecade[7],
+    "80+": passedPop.populationsByDecade[8]
   };
 
-  var containment = [1.0, 0.9, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8];
-  var containmenTS = makeTimeSeries(simData.simulationTimeRange, containment);
+  var containment_ts = [];
+  for (var i in passedContainment.factors) {
+    containment_ts.push({"t": getDate(passedContainment.times[i]), "y": passedContainment.factors[i]});
+  }
 
-  return run(params, severity, ageDistribution, containmenTS);
-
+  return run(params, severity, ageDistribution, containment_ts);
 
 }
+
+
+
 
 
 /**
