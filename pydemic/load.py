@@ -25,14 +25,18 @@ THE SOFTWARE.
 
 import json
 import os
+import numpy as np
+
+cwd = os.path.dirname(os.path.abspath(__file__))
 
 _popdata_filename = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "../src/assets/data/population.json"
+    cwd, "../src/assets/data/population.json"
 )
 _agedata_filename = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "../src/assets/data/country_age_distribution.json"
+    cwd, "../src/assets/data/country_age_distribution.json"
+)
+_casedata_filename = os.path.join(
+     cwd, "../data/assets/case_counts.json"
 )
 
 with open(_popdata_filename, 'r') as f:
@@ -48,6 +52,9 @@ with open(_popdata_filename, 'r') as f:
 with open(_agedata_filename, 'r') as f:
     _age_data = json.load(f)
 
+with open(_casedata_filename, 'r') as f:
+    _case_data = json.load(f)
+
 
 def get_valid_pops():
     return _population_dict.keys()
@@ -62,11 +69,37 @@ def get_country_population_model(country):
     from pydemic import PopulationModel
     return PopulationModel(**country_data)
 
+
 def get_age_distribution_model(subregion):
     age_data = list(_age_data[subregion].values())
     from pydemic import AgeDistribution
     bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
     return AgeDistribution(bin_edges=bin_edges, counts=age_data)
+
+
+def get_case_data(subregion):
+    data_series = _case_data[subregion].copy()
+    from pydemic import CaseData
+
+    data_dict = {}
+    for key in CaseData.expected_kwargs:
+        if key not in  ('dates', 'last_date'):
+            # replace None with 0
+            dat = [d[key] or 0 for d in data_series]
+            data_dict[key] = np.array(dat)
+
+    def to_tuple(date):
+        return tuple(map(int, date.split('-')))
+
+    date_tuples = [to_tuple(d['time']) for d in data_series]
+    from pydemic import date_to_ms
+    times = np.array(list(map(date_to_ms, date_tuples)))
+    ms_per_day = 24 * 60 * 60 * 1000
+
+    data_dict['dates'] = (times - times[-1]) // ms_per_day
+    data_dict['last_date'] = date_tuples[-1]
+
+    return CaseData(**data_dict)
 
 
 if __name__ == "__main__":
@@ -79,3 +112,5 @@ if __name__ == "__main__":
 
     for key, val in popdata.__dict__.items():
         print(key, val)
+
+    print(get_case_data('USA-Illinois'))

@@ -82,6 +82,18 @@ class SeverityModel(AttrDict):
     }
 
 
+class CaseData(AttrDict):
+    expected_kwargs = {
+        'dates',
+        'last_date',
+        'cases',
+        'deaths',
+        'hospitalized',
+        'ICU',
+        'recovered'
+    }
+
+
 def date_to_ms(date):
     from datetime import datetime, timezone
     return int(datetime(*date, tzinfo=timezone.utc).timestamp() * 1000)
@@ -94,6 +106,7 @@ __all__ = [
     "EpidemiologyModel",
     "SeverityModel",
     "ContainmentModel",
+    "CaseData",
     "Simulation",
     "date_to_ms",
 ]
