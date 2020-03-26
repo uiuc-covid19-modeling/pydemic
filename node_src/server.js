@@ -54,8 +54,8 @@ http.createServer(function (req, res) {
 
         var data =
         {
-          "times": times,
-          "suspectible": susceptible,
+          "time": times,
+          "susceptible": susceptible,
           "exposed": exposed,
           "infectious": infectious,
           "recovered": recovered,

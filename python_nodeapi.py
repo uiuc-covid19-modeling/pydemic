@@ -84,8 +84,8 @@ if __name__ == "__main__":
     }
     r = requests.post(url=URL, data=json.dumps(body))
     data = r.json()
-    dkeys = [ 'times', 'suspectible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
-    dates = [ datetime.utcfromtimestamp(x//1000) for x in data['times'] ]
+    dkeys = [ 'time', 'susceptible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
+    dates = [ datetime.utcfromtimestamp(x//1000) for x in data['time'] ]
 
     ## make figure
     fig = plt.figure(figsize=(10,8))
