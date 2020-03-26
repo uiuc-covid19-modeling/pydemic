@@ -60,6 +60,7 @@ setup(name=package,
       install_requires=[
           "numpy",
           "scipy",
+          "xlrd",
           ],
 
     #   author="George Wong",
