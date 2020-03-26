@@ -1,3 +1,6 @@
+*deprecated, please see examples in ```python_compare.py```*
+
+
 api description below
 
 ## information in a population model
