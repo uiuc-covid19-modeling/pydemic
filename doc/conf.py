@@ -17,9 +17,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = "PROJECT_NAME"
-copyright = '2019, AUTHOR_NAME'
-author = 'AUTHOR_NAME'
+project = 'pydemic'
+copyright = '2020, George N Wong and Zachary J Weiner'
+author = 'George N Wong and Zachary J Weiner'
 
 import pkg_resources
 version = pkg_resources.get_distribution(project).version

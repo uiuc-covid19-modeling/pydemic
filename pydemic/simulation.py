@@ -27,8 +27,40 @@ THE SOFTWARE.
 import numpy as np
 from pydemic import AttrDict
 
+__doc__ = """
+.. currentmodule:: pydemic
+.. autoclass:: Simulation
+.. currentmodule:: pydemic.simulation
+.. autoclass:: SimulationState
+.. autoclass:: SimulationResult
+"""
+
 
 class SimulationState(AttrDict):
+    """
+    .. attribute:: infectious
+
+    .. attribute:: time
+
+    .. attribute:: susceptible
+
+    .. attribute:: exposed
+
+    .. attribute:: hospitalized
+
+    .. attribute:: intensive
+
+    .. attribute:: discharged
+
+    .. attribute:: recovered
+
+    .. attribute:: critical
+
+    .. attribute:: dead
+
+    .. attribute:: overflow
+    """
+
     expected_kwargs = {
         'infectious',
         'time',
@@ -87,8 +119,127 @@ ms_per_day = 24 * 60 * 60 * 1000
 
 
 class Simulation:
+    """
+    Main simulation driver.
+
+    .. attribute:: dt_days
+
+        The time step increment in days.
+
+    .. attribute:: dt
+
+        :attr:`dt_days` in miliseconds.
+
+    The following are determined by the passed :class:`SeverityModelModel`.
+
+    .. attribute:: infection_severity_ratio
+
+        The fraction of cases(?) which are confirmed
+        (:attr:`SeverityModel.confirmed`) and
+        (:attr:`SeverityModel.severe`).
+
+    .. attribute:: infection_critical
+
+        The fraction of cases(?) which are severe (:attr:`infection_severity_ratio`)
+        and also critical (:attr:`SeverityModel.critical`).
+
+    .. attribute:: infection_fatality
+
+        The fraction of cases(?) which are critical (:attr:`infection_critical`)
+        and also fatal (:attr:`SeverityModel.fatal`).
+
+    .. attribute:: isolated_frac
+
+        The fraction of cases(?) which are isolated (:attr:`SeverityModel.isoalted`).
+
+    The following are determined by the passed
+    :class:`EpidemiologyModel`.
+
+    .. attribute:: avg_infection_rate
+
+        The average rate of infection, determined by
+        :attr:`EpidemiologyModel.r0` divided by the duration of
+        infectiousness (:attr:`EpidemiologyModel.infectious_period`).
+
+    .. automethod:: infection_rate
+
+    .. attribute:: recovery_rate
+
+        The number of non-hospitalized cases(?) divided by
+        :attr:`EpidemiologyModel.infectious_period`.
+
+    .. attribute:: hospitalized_rate
+
+        The number of hospitalized cases(?) divided by
+        :attr:`EpidemiologyModel.infectious_period`.
+
+    .. attribute:: discharge_rate
+
+        The rate at which cases(?) are discharged, equal to the
+        fraction of non-critical cases (the complement of
+        :attr:`SeverityModelModel.critical`)
+        divided by :attr:`EpidemiologyModel.length_hospital_stay`.
+
+    .. attribute:: critical_rate
+
+        The rate at which cases(?) become critical, equal to the
+        fraction of critical cases (:attr:`SeverityModelModel.critical`)
+        divided by :attr:`EpidemiologyModel.length_hospital_stay`.
+
+    .. attribute:: stabilization_rate
+
+        The rate at which critical cases(?) stabilize, equal to the
+        fraction of non-fatal cases (the complement of
+        :attr:`SeverityModelModel.fatal`)
+        divided by :attr:`EpidemiologyModel.length_ICU_stay`.
+
+    .. attribute:: death_rate
+
+        The rate at which critical cases(?) become fatal, equal to the
+        fraction of fatal cases (:attr:`SeverityModelModel.fatal`)
+        divided by :attr:`EpidemiologyModel.length_ICU_stay`.
+
+    .. attribute:: overflow_death_rate
+
+        A multiple of :attr:`Simulation.death_rate` determined by
+        :attr:`EpidemiologyModel.overflow_severity`.
+
+    The following are determined by the passed
+    :class:`PopulationModel`.
+
+    .. attribute:: imports_per_day
+
+        The number of cases imported into a population per day
+        (:attr:`PopulationModel.imports_per_day`) per age group
+        (which are evenly distributed).
+
+    Other attributes:
+
+    .. attribute:: num_age_groups
+
+        The total number of age groups, given by the length of ``age_distribution``.
+
+    .. attribute:: totals
+
+    .. automethod:: step
+
+    .. automethod:: __call__
+    """
+
     def __init__(self, population, epidemiology, severity, age_distribution,
                  containment):
+        """
+        :arg population: A :class:`PopulationModel.`
+
+        :arg population: A :class:`EpidemiologyModel.`
+
+        :arg population: A :class:`SeverityModelModel.`
+
+        :arg population: A :class:`AgeDistribution.`
+
+        :arg population: A :class:`ContainmentModel.`
+        """
+
         self.population = population
         self.epidemiology = epidemiology
         self.severity = severity
@@ -98,6 +249,8 @@ class Simulation:
         # infer parameters
         self.dt_days = .25
         self.dt = .25 * ms_per_day
+
+        self.avg_infection_rate = epidemiology.r0 / epidemiology.infectious_period
 
         self.num_age_groups = len(age_distribution.counts)
         total = np.sum(age_distribution)
@@ -158,22 +311,157 @@ class Simulation:
             'isolatedFrac': avg_isolated_frac,
         }
 
-        # nfectivity dynamics
-        self.avg_infection_rate = epidemiology.r0 / epidemiology.infectious_period
-
     def infection_rate(self, time):
+        """
+        :arg time: The time in units of miliseconds.
+
+        :returns: The current infection rate, given by the average rate
+            :attr:`avg_infection_rate` modulated by the relative importance
+            (:attr:`EpidemiologyModel.seasonal_forcing`)
+            of the time of year (as a phase), relative to the month of peak
+            infection rate (:attr:`EpidemiologyModel.peak_month`).
+        """
+
         from pydemic import date_to_ms
         jan_2020 = date_to_ms((2020, 1, 1))
         peak_day = 30 * self.epidemiology.peak_month + 15
         time_offset = (time - jan_2020) / ms_per_day - peak_day
         phase = 2 * np.pi * time_offset / 365
-        cont = self.containment(time)
         return (
             self.avg_infection_rate *
             (1 + self.epidemiology.seasonal_forcing  * np.cos(phase))
         )
 
     def step(self, time, state, sample):
+        """
+        Performs a timestep.
+
+        :arg time: The current time.
+
+        :arg state: The current :class:`~pydemic.simulation.SimulationState`.
+
+        :arg sample: The sampling function, specified as a
+            :class:`callable` with signature...
+
+        :returns: The new :class:`~pydemic.simulation.SimulationState`
+            after one time step.
+
+        This method computes the following quantities:
+
+        * The number of new cases, equal to the total imports during
+          the timestep interval plus the number of new infections via transmission,
+          determined by the fraction of non-isolated (i.e., the complement of
+          :attr:`isolated_frac`),
+          :attr:`~pydemic.simulation.SimulationState.susceptible` individuals
+          multiplied by the fraction of infected individuals
+          (:attr:`~pydemic.simulation.SimulationState.infectious`
+          divided by :attr:`PopulationModel.population_served`),
+          further multiplied by the infection rate (:meth:`infection_rate`)
+          and a containment factor :attr:`containment`.
+
+        * The number of new infectious individuals, determined by the number exposed
+          :attr:`~pydemic.simulation.SimulationState.exposed` divded by
+          :attr:`EpidemiologyModel.incubation_time`
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.exposed`).
+
+        * The number of new recoveries, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.infectious` times
+          the :attr:`recovery_rate`
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.infectious`).
+
+        * The number of new hospitalizations, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.infectious` multiplied by the
+          :attr:`hospitalization_rate`
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.infectious` less the
+          number of new recoveries).
+
+        * The number of new discharged patients, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.hospitalized` multiplied by the
+          :attr:`discharge_rate`
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.hospitalized`).
+
+        * The number of new critical (ICU) patitents, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.hospitalized` multiplied by the
+          :attr:`critical_rate`.
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.hospitalized` less the
+          number of new discharges).
+
+        * The number of new ICU stabilizations, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.critical` multiplied by the
+          :attr:`stabilization_rate`.
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.critical`).
+
+        * The number of new ICU deaths, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.critical` multiplied by the
+          :attr:`death_rate`.
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.critical` less the
+          number of new stabilizations).
+
+        * The number of new overflow stabilizations, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.overflow` multiplied by the
+          :attr:`stabilization_rate`.
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.overflow`).
+
+        * The number of new overflow deaths, determined by the number of
+          :attr:`~pydemic.simulation.SimulationState.overflow` multiplied by the
+          :attr:`overflow_death_rate`.
+          (but no larger than the current number of
+          :attr:`~pydemic.simulation.SimulationState.overflow` less the
+          number of new stabilizations).
+
+        The different populations are incremented as follows:
+
+        * :attr:`~pydemic.simulation.SimulationState.susceptible` is decremented
+          by the number of new cases.
+
+        * :attr:`~pydemic.simulation.SimulationState.exposed` is incremented by
+          the number of new cases less the number of new infections.
+
+        * :attr:`~pydemic.simulation.SimulationState.infectious` is incremented by
+          the number of new infections, less the number recovered and hospitalized.
+
+        * :attr:`~pydemic.simulation.SimulationState.hospitalized` is incremented by
+          the number of new hospitalizations, stabilizations, and overflow
+          stabilizations, less the number discharged and newly critical.
+
+        * :attr:`~pydemic.simulation.SimulationState.recovered` is incremeneted by
+          the number of recoveries and discharges.
+
+        * :attr:`~pydemic.simulation.SimulationState.intensive` is incremented by
+          the number of new critical cases.
+
+        * :attr:`~pydemic.simulation.SimulationState.discharged` is incremented by
+          the number of discharges.
+
+        * :attr:`~pydemic.simulation.SimulationState.dead` is incremented by the
+          number of ICU and overflow deaths.
+
+        Then any newly critical cases are allocated ICU beds, up until the point
+        that they run out (if they do), proceeding from youngest to oldest age group.
+        Specifically,
+
+        * :attr:`~pydemic.simulation.SimulationState.critical` is incremented by the
+          smaller of the number of new cases and free ICU beds and decremented by
+          the number of stabilizations and deaths.
+
+        * :attr:`~pydemic.simulation.SimulationState.overflow` is incremented by
+          the number of new critical cases who weren't alloted an ICU bed and
+          decremented by the number of new overflow stabilizations and deaths.
+
+        If any ICU beds remain at this point, any overflow patients are moved
+        from :attr:`~pydemic.simulation.SimulationState.overflow` to
+        :attr:`~pydemic.simulation.SimulationState.critical`,
+        proceeding again in order of age.
+        """
+
         frac_infected = sum(state.infectious) / self.population.population_served
         new_time = time + self.dt
         new_state = state.copy()
@@ -245,15 +533,15 @@ class Simulation:
             if free_ICU_beds > new_critical[age]:
                 free_ICU_beds -= new_critical[age]
                 new_state.critical[age] += (new_critical[age] - new_stabilized[age]
-                                           - new_ICU_dead[age])
+                                            - new_ICU_dead[age])
                 new_state.overflow[age] += (- new_overflow_dead[age]
-                                           - new_overflow_stabilized[age])
+                                            - new_overflow_stabilized[age])
             elif free_ICU_beds > 0:
                 new_overflow = new_critical[age] - free_ICU_beds
                 new_state.critical[age] += (free_ICU_beds - new_stabilized[age]
-                                           - new_ICU_dead[age])
+                                            - new_ICU_dead[age])
                 new_state.overflow[age] += (new_overflow - new_overflow_dead[age]
-                                           - new_overflow_stabilized[age])
+                                            - new_overflow_stabilized[age])
                 free_ICU_beds = 0
             else:
                 new_state.critical[age] += - new_stabilized[age] - new_ICU_dead[age]
@@ -291,7 +579,7 @@ class Simulation:
         fracs = ages / np.sum(ages)
         init['susceptible'] = np.round(fracs * self.population.population_served)
 
-        i_middle = round(ages.shape[0] / 2) + 1
+        i_middle = round(ages.shape[0] / 2) + 1  # pylint: disable=E1136
         initial_cases = self.population.suspected_cases_today
         init['susceptible'][i_middle] -= initial_cases
         init['infectious'][i_middle] = 0.3 * initial_cases
@@ -302,6 +590,16 @@ class Simulation:
         return initial_state
 
     def __call__(self, start_time, end_time, sample):
+        """
+        :arg start_time: The initial time, in miliseconds from January 1st, 1970.
+
+        :arg end_time: The final time, in miliseconds from January 1st, 1970.
+
+        :arg sample: The sampling function.
+
+        :returns: The :class:`SimulationResult`.
+        """
+
         n_time_steps = int(np.ceil((end_time - start_time) / self.dt)) + 1
         state = self.initialize_population(start_time)
         result = SimulationResult(state, n_time_steps)

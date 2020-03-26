@@ -3,7 +3,7 @@ Licensing
 
 pydemic is licensed to you under the MIT/X Consortium license:
 
-Copyright (C) 2020 George N Wong.
+Copyright (C) 2020 George N Wong and Zachary J Weiner.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
