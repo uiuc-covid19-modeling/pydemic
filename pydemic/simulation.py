@@ -64,16 +64,23 @@ class SimulationState(AttrDict):
 
 
 class SimulationResult(AttrDict):
-    def __init__(self, initial_state):
-        input_vals = {key: initial_state[key]
-                      for key in initial_state.expected_kwargs}
-        # input_vals['times'] = np.array(start_time)
+    def __init__(self, initial_state, n_time_steps):
+        input_vals = {}
+        for key in initial_state.expected_kwargs:
+            val = initial_state[key]
+            if not isinstance(val, np.ndarray):
+                val = np.array(val)
+            ary = np.zeros(shape=(n_time_steps,)+val.shape)
+            ary[0] = val
+            input_vals[key] = ary
+
         super().__init__(**input_vals)
+        self.slice = 0
 
     def extend(self, population):
-        # self.times = np.append(self.times, time)
+        self.slice += 1
         for key in population.expected_kwargs:
-            self[key] = np.vstack((self[key], population[key]))
+            self[key][self.slice] = population[key]
 
 
 ms_per_day = 24 * 60 * 60 * 1000
@@ -295,8 +302,9 @@ class Simulation:
         return initial_state
 
     def __call__(self, start_time, end_time, sample):
+        n_time_steps = int(np.ceil((end_time - start_time) / self.dt)) + 1
         state = self.initialize_population(start_time)
-        result = SimulationResult(state)
+        result = SimulationResult(state, n_time_steps)
 
         time = start_time
         while time < end_time:
