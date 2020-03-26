@@ -30,13 +30,13 @@ import numpy as np
 cwd = os.path.dirname(os.path.abspath(__file__))
 
 _popdata_filename = os.path.join(
-    cwd, "../src/assets/data/population.json"
+    cwd, "../assets/population.json"
 )
 _agedata_filename = os.path.join(
-    cwd, "../src/assets/data/country_age_distribution.json"
+    cwd, "../assets/country_age_distribution.json"
 )
 _casedata_filename = os.path.join(
-     cwd, "../data/assets/case_counts.json"
+     cwd, "../assets/case_counts.json"
 )
 
 with open(_popdata_filename, 'r') as f:
