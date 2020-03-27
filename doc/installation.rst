@@ -9,7 +9,7 @@ Installation
 
     git clone --recurse-submodules ...
 
-1. Run ``sh install.sh``, which installs pydemic via::
+1. Run ``sh setup.sh``, which installs pydemic via::
 
         python setup.py develop
 
