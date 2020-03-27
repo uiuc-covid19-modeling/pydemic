@@ -9,7 +9,7 @@ import itertools
 ### example search over parameters
 parameters = [ 
   # [ "parameter name", x0, x1, n_samples ] parses to [x0,x1] inclusive with n_samples points
-  [ "R0", 2., 9., 15 ],
+  [ "R0", 2., 9., 8 ],
   [ "start_day", 50, 70, 21 ]  # days since january first
 ]
 
@@ -37,16 +37,18 @@ def calculate_likelihood_for_model(model_params, data_y):
   return get_log_likelihood(logdata_y, model_y, model_std)
 
 ## for death statistics, generate pseudo-distribution of variance
-def get_model_data(model_params):
+def get_model_data(model_params, zero_value=-4):
   ## get model
   pmd = PydemicModel()
   infect_mean, infect_std, dead_mean, dead_std = pmd.get_mean_std(model_params)
   ## restructure data to do likelihood in log space
   data_y = np.log(deaths_points)
+  data_y[data_y < zero_value] = zero_value   ## also see in calculate_likelihood_for_model
   model_y = np.log(dead_mean)
-  model_std = np.ones(model_y.shape) * 0.5
-  data_y[data_y < -1.] = -1.   ## also see in calculate_likelihood_for_model
-  model_y[model_y < -1.] = -1.
+  model_y[model_y < zero_value] = zero_value
+  model_std = np.ones(model_y.shape)*0.2
+  correction = (np.log(np.exp(model_y)+1)-np.log(np.exp(model_y)))
+  model_std += correction
   ## synthesize fake uncertainties
   dead_abv = np.exp(model_y + model_std)
   dead_bel = np.exp(model_y - model_std)
