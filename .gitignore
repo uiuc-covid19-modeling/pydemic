@@ -8,6 +8,7 @@
 !README.md
 !*.cfg
 # blacklist
+*.DS_Store
 build
 dist
 *.png

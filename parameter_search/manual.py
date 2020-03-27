@@ -6,16 +6,8 @@ from models.pydemic import PydemicModel
 from plutil import plot_model, plot_data, format_axis
 from pydemic.load import get_case_data
 from pydemic import CaseData
-import itertools
 
 LOG_ZERO_VALUE = -2.
-
-### example search over parameters
-parameters = [ 
-  # [ "parameter name", x0, x1, n_samples ] parses to [x0,x1] inclusive with n_samples points
-  [ "R0", 2., 9., 8 ],
-  [ "start_day", 50, 70, 21 ]  # days since january first
-]
 
 ## aux functions
 def get_date_before(target_date, x):
@@ -53,61 +45,26 @@ def get_model_data(model_params, zero_value=LOG_ZERO_VALUE):
 
 if __name__ == "__main__":
 
+  ## choose some model parameters
+  model_params = {
+    'R0': 3.7,
+    'start_day': 58
+  }
+
   ## load reported data
   cases = get_case_data("USA-Illinois")
   target_date = date(*cases.last_date)
 
-  ## generate data point
-  data = np.zeros([ x[-1] for x in parameters ])
-
-  ## generate 1d sampling points
-  full_parameters = []
-  for param in parameters:
-    full_parameters.append([ param[0] ] + list(np.linspace(param[1],param[2],param[3])))
-
-  ## list all combinations
-  params_product = itertools.product(*[ x[1:] for x in full_parameters ])
-  params_indices = itertools.product(*[ range(len(x)-1) for x in full_parameters ])
-  for (params, index) in zip(params_product, params_indices):
-    model_params = {}
-    for i in range(len(parameters)):
-      model_params[parameters[i][0]] = params[i]
-    likelihood = calculate_likelihood_for_model(model_params, cases.deaths)
-    print(" - likelihood {0:g} for".format(likelihood))
-    print("    ",model_params)
-    data[index] = likelihood
-
-  ## plot likelihoods over grid for 2d example
-  plt.figure(figsize=(6,6))
-  ax1 = plt.subplot(1,1,1)
-  ax1.pcolormesh(full_parameters[0][1:], full_parameters[1][1:], np.exp(data.T))
-  ax1.set_xlabel(full_parameters[0][0])
-  ax1.set_ylabel(full_parameters[1][0])
-  plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-  plt.savefig('imgs/naive_grid.png')
-
-  ## example likelihood calculation
-  index = np.unravel_index(np.argmax(data, axis=None), data.shape)
-  model_params = { 
-    'R0': full_parameters[0][index[0]+1],
-    'start_day': full_parameters[1][index[1]+1],
-  }
-  print(" - parameter input:")
-  print(model_params) 
-  print(" - likelihood: {0:g}".format(calculate_likelihood_for_model(model_params, cases.deaths)))
-
-  ## get some data to plot
+  ## get model and likelihood
   _, _, dead_mean, dead_abv, dead_bel = get_model_data(model_params)
   likelihood = calculate_likelihood_for_model(model_params, cases.deaths)
 
   ## plot example model
   fig = plt.figure(figsize=(6,4))
   ax1 = plt.subplot(1,1,1)
-  plot_data(ax1, cases.dates, cases.deaths, target_date)
   plot_model(ax1, dead_mean, dead_abv, dead_bel, target_date, c='b')
+  plot_data(ax1, cases.dates, cases.deaths, target_date)
   format_axis(fig, ax1)
   plt.suptitle("likelihood = {0:.2g}".format(likelihood))
   plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-  plt.savefig('imgs/naive_example.png')
-
-
+  plt.savefig('imgs/manual_example.png')

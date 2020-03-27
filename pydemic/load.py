@@ -64,6 +64,10 @@ def get_valid_ages():
     return _age_data.keys()
 
 
+def get_valid_cases():
+    return _case_data.keys()
+
+
 def get_country_population_model(country):
     country_data = _population_dict[country]
     from pydemic import PopulationModel
@@ -96,7 +100,7 @@ def get_case_data(subregion):
     times = np.array(list(map(date_to_ms, date_tuples)))
     ms_per_day = 24 * 60 * 60 * 1000
 
-    data_dict['dates'] = (times - times[-1]) // ms_per_day
+    data_dict['dates'] = [ int(x) for x in (times - times[-1]) // ms_per_day ]
     data_dict['last_date'] = date_tuples[-1]
 
     return CaseData(**data_dict)
@@ -107,10 +111,11 @@ if __name__ == "__main__":
     print(get_valid_pops())
     print("valid age distributions are:")
     print(get_valid_ages())
+    print("valid case records are:")
+    print(get_valid_cases())
 
+    print("\n\n")
     popdata = get_country_population_model("USA-Illinois")
-
     for key, val in popdata.__dict__.items():
         print(key, val)
-
     print(get_case_data('USA-Illinois'))
