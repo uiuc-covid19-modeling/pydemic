@@ -135,8 +135,8 @@ def linkcode_resolve(domain, info):
     else:
         linespec = ""
 
-    import pystella
-    fn = relpath(fn, start=dirname(pystella.__file__))
+    import pydemic
+    fn = relpath(fn, start=dirname(pydemic.__file__))
 
-    return "https://github.com/zachjweiner/PACKAGE_NAME/blob/master/PACKAGE_NAME/%s%s" % (
+    return "https://github.com/gnwong/blob/master/pydemic/%s%s" % (
            fn, linespec)
