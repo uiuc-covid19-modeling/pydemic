@@ -61,7 +61,7 @@ if __name__ == "__main__":
         overflow_severity=2
     )
 
-    simulation = NeherModelSimulation(epidemiology, severity)
+    simulation = NeherModelSimulation(epidemiology, severity, population.imports_per_day)
 
     y0 = {
         'susceptible': np.ones(n_age_groups) * (N-1),

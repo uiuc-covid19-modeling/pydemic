@@ -25,7 +25,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     def beta(self, t, y):
         return self.avg_infection_rate
 
-    def __init__(self, epidemiology, severity):
+    def __init__(self, epidemiology, severity, imports_per_day):
 
         ## TODO FIXME make sure we set population when we pass
         ##            a new population initial condition
@@ -67,39 +67,44 @@ class NeherModelSimulation(CompartmentalModelSimulation):
                 lambda t,y: self.beta(t,y)*y["susceptible"]*y["infectious"].sum()/self.population
             ),
             Reaction(
-                lhs="exposed", 
-                rhs="infectious",
-                evaluator=lambda t,y: y["exposed"] * exposed_infectious_rate
+                "susceptible",
+                "exposed",
+                lambda t,y: imports_per_day
             ),
             Reaction(
-                lhs="infectious",
-                rhs="hospitalized",
-                evaluator=lambda t,y: y["infectious"] * infectious_hospitalized_rate
+                "exposed", 
+                "infectious",
+                lambda t,y: y["exposed"] * exposed_infectious_rate
             ),
             Reaction(
-                lhs="infectious",
-                rhs="recovered",
-                evaluator=lambda t,y: y["infectious"] * infectious_recovered_rate
+                "infectious",
+                "hospitalized",
+                lambda t,y: y["infectious"] * infectious_hospitalized_rate
             ),
             Reaction(
-                lhs="hospitalized",
-                rhs="recovered",
-                evaluator=lambda t,y: y["hospitalized"] * hospitalized_discharged_rate
+                "infectious",
+                "recovered",
+                lambda t,y: y["infectious"] * infectious_recovered_rate
             ),
             Reaction(
-                lhs="hospitalized",
-                rhs="critical",
-                evaluator=lambda t,y: y["hospitalized"] * hospitalized_critical_rate
+                "hospitalized",
+                "recovered",
+                lambda t,y: y["hospitalized"] * hospitalized_discharged_rate
             ),
             Reaction(
-                lhs="critical",
-                rhs="hospitalized",
-                evaluator=lambda t,y: y["critical"] * critical_hospitalized_rate
+                "hospitalized",
+                "critical",
+                lambda t,y: y["hospitalized"] * hospitalized_critical_rate
             ),
             Reaction(
-                lhs="critical",
-                rhs="dead",
-                evaluator=lambda t,y: y["critical"] * critical_dead_rate
+                "critical",
+                "hospitalized",
+                lambda t,y: y["critical"] * critical_hospitalized_rate
+            ),
+            Reaction(
+                "critical",
+                "dead",
+                lambda t,y: y["critical"] * critical_dead_rate
             )
         )
 
