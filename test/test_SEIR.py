@@ -28,10 +28,10 @@ import pytest
 from pydemic import Reaction, GammaProcess, CompartmentalModelSimulation
 
 
-def test_SEIR(N=1e6, beta=12, a=1, gamma=1, plot=False):
+def test_SEIR(total_pop=1e6, beta=12, a=1, gamma=1, plot=False):
     reactions = (
         Reaction('susceptible', 'exposed',
-                    lambda t, y: y['susceptible']*y['infectious']*beta/N),
+                    lambda t, y: y['susceptible']*y['infectious']*beta/total_pop),
         Reaction('exposed', 'infectious',
                     lambda t, y: a * y['exposed']),
         Reaction('infectious', 'recovered',
@@ -41,7 +41,7 @@ def test_SEIR(N=1e6, beta=12, a=1, gamma=1, plot=False):
     simulation = CompartmentalModelSimulation(reactions)
 
     y0 = {
-        'susceptible': np.array(N-1),
+        'susceptible': np.array(total_pop-1),
         'exposed': np.array(1),
         'infectious': np.array(0),
         'recovered': np.array(0),
@@ -56,10 +56,10 @@ def test_SEIR(N=1e6, beta=12, a=1, gamma=1, plot=False):
 
     def f(t, y):
         S, E, I, R = y
-        dydt = [-beta*S*I/N, beta*S*I/N - a*E, a*E-gamma*I, gamma*I]
+        dydt = [-beta*S*I/total_pop, beta*S*I/total_pop - a*E, a*E-gamma*I, gamma*I]
         return np.array(dydt)
 
-    initial_position = [N-1, 1, 0, 0]
+    initial_position = [total_pop-1, 1, 0, 0]
     from scipy.integrate import solve_ivp
     res = solve_ivp(f, tspan, initial_position, rtol=1.e-13,
                     dense_output=True)
@@ -69,14 +69,19 @@ def test_SEIR(N=1e6, beta=12, a=1, gamma=1, plot=False):
     scipy_sol = {comp: res.sol(t)[i] for i, comp in enumerate(compartments)}
     for i, name in enumerate(compartments):
         non_zero = np.logical_and(scipy_sol[name] > 0, result[name] > 0)
-        relerr = np.abs(1 - scipy_sol[name][non_zero] / result[name][non_zero])
-        print(name, relerr, np.max(relerr))
+        test = np.logical_and(non_zero, t > 1)
+        relerr = np.abs(1 - scipy_sol[name][test] / result[name][test])
+        print('max err for', name, 'is', np.max(relerr))
+        assert np.max(relerr) < .05
 
-    print(result['recovered'])
-    print(scipy_sol['recovered'])
+    total_people = sum(result[name] for name in compartments)
+    total_err = np.max(np.abs(1 - total_people / total_pop))
+    print('total error is', np.max(total_err))
+    assert np.max(total_err) < 1.e-13
 
     if plot:
-        import matplotlib as mpl ; mpl.use('agg')
+        import matplotlib as mpl
+        mpl.use('agg')
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
