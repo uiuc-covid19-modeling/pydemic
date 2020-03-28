@@ -49,6 +49,9 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     def beta(self, t, y):
         return self.avg_infection_rate
 
+    def containment(self, t, y):
+        return 1.
+
     def __init__(self, epidemiology, severity, imports_per_day,
                  population, n_age_groups):
         # TODO FIXME make sure we set population when we pass
@@ -60,6 +63,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         dCritical = severity.critical/100.
         dFatal = severity.fatal/100.
 
+        isolated_frac = severity.isolated / 100
         exposed_infectious_rate = 1. / epidemiology.incubation_time
         infectious_hospitalized_rate = dHospital / epidemiology.infectious_period
         infectious_recovered_rate = (1.-dHospital) / epidemiology.infectious_period
@@ -87,8 +91,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
 
         reactions = (
             Reaction("susceptible", "exposed",
-                     # TODO: full containment and isolation_frac consideration
-                     lambda t, y: (self.beta(t, y) * y.susceptible
+                     lambda t, y: ((1. - isolated_frac) * self.beta(t, y) * self.containment(t, y) * y.susceptible
                                    * y.infectious.sum() / self.population)),
             Reaction("susceptible", "exposed",
                      lambda t, y: imports_per_day / n_age_groups),
@@ -108,6 +111,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
                      lambda t, y: y.critical * critical_dead_rate)
         )
         super().__init__(reactions)
+
 
 
 class ExtendedSimulation(CompartmentalModelSimulation):
