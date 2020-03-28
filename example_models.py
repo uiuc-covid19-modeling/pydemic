@@ -6,7 +6,7 @@ import numpy as np
 from pydemic import DemographicClass, Reaction, GammaProcess
 from pydemic import CompartmentalModelSimulation
 
-from pydemic.models import SEIRModelSimulation
+from pydemic.models import SEIRModelSimulation, NeherModelSimulation
 
 
 def solve_seir(N, beta, a, gamma):
@@ -32,8 +32,11 @@ if __name__ == "__main__":
 
 
     ## do the same thing with pydemic
-    #simulator = CompartmentalModelSimulation()
     sim = SEIRModelSimulation()
+
+
+    ## run a Neherlab-like simulation with pydemic
+    sim = NeherModelSimulation()
 
 
     """
