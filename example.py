@@ -31,12 +31,6 @@ if __name__ == "__main__":
     ## now run the same SEIR model but using pydemic## here we provide an example of a slightly more complicated
     ## SEIR model extension that is meant to demonstrate several
     ## of the more complicated features pydemic supports. 
-    compartments = (
-        'susceptible',
-        'exposed',
-        'infectious',
-        'recovered'
-    )
     reactions = (
         Reaction(
             lhs='susceptible',
@@ -60,9 +54,12 @@ if __name__ == "__main__":
     )
 
         
-    simulation = CompartmentalModelSimulation(compartments, reactions, demographics)
+    simulation = CompartmentalModelSimulation(reactions, demographics)
 
     simulation.print_network()
+
+
+    print("\n\n\n")
 
 
     # TODO
@@ -147,7 +144,7 @@ if __name__ == "__main__":
 
         
 
-    simulation = CompartmentalModelSimulation(compartments, reactions, demographics)
+    simulation = CompartmentalModelSimulation(reactions, demographics)
 
     simulation.print_network()
 

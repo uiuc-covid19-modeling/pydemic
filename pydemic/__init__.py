@@ -63,6 +63,8 @@ class Reaction(AttrDict):
         "rhs",
         "evaluation"
     }
+    def __repr__(self):
+        return "(reaction) {0:s} --> {1:s}".format(self.lhs, self.rhs)
 
 
 class ErlangProcess(AttrDict):  # TODO: make this a subclass

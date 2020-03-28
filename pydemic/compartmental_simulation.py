@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 
 import numpy as np
-from pydemic import AttrDict, ErlangProcess
+from pydemic import AttrDict, ErlangProcess, Reaction
 
 __doc__ = """
 .. currentmodule:: pydemic
@@ -83,14 +83,17 @@ class SimulationResult(AttrDict):
 
 class CompartmentalModelSimulation:
 
-    _compartments = []
+    _compartments = {}
     _network = []
 
-    def __init__(self, compartments, reactions, demographics):
+    def _get_uniq_compartment_name(self,name):
+        return name.replace(":","::")
+
+    def __init__(self, reactions, demographics):
 
         print(" - creating new CompartmentalModelSimulation instance")
 
-        self._compartments = compartments
+        #self._compartments = compartments
 
         ## generate list of internal graph nodes. this has to 
         ## happen after we have processed the compartments
@@ -100,10 +103,29 @@ class CompartmentalModelSimulation:
         self._network = []
         for reaction in reactions:
             if type(reaction) == ErlangProcess:
-                print("initial", reaction) ## TODO, don't make final if shape==1, also check shape>0
-                for _ in range(1,reaction.shape-1):
-                    print("internal", reaction)
-                print("final", reaction)
+                # TODO, doesn't work if reaction.shape == 1
+                count = 2
+                rx = Reaction(
+                    lhs=self._get_uniq_compartment_name(reaction.lhs),
+                    rhs=reaction.lhs+":{0:s}:{1:d}".format(reaction.rhs, count),
+                    evaluation=reaction.scale
+                )
+                self._network.append(rx)
+                for k in range(1,reaction.shape-1):
+                    rx = Reaction(
+                        lhs=reaction.lhs+":{0:s}:{1:d}".format(reaction.rhs, count),
+                        rhs=reaction.lhs+":{0:s}:{1:d}".format(reaction.rhs, count+1),
+                        evaluation=reaction.scale
+                    )
+                    count += 1
+                    self._network.append(rx)
+                if reaction.shape > 1:
+                    rx = Reaction(
+                    lhs=reaction.lhs+":{0:s}:{1:d}".format(reaction.rhs, count),
+                    rhs=self._get_uniq_compartment_name(reaction.rhs),
+                        evaluation=reaction.scale
+                    )
+                    self._network.append(rx)
             else:
                 self._network.append(reaction)
             #    print(reaction)
@@ -118,7 +140,7 @@ class CompartmentalModelSimulation:
         print(" - printing internal node connection network")
 
         for reaction in self._network:
-            print(reaction.lhs + " -> " + reaction.rhs)
+            print(reaction)
 
 
 
