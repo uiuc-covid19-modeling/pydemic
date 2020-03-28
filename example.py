@@ -39,7 +39,7 @@ if __name__ == "__main__":
         GammaProcess(
             lhs='infectious',
             rhs='recovered',
-            shape=2,
+            shape=1,
             scale=lambda t, y: 8.
         )
     )
@@ -48,14 +48,30 @@ if __name__ == "__main__":
     simulation = CompartmentalModelSimulation(reactions)
 
     y0 = {
-        'susceptible': np.array(90),
-        'exposed': np.array(0),
-        'infectious': np.array(10),
+        'susceptible': np.array(N-1),
+        'exposed': np.array(1),
+        'infectious': np.array(0),
         'recovered': np.array(0),
     }
 
     simulation.print_network()
-    simulation((0, 2), y0, lambda x: x)
+    result = simulation((0, 10), y0, lambda x: x)
+    print(result)
+
+    fig, ax = plt.subplots()
+    ax.plot(t,S,'-',label='S')
+    ax.plot(t,E,'-',label='E')
+    ax.plot(t,I,'-',label='I')
+    ax.plot(t,R,'-',label='R')
+
+    t = np.linspace(0, 10, int(10/.01 + 2))
+    ax.plot(t, result['susceptible'], '--', label='S2')
+    ax.plot(t, result['exposed'], '--', label='E2')
+    ax.plot(t, result['infectious'], '--', label='I2')
+    ax.plot(t, result['recovered'], '--', label='R2')
+
+    fig.savefig('SEIR_example.png')
+
 
     print("\n\n\n")
 
@@ -146,25 +162,6 @@ if __name__ == "__main__":
 
     #simulation.print_network()
 
-
-
-
-    ## plot
-    plt.close('all')
-    plt.figure(figsize=(8,5))
-    ax1 = plt.subplot(2,1,1)
-    ax1.plot(t,S,'-',label='S')
-    ax1.plot(t,E,'-',label='E')
-    ax1.plot(t,I,'-',label='I')
-    ax1.plot(t,R,'-',label='R')
-    ax1.legend()
-    ax1.set_xlabel('time')
-    ax1.set_ylabel('count')
-    ax1.set_yscale('log')
-    ax1.set_xlim(-1,11)
-    ax1.set_ylim(0.8, 2.*N)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig('SEIR_example.png')
 
 
 

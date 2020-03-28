@@ -34,61 +34,35 @@ __doc__ = """
 """
 
 
-class SimulationState(AttrDict):
-
-
-    expected_kwargs = {
-    }
-
-    def get_total_population(self):
-        # FIXME: does this work?
-        return sum(self[key] for key in self.expected_kwargs)
-
-    def copy(self):
-        input_vals = {}
-        for key in self.expected_kwargs:
-            if isinstance(self[key], np.ndarray):
-                input_vals[key] = self[key].copy()
-            else:
-                input_vals[key] = self[key]
-        return SimulationState(**input_vals)
-
-    def __repr__(self):
-        string = ""
-        for key in self.expected_kwargs:
-            string += key + '\t' + str(self[key]) + '\n'
-        return string
-
-
-class SimulationResult(AttrDict):
+class StateLogger:
     def __init__(self, initial_state, n_time_steps):
-        input_vals = {}
-        for key in initial_state.expected_kwargs:
-            val = initial_state[key]
+        self.y = {}
+        for key, val in initial_state.items():
             if not isinstance(val, np.ndarray):
                 val = np.array(val)
             ary = np.zeros(shape=(n_time_steps,)+val.shape)
             ary[0] = val
-            input_vals[key] = ary
-
-        super().__init__(**input_vals)
+            self.y[key] = ary
         self.slice = 0
 
-    def extend(self, population):
+    def extend(self, state):
         self.slice += 1
-        for key in population.expected_kwargs:
-            self[key][self.slice] = population[key]
-
+        for key, val in state.items():
+            self.y[key][self.slice] = val
 
 
 class CompartmentalModelSimulation:
     def __init__(self, reactions):
         lhs_keys = set(x.lhs for x in reactions)
         rhs_keys = set(x.rhs for x in reactions)
-        self.compartments = lhs_keys & rhs_keys
+        self.compartments = list(lhs_keys & rhs_keys)
 
         self._network = tuple(react for reaction in reactions
                               for react in reaction.get_reactions())
+
+        all_lhs = set(x.lhs for x in self._network)
+        all_rhs = set(x.rhs for x in self._network)
+        self.hidden_compartments = list((all_lhs & all_rhs) - set(self.compartments))
 
     def print_network(self):
         for reaction in self._network:
@@ -113,41 +87,39 @@ class CompartmentalModelSimulation:
             state[lhs] -= dY
             state[rhs] += dY
 
+    def initialize_full_state(self, y0):
+        state = {}
+        for key, ary in y0.items():
+            state[key] = np.array(ary, dtype='float64')
+
+        template = state[self.compartments[0]]
+        for key in self.hidden_compartments:
+            state[key] = np.zeros_like(template)
+        return state
+
     def __call__(self, tspan, y0, sampler):
         """
-        :arg start_time: The initial time, in miliseconds from January 1st, 1970.
+        :arg tspan: A :class:`tuple` specifying the initiala and final times
+            in miliseconds from January 1st, 1970.
 
-        :arg end_time: The final time, in miliseconds from January 1st, 1970.
-
-        :arg sample: The sampling function.
+        :arg y0: A :class:`dict` with the initial values
+            (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
 
         :returns: The :class:`SimulationResult`.
         """
 
         start_time, end_time = tspan
-        state = y0
+        state = self.initialize_full_state(y0)
+
+        dt = .01
+        n_time_steps = int(np.ceil((end_time - start_time) / dt)) + 2
+        result = StateLogger(state, n_time_steps)
 
         time = start_time
         while time < end_time:
-            dt = 1. # FIXME: get dt in a reasonable way
+            # dt = 1. # FIXME: get dt in a reasonable way
             self.step(time, state, dt)
+            result.extend(state)
             time += dt
 
-
-        """
-        n_time_steps = int(np.ceil((end_time - start_time) / self.dt)) + 1
-        state = self.initialize_population(start_time)
-        result = SimulationResult(state, n_time_steps)
-
-        time = start_time
-        while time < end_time:
-            state = self.step(time, state, sample)
-            result.extend(state)
-            time += self.dt
-
-        return result
-        """
-
-
-
-
+        return result.y
