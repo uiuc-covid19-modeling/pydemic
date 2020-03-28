@@ -64,7 +64,7 @@ def test_SEIR(total_pop=1e6, beta=12, a=1, gamma=1, plot=False):
     res = solve_ivp(f, tspan, initial_position, rtol=1.e-13,
                     dense_output=True)
 
-    t = np.linspace(0, 10, int(10/dt + 2))
+    t = result['time']
 
     scipy_sol = {comp: res.sol(t)[i] for i, comp in enumerate(compartments)}
     for i, name in enumerate(compartments):

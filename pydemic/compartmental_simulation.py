@@ -34,21 +34,24 @@ __doc__ = """
 """
 
 
-class StateLogger:
-    def __init__(self, initial_state, n_time_steps):
+class StateLogger(dict):
+    def __init__(self, n_time_steps, **kwargs):
+        super().__init__(**kwargs)
+        self.__dict__ = self
+
         self.y = {}
-        for key, val in initial_state.items():
+        for key, val in kwargs.items():
             if not isinstance(val, np.ndarray):
                 val = np.array(val)
             ary = np.zeros(shape=(n_time_steps,)+val.shape)
             ary[0] = val
-            self.y[key] = ary
+            self[key] = ary
         self.slice = 0
 
-    def extend(self, state):
+    def extend(self, **kwargs):
         self.slice += 1
-        for key, val in state.items():
-            self.y[key][self.slice] = val
+        for key, val in kwargs.items():
+            self[key][self.slice] = val
 
 
 class CompartmentalModelSimulation:
@@ -87,14 +90,16 @@ class CompartmentalModelSimulation:
             state[lhs] -= dY
             state[rhs] += dY
 
-    def initialize_full_state(self, y0):
+    def initialize_full_state(self, time, y0):
         state = {}
+        state['time'] = np.array(time)
         for key, ary in y0.items():
             state[key] = np.array(ary, dtype='float64')
 
         template = state[self.compartments[0]]
         for key in self.hidden_compartments:
             state[key] = np.zeros_like(template)
+
         return state
 
     def __call__(self, tspan, y0, sampler, dt=.01):
@@ -109,16 +114,17 @@ class CompartmentalModelSimulation:
         """
 
         start_time, end_time = tspan
-        state = self.initialize_full_state(y0)
+        state = self.initialize_full_state(start_time, y0)
 
         n_time_steps = int(np.ceil((end_time - start_time) / dt)) + 2
-        result = StateLogger(state, n_time_steps)
+        result = StateLogger(n_time_steps, **state)
 
         time = start_time
         while time < end_time:
             # dt = 1. # FIXME: get dt in a reasonable way
             self.step(time, state, dt)
-            result.extend(state)
             time += dt
+            state['time'] = time
+            result.extend(**state)
 
-        return result.y
+        return result
