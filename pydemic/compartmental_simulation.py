@@ -55,14 +55,14 @@ class CompartmentalModelSimulation:
     def __init__(self, reactions):
         lhs_keys = set(x.lhs for x in reactions)
         rhs_keys = set(x.rhs for x in reactions)
-        self.compartments = list(lhs_keys & rhs_keys)
+        self.compartments = list(lhs_keys | rhs_keys)
 
         self._network = tuple(react for reaction in reactions
                               for react in reaction.get_reactions())
 
         all_lhs = set(x.lhs for x in self._network)
         all_rhs = set(x.rhs for x in self._network)
-        self.hidden_compartments = list((all_lhs & all_rhs) - set(self.compartments))
+        self.hidden_compartments = list((all_lhs | all_rhs) - set(self.compartments))
 
     def print_network(self):
         for reaction in self._network:
@@ -97,7 +97,7 @@ class CompartmentalModelSimulation:
             state[key] = np.zeros_like(template)
         return state
 
-    def __call__(self, tspan, y0, sampler):
+    def __call__(self, tspan, y0, sampler, dt=.01):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times
             in miliseconds from January 1st, 1970.
@@ -111,7 +111,6 @@ class CompartmentalModelSimulation:
         start_time, end_time = tspan
         state = self.initialize_full_state(y0)
 
-        dt = .01
         n_time_steps = int(np.ceil((end_time - start_time) / dt)) + 2
         result = StateLogger(state, n_time_steps)
 
