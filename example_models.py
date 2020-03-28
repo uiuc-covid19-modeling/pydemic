@@ -36,9 +36,9 @@ if __name__ == "__main__":
 
 
     ## run a Neherlab-like simulation with pydemic
+    n_age_groups = 9
 
     # set severity model
-    n_age_groups = 9
     severity = SeverityModel(
         id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
         age_group=np.arange(0., 90., 10),
@@ -64,23 +64,39 @@ if __name__ == "__main__":
     simulation = NeherModelSimulation(epidemiology, severity)
 
     y0 = {
-        'susceptible': np.array(N-1),
-        'exposed': np.array(1),
-        'infectious': np.array(0),
-        'recovered': np.array(0),
-        'hospitalized': np.array(0),
-        'critical': np.array(0),
-        'dead': np.array(0)
+        'susceptible': np.ones(n_age_groups) * (N-1),
+        'exposed': np.ones(n_age_groups),
+        'infectious': np.zeros(n_age_groups),
+        'recovered': np.zeros(n_age_groups),
+        'hospitalized': np.zeros(n_age_groups),
+        'critical': np.zeros(n_age_groups),
+        'dead': np.zeros(n_age_groups)
     }
 
     compartments = ('susceptible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'dead')
 
-    tspan = (0, 10)
+    tspan = (0, 100)
     dt = 1e-3
 
     result = simulation(tspan, y0, lambda x: x, dt=dt)
 
 
+    ## plot
+    plt.close('all')
+    plt.figure(figsize=(8,5))
+    ax1 = plt.subplot(2,1,1)
+    ax1.plot(result["susceptible"].sum(axis=1),'-',label='S')
+    ax1.plot(result["exposed"].sum(axis=1),'-',label='E')
+    ax1.plot(result["infectious"].sum(axis=1),'-',label='I')
+    ax1.plot(result["recovered"].sum(axis=1),'-',label='R')
+    ax1.legend()
+    ax1.set_xlabel('time')
+    ax1.set_ylabel('count')
+    ax1.set_yscale('log')
+    #ax1.set_xlim(-1,11)
+    ax1.set_ylim(ymin=0.8)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig('Neher_example.png')
 
 
 
@@ -210,7 +226,7 @@ if __name__ == "__main__":
     """
 
 
-
+    """
 
     ## plot
     plt.close('all')
@@ -229,33 +245,4 @@ if __name__ == "__main__":
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('SEIR_example.png')
 
-
-
-    ##
-
     """
-    simulation = CompartmentalModelSimulation(compartments, reactions)
-
-Example of SEIR implementation:
-
-class SEIRModel(CompartmentalModelSimulation):
-    def __init__(self, beta(t), t_EI, t_IR):
-        reactions = (
-            Reaction('susceptible', 'exposed', lambda:... ),
-            GammaProcess('exposed', 'infectious', mean(t_EI), std(t_EI)),
-            GammaProcess('infectious', 'recovered', mean(t_IR), std(t_IR)),
-        )
-        
-        compartments = {
-            'susceptible',
-            'exposed',
-            'infectious',
-            'recovered',
-        }
-        
-        super().__init__(compartments, reactions)
-      """
-
-
-
-
