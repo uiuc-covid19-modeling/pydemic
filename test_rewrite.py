@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib as mpl ; mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
 from pydemic import Simulation
@@ -79,8 +79,7 @@ if __name__ == "__main__":
     tspan = (0, 30)
     dt = 0.25
     new_result = simulation(tspan, y0, lambda x: x, dt=dt)
-
-    simulation.print_network()
+    new_dates = [ date(*start_date)+timedelta(x) for x in new_result['time'] ]
 
 
     ### make figure
@@ -89,19 +88,7 @@ if __name__ == "__main__":
 
     for key in dkeys[1:]:
         ax1.plot(dates, og_data[key], label=key)
-
-    print(" -- og model")
-    for tidx in range(2):
-        print("s", result['susceptible'][tidx])
-        print("e", result['exposed'][tidx])
-        print("i", result['infectious'][tidx])
-        print("r", result['recovered'][tidx])
-    print("\n -- new model")
-    for tidx in range(2):
-        print("s", new_result['susceptible'][tidx])
-        print("e", new_result['exposed'][tidx])
-        print("i", new_result['infectious'][tidx])
-        print("r", new_result['recovered'][tidx])
+        ax1.plot(new_dates, new_result[key].sum(axis=1))
 
 
     # plot on y log scale
