@@ -93,6 +93,9 @@ class CompartmentalModelSimulation:
             else:
                 increments[reaction.lhs, reaction.rhs] = dY
 
+        print(increments)
+        exit()
+
         for (lhs, rhs), dY in increments.items():
             state[lhs] -= dY
             state[rhs] += dY

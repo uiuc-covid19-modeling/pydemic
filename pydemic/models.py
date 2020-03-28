@@ -16,6 +16,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
 
         FIXME TODO Currently does not implement hospital overflow.
         TODO FIXME Currently does not implement seasonal forcing.
+        TODO FIXME Currently does not implement containment.
 
     """
 
@@ -25,11 +26,11 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     def beta(self, t, y):
         return self.avg_infection_rate
 
-    def __init__(self, epidemiology, severity, imports_per_day):
+    def __init__(self, epidemiology, severity, imports_per_day, population, n_age_groups):
 
         ## TODO FIXME make sure we set population when we pass
         ##            a new population initial condition
-        self.population = 1.e6
+        self.population = population
 
         ## translate from epidemiology/severity models into rates
         dHospital = severity.severe/100. * severity.critical/100.
@@ -64,12 +65,13 @@ class NeherModelSimulation(CompartmentalModelSimulation):
             Reaction(
                 "susceptible", 
                 "exposed",
+                # TODO: full containment and isolation_frac consideration
                 lambda t,y: self.beta(t,y)*y["susceptible"]*y["infectious"].sum()/self.population
             ),
             Reaction(
                 "susceptible",
                 "exposed",
-                lambda t,y: imports_per_day
+                lambda t,y: imports_per_day / n_age_groups
             ),
             Reaction(
                 "exposed", 

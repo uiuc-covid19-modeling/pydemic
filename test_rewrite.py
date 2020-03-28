@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
 
     ### generate, run, and aggregate results for new pydemic model version
-    simulation = NeherModelSimulation(epidemiology, severity, population.imports_per_day)
+    simulation = NeherModelSimulation(epidemiology, severity, population.imports_per_day, population.population_served, n_age_groups)
     N = population.population_served
 
 
@@ -79,6 +79,8 @@ if __name__ == "__main__":
     tspan = (0, 30)
     dt = 0.25
     new_result = simulation(tspan, y0, lambda x: x, dt=dt)
+
+    simulation.print_network()
 
 
     ### make figure

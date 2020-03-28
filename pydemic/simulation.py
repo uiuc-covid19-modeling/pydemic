@@ -606,7 +606,11 @@ class Simulation:
 
         time = start_time
         while time < end_time:
+            print(state)
             state = self.step(time, state, sample)
+            print(state)
+            print("====")
+            break
             result.extend(state)
             time += self.dt
 
