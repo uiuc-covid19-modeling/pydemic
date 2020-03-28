@@ -33,7 +33,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         self.population = population
 
         ## translate from epidemiology/severity models into rates
-        dHospital = severity.severe/100. * severity.critical/100.
+        dHospital = severity.severe/100. * severity.confirmed/100.
         dCritical = severity.critical/100.
         dFatal = severity.fatal/100.
 
