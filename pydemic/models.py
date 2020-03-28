@@ -11,17 +11,25 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         Each compartment has n=9 age bins (demographics)
             [ "0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+" ]
 
-
-        Interactions between compartments are according to equations [src/ref] in the pdf
+        Interactions between compartments are according to equations [TODO FIXME src/ref] in the pdf
         and are encapsulated in the reactions definition below.
 
-        Currently does not implement hospital overflow.
+        FIXME TODO Currently does not implement hospital overflow.
+        TODO FIXME Currently does not implement seasonal forcing.
 
     """
 
+    population = 1.e6
+    avg_infection_rate = 1.
+
+    def beta(self, t, y):
+        return self.avg_infection_rate
+
     def __init__(self, epidemiology, severity):
 
-        population = 1.e6
+        ## TODO FIXME make sure we set population when we pass
+        ##            a new population initial condition
+        self.population = 1.e6
 
         ## translate from epidemiology/severity models into rates
         dHospital = severity.severe/100. * severity.critical/100.
@@ -36,7 +44,8 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         critical_hospitalized_rate = (1 - dFatal) / epidemiology.length_ICU_stay
         critical_dead_rate = dFatal / epidemiology.length_ICU_stay
 
-        self.beta = 1.
+        self.avg_infection_rate = epidemiology.r0 / epidemiology.infectious_period
+
         """
         from pydemic import date_to_ms
         jan_2020 = date_to_ms((2020, 1, 1))
@@ -55,7 +64,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
             Reaction(
                 "susceptible", 
                 "exposed",
-                lambda t,y: y.beta()*y["susceptible"]*y["infectious"].sum()/population
+                lambda t,y: self.beta(t,y)*y["susceptible"]*y["infectious"].sum()/self.population
             ),
             Reaction(
                 lhs="exposed", 
