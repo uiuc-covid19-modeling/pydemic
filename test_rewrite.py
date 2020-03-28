@@ -1,27 +1,37 @@
 import numpy as np
-import matplotlib as mpl ; mpl.use('agg')
+import matplotlib as mpl
+mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 import time
 
-from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
+from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
+                     EpidemiologyModel, ContainmentModel, date_to_ms)
 from pydemic import Simulation
-from pydemic.load import get_country_population_model, get_age_distribution_model
 from pydemic.models import NeherModelSimulation
 
 
 if __name__ == "__main__":
-
-    ### initial conditions
+    # initial conditions
     n_age_groups = 9
     start_date = (2020, 3, 1, 0, 0, 0)
     end_date = (2020, 9, 1, 0, 0, 0)
-    POPULATION_NAME = "USA-Illinois"
-    AGE_DATA_NAME = "United States of America"
-    population = get_country_population_model(POPULATION_NAME)
-    population.ICU_beds = int(1.e10) ; population.hospital_beds = int(1.e10)
-    age_distribution = get_age_distribution_model(AGE_DATA_NAME)
+
+    population = PopulationModel(
+        country='United States of America',
+        cases='USA-Illinois',
+        population_served=12659682,
+        suspected_cases_today=215,
+        ICU_beds=1e10,  # originally 1055
+        hospital_beds=1e10,  # originally 31649
+        imports_per_day=5.0,
+    )
+    age_distribution = AgeDistribution(
+        bin_edges=np.arange(0, 90, 10),
+        counts=[39721484, 42332393, 46094077, 44668271, 40348398, 42120077,
+                38488173, 24082598, 13147180]
+    )
     severity = SeverityModel(
         id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
         age_group=np.arange(0., 90., 10),
@@ -44,8 +54,7 @@ if __name__ == "__main__":
     containment = ContainmentModel(start_date, end_date)
     containment.add_sharp_event((2020, 3, 15), 1.0)
 
-
-    ### generate, run, and aggregate results for old pydemic model version
+    # generate, run, and aggregate results for old pydemic model version
     sim = Simulation(population, epidemiology, severity, age_distribution,
                      containment)
     start_time = date_to_ms(start_date)
@@ -54,17 +63,20 @@ if __name__ == "__main__":
     result = sim(start_time, end_time, lambda x: x)
     t1_old = time.time()
     og_data = {}
-    dkeys = [ 'time', 'susceptible', 'exposed', 'infectious', 'hospitalized', 'critical', 'recovered', 'dead' ]
-    dates = [ datetime.utcfromtimestamp(x//1000) for x in result['time'] ]
+    dkeys = ['time', 'susceptible', 'exposed', 'infectious', 'hospitalized',
+             'critical', 'recovered', 'dead']
+    dates = [datetime.utcfromtimestamp(x//1000) for x in result['time']]
     for key in dkeys:
         og_data[key] = np.sum(result[key], axis=-1)
 
-
-    ### generate, run, and aggregate results for new pydemic model version
-    simulation = NeherModelSimulation(epidemiology, severity, population.imports_per_day, population.population_served, n_age_groups)
+    # generate, run, and aggregate results for new pydemic model version
+    simulation = NeherModelSimulation(
+        epidemiology, severity, population.imports_per_day,
+        population.population_served, n_age_groups
+    )
     N = population.population_served
     y0 = {
-        'susceptible': np.array([ int(np.round(x)) for x in np.array(age_distribution.counts)*N/sum(age_distribution.counts) ]),
+        'susceptible': np.array([int(np.round(x)) for x in np.array(age_distribution.counts)*N/sum(age_distribution.counts)]),
         'exposed': np.zeros(n_age_groups),
         'infectious': np.zeros(n_age_groups),
         'recovered': np.zeros(n_age_groups),
@@ -81,7 +93,7 @@ if __name__ == "__main__":
     t0_new = time.time()
     new_result = simulation(tspan, y0, lambda x: x, dt=dt)
     t1_new = time.time()
-    new_dates = [ datetime(*start_date)+timedelta(x) for x in new_result['time'] ]
+    new_dates = [datetime(*start_date)+timedelta(x) for x in new_result['time']]
 
     print("old method elapsed:", t1_old-t0_old, "s")
     print("new method elapsed:", t1_new-t0_new, "s")
@@ -90,14 +102,13 @@ if __name__ == "__main__":
         diffs = (result[key][:-1,:]-new_result[key]).max()
     print("max difference between data points:", diffs.max())
 
-    ### make figure
+    # make figure
     fig = plt.figure(figsize=(10,8))
     ax1 = plt.subplot(1,1,1)
 
     for key in dkeys[1:]:
         ax1.plot(dates, og_data[key], label=key)
         ax1.plot(new_dates, new_result[key].sum(axis=1), '--')
-
 
     # plot on y log scale
     ax1.set_yscale('log')
@@ -114,13 +125,3 @@ if __name__ == "__main__":
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('compare_rewrite.png')
-
-
-
-
-
-
-
-
-
-
