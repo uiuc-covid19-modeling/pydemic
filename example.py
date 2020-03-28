@@ -28,7 +28,42 @@ if __name__ == "__main__":
     ## solve simplist SEIR model using scipy.integrate solve_ivp
     t,S,E,I,R = solve_seir(N, beta, a, gamma)
 
-    ## now run the same SEIR model but using pydemic
+    ## now run the same SEIR model but using pydemic## here we provide an example of a slightly more complicated
+    ## SEIR model extension that is meant to demonstrate several
+    ## of the more complicated features pydemic supports. 
+    compartments = (
+        'susceptible',
+        'exposed',
+        'infectious',
+        'recovered'
+    )
+    reactions = (
+        Reaction(
+            lhs='susceptible',
+            rhs='exposed',
+            evaluation=lambda t,y: y.susceptible*y.infectious*beta/N
+        ),
+        GammaProcess(
+            lhs='exposed',
+            rhs='infectious',
+            shape=3,
+            scale=lambda t,y: 5.
+        ),
+        GammaProcess(
+            lhs='infectious',
+            rhs='recovered',
+            shape=2,
+            scale=lambda t,y: 8.
+        )
+    )
+    demographics = (
+    )
+
+        
+    simulation = CompartmentalModelSimulation(compartments, reactions, demographics)
+
+    simulation.print_network()
+
 
     # TODO
 
@@ -87,16 +122,25 @@ if __name__ == "__main__":
     demographics = (
         DemographicClass(
             name="age", 
-            options=["<10", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70+"]
+            options=[
+                ("<10"), 
+                ("10-19"), 
+                ("20-29"), 
+                ("30-39"), 
+                ("40-49"), 
+                ("50-59"), 
+                ("60-69"), 
+                ("70+")
+            ]
         ),
         DemographicClass(
             name="state",
             options=[
-              ("IL", DemographicClass(
-                  name="county",
-                  options=["Cook", "Champaign"]
-              )),
-              "NY"
+                ("IL", DemographicClass(
+                    name="county",
+                    options=["Cook", "Champaign"]
+                )),
+                "NY"
             ]
         )
     )
