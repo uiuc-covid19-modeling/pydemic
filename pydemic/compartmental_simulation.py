@@ -88,7 +88,10 @@ class CompartmentalModelSimulation:
                     dY_min -= incr
             dY = np.minimum(dY_min, dY)
 
-            increments[(reaction.lhs, reaction.rhs)] = dY
+            if (reaction.lhs, reaction.rhs) in increments:
+                increments[reaction.lhs, reaction.rhs] += dY
+            else:
+                increments[reaction.lhs, reaction.rhs] = dY
 
         for (lhs, rhs), dY in increments.items():
             state[lhs] -= dY
