@@ -65,7 +65,7 @@ class Reaction:
         self.evaluator = evaluator
 
     def __repr__(self):
-        return "(reaction) {0:s} --> {1:s}".format(self.lhs, self.rhs)
+        return "{0:s} --> {1:s}".format(self.lhs, self.rhs)
 
     def get_reactions(self):
         return tuple([self])
@@ -79,36 +79,23 @@ class ErlangProcess(Reaction):
         self.scale = scale
 
     def get_reactions(self):
-        if self.shape == 1:
-            return tuple([
-                Reaction(self.lhs, self.rhs,
-                         lambda t, y: y[self.lhs] / self.scale(t, y))
-            ])
-        else:
-            lhs = self.lhs
-            rhs = self.lhs + ":{0:s}:{1:d}".format(self.rhs, 0)
-            reactions = [Reaction(lhs, rhs, lambda t, y: y[lhs] / self.scale(t, y))]
-
-            for k in range(0, self.shape-1):
-                lhs = self.lhs+":{0:s}:{1:d}".format(self.rhs, k)
-                rhs = self.lhs+":{0:s}:{1:d}".format(self.rhs, k+1)
-                reactions.append(
-                    Reaction(lhs, rhs, lambda t, y: y[lhs] / self.scale(t, y))
-                )
-
-            lhs = self.lhs+":{0:s}:{1:d}".format(self.rhs, self.shape-1)
-            rhs = self.rhs
-            reactions.append(
-                Reaction(lhs, rhs, lambda t, y: y[lhs] / self.scale(t, y))
-            )
-
-            return tuple(reactions)
+        intermediaries = [
+            self.lhs + ":{0:s}:{1:d}".format(self.rhs, k)
+            for k in range(0, self.shape-1)
+        ]
+        stages = [self.lhs] + intermediaries + [self.rhs]
+        reactions = [
+            # hack so that lhs resolves to current value rather than final
+            # see https://stackoverflow.com/a/2295372
+            Reaction(lhs, rhs, lambda t, y, lhs=lhs: y[lhs] / self.scale(t, y))
+            for lhs, rhs in zip(stages[:-1], stages[1:])
+        ]
+        return tuple(reactions)
 
 
 GammaProcess = ErlangProcess
 
 from pydemic.compartmental_simulation import CompartmentalModelSimulation
-
 
 
 class AgeDistribution(AttrDict):

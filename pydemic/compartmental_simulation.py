@@ -25,7 +25,6 @@ THE SOFTWARE.
 
 
 import numpy as np
-from pydemic import AttrDict, ErlangProcess, Reaction
 
 __doc__ = """
 .. currentmodule:: pydemic
@@ -38,6 +37,7 @@ class StateLogger(dict):
     def __init__(self, n_time_steps, **kwargs):
         super().__init__(**kwargs)
         self.__dict__ = self
+        self.init_keys = tuple(kwargs.keys())
 
         self.y = {}
         for key, val in kwargs.items():
@@ -52,6 +52,10 @@ class StateLogger(dict):
         self.slice += 1
         for key, val in kwargs.items():
             self[key][self.slice] = val
+
+    def trim(self):
+        for key in self.init_keys:
+            self[key] = self[key][:self.slice, ...]
 
 
 class CompartmentalModelSimulation:
@@ -127,4 +131,5 @@ class CompartmentalModelSimulation:
             state['time'] = time
             result.extend(**state)
 
+        result.trim()
         return result
