@@ -19,30 +19,9 @@ class NeherModelSimulation(CompartmentalModelSimulation):
 
     """
 
-
-
     def __init__(self, epidemiology, severity):
 
-        ## FIXME: TODO?
-
-        ## generate rates from epidemiology and severity models
-
-
-
-
         population = 1.e6
-
-        # parameters of the model (hardcoded for now)
-        """
-        t_l = 1.
-        t_i = 1.
-        t_c = 1.
-        t_h = 1.
-
-        m = np.ones(9)  # going from infectious to recovered
-        c = np.ones(9)  # going from hospitalized to go to critical
-        f = np.ones(9)  # going from critical to dead
-        """
 
         ## translate from epidemiology/severity models into rates
         dHospital = severity.severe/100. * severity.critical/100.
@@ -56,6 +35,20 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         hospitalized_critical_rate = dCritical / epidemiology.length_hospital_stay
         critical_hospitalized_rate = (1 - dFatal) / epidemiology.length_ICU_stay
         critical_dead_rate = dFatal / epidemiology.length_ICU_stay
+
+        self.beta = 1.
+        """
+        from pydemic import date_to_ms
+        jan_2020 = date_to_ms((2020, 1, 1))
+        peak_day = 30 * self.epidemiology.peak_month + 15
+        time_offset = (time - jan_2020) / ms_per_day - peak_day
+        phase = 2 * np.pi * time_offset / 365
+        return (
+            self.avg_infection_rate *
+            (1 + self.epidemiology.seasonal_forcing  * np.cos(phase))
+        )
+        return 1.
+        """
 
         ## define reactions given rates above
         reactions = (
@@ -103,10 +96,6 @@ class NeherModelSimulation(CompartmentalModelSimulation):
 
         super().__init__(reactions)
 
-
-    def beta(self):
-
-        return 1.
 
 
 

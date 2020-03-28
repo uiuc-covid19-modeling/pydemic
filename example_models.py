@@ -61,7 +61,28 @@ if __name__ == "__main__":
         overflow_severity=2
     )
 
-    sim = NeherModelSimulation(epidemiology, severity)
+    simulation = NeherModelSimulation(epidemiology, severity)
+
+    y0 = {
+        'susceptible': np.array(N-1),
+        'exposed': np.array(1),
+        'infectious': np.array(0),
+        'recovered': np.array(0),
+        'hospitalized': np.array(0),
+        'critical': np.array(0),
+        'dead': np.array(0)
+    }
+
+    compartments = ('susceptible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'dead')
+
+    tspan = (0, 10)
+    dt = 1e-3
+
+    result = simulation(tspan, y0, lambda x: x, dt=dt)
+
+
+
+
 
 
     """
