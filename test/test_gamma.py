@@ -25,50 +25,42 @@ THE SOFTWARE.
 
 import numpy as np
 import pytest
-from pydemic import Reaction, CompartmentalModelSimulation
+from pydemic import GammaProcess, CompartmentalModelSimulation
 
 
-@pytest.mark.parametrize("total_pop", [1e4, 1e6])
-@pytest.mark.parametrize("beta", [12, 8])
-def test_SEIR(total_pop=1e6, beta=12, a=1, gamma=1, plot=False):
+@pytest.mark.parametrize("shape", [1, 2, 8])
+@pytest.mark.parametrize("scale", [1, 1.4])
+def test_gamma(shape, scale, plot=False):
     reactions = (
-        Reaction('susceptible', 'exposed',
-                 lambda t, y: y['susceptible']*y['infectious']*beta/total_pop),
-        Reaction('exposed', 'infectious',
-                 lambda t, y: a * y['exposed']),
-        Reaction('infectious', 'recovered',
-                 lambda t, y: gamma * y['infectious']),
+        GammaProcess('a', 'b', shape=shape, scale=lambda t, y: scale),
     )
 
     simulation = CompartmentalModelSimulation(reactions)
 
-    y0 = {
-        'susceptible': np.array(total_pop-1),
-        'exposed': np.array(1),
-        'infectious': np.array(0),
-        'recovered': np.array(0),
-    }
-
-    compartments = ('susceptible', 'exposed', 'infectious', 'recovered')
-
+    y0 = {'a': np.array(1), 'b': np.array(0)}
     tspan = (0, 10)
     dt = 1e-3
 
     result = simulation(tspan, y0, lambda x: x, dt=dt)
-
-    def f(t, y):
-        S, E, I, R = y
-        dydt = [-beta*S*I/total_pop, beta*S*I/total_pop - a*E, a*E-gamma*I, gamma*I]
-        return np.array(dydt)
-
-    initial_position = [total_pop-1, 1, 0, 0]
-    from scipy.integrate import solve_ivp
-    res = solve_ivp(f, tspan, initial_position, rtol=1.e-13,
-                    dense_output=True)
-
     t = result['time']
 
-    scipy_sol = {comp: res.sol(t)[i] for i, comp in enumerate(compartments)}
+    def f(t, y):
+        dy = np.zeros_like(y)
+        for i in range(1, len(y)-1):
+            dy[i] = - y[i] / scale + y[i-1] / scale
+        dy[0] = - y[0] / scale
+        dy[-1] = y[-2] / scale
+        return dy
+
+    compartments = ('a', 'b')
+
+    y0 = np.zeros(2 + shape-1)
+    y0[0] = 1
+    from scipy.integrate import solve_ivp
+    res = solve_ivp(f, tspan, y0, rtol=1.e-13,
+                    dense_output=True)
+
+    scipy_sol = {'a': res.sol(t)[0], 'b': res.sol(t)[-1]}
     for i, name in enumerate(compartments):
         non_zero = np.logical_and(scipy_sol[name] > 0, result[name] > 0)
         test = np.logical_and(non_zero, t > 1)
@@ -76,7 +68,9 @@ def test_SEIR(total_pop=1e6, beta=12, a=1, gamma=1, plot=False):
         print('max err for', name, 'is', np.max(relerr))
         assert np.max(relerr) < .05
 
-    total_people = sum(result[name] for name in compartments)
+    all_keys = simulation.compartments + simulation.hidden_compartments
+    total_people = sum(result[key] for key in all_keys)
+    total_pop = total_people[0]
     total_err = np.max(np.abs(1 - total_people / total_pop))
     print('total error is', np.max(total_err))
     assert np.max(total_err) < 1.e-13
@@ -88,12 +82,12 @@ def test_SEIR(total_pop=1e6, beta=12, a=1, gamma=1, plot=False):
 
         fig, ax = plt.subplots()
         for i, name in enumerate(compartments):
-            ax.semilogy(t, scipy_sol[name], linewidth=.5, label=name+', scipy')
-            ax.semilogy(t, result[name], '--', label=name + ', pydemic')
+            ax.plot(t, scipy_sol[name], linewidth=.5, label=name+', scipy')
+            ax.plot(t, result[name], '--', label=name + ', pydemic')
 
         ax.legend(loc='center left', bbox_to_anchor=(1, .5))
-        fig.savefig('SEIR_example.png', bbox_inches='tight')
+        fig.savefig('test_gamma.png', bbox_inches='tight')
 
 
 if __name__ == "__main__":
-    test_SEIR(plot=True)
+    test_gamma(3, 2.3, plot=True)
