@@ -85,6 +85,7 @@ class CompartmentalModelSimulation:
 
     _compartments = {}
     _network = []
+    _compartment_shape = 1
 
     def _get_uniq_compartment_name(self,name):
         return name.replace(":","::")
@@ -98,6 +99,18 @@ class CompartmentalModelSimulation:
         ## generate list of internal graph nodes. this has to 
         ## happen after we have processed the compartments
         self.generate_network(reactions)
+
+        # FIXME: load demographic information and update
+        # self._compartment_shape appropriately
+        # initialize compartments 
+        # FIXME: maybe also/alternatively get compartment shape from initial condition?
+        for compartment in set([x.lhs for x in self._network]+[x.rhs for x in self._network]):
+            self._compartments[compartment] = np.zeros(self._compartment_shape)
+
+        self.__dict__ == self._compartments
+
+
+
 
     def generate_network(self, reactions):
         self._network = []
@@ -253,10 +266,36 @@ class CompartmentalModelSimulation:
             (1 + self.epidemiology.seasonal_forcing  * np.cos(phase))
         )
 
-    def step(self, time, state, sample):
-        """
+    #def step(self, time, state, sample):
+
+    def step(self, time, dt):
+
+        print(" - we are stepping now")
+
+        increments = {}
+
+
+        for reaction in self._network:
+
+            reaction_rate = reaction.evaluation(time, self)
+
+            print(reaction)
 
         """
+
+increments = {}
+for reaction in reactions:
+    dY = poisson(dt * reaction.function(time, state))
+    dY_min = state[reaction.lhs].copy()
+    for pairs, incr in increment.items():
+        if reaction.lhs == pairs[0]:
+            dY_min -= incr
+    dY = np.minimum(dY_min, dY)
+    increment[(reaction.lhs, reaction.rhs)] = dY
+    
+        """
+
+
 
         pass
 
@@ -402,6 +441,14 @@ class CompartmentalModelSimulation:
 
         :returns: The :class:`SimulationResult`.
         """
+
+        time = start_time
+        while time < end_time:
+
+            dt = 1. # FIXME: get dt in a reasonable way
+
+            self.step(dt)
+            time += dt
 
         pass
 

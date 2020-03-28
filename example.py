@@ -35,7 +35,7 @@ if __name__ == "__main__":
         Reaction(
             lhs='susceptible',
             rhs='exposed',
-            evaluation=lambda t,y: y.susceptible*y.infectious*beta/N
+            evaluation=lambda t,y: y['susceptible']*y['infectious']*beta/N
         ),
         GammaProcess(
             lhs='exposed',
@@ -57,6 +57,7 @@ if __name__ == "__main__":
     simulation = CompartmentalModelSimulation(reactions, demographics)
 
     simulation.print_network()
+    simulation.step(1.0, 0.1)
 
 
     print("\n\n\n")
@@ -146,7 +147,7 @@ if __name__ == "__main__":
 
     simulation = CompartmentalModelSimulation(reactions, demographics)
 
-    simulation.print_network()
+    #simulation.print_network()
 
 
 
