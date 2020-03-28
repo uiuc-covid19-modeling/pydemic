@@ -88,7 +88,7 @@ class ErlangProcess(Reaction):
         reactions = [
             # hack so that lhs resolves to current value rather than final
             # see https://stackoverflow.com/a/2295372
-            Reaction(lhs, rhs, lambda t, y, lhs=lhs: y[lhs] / self.scale(t, y))
+            Reaction(lhs, rhs, lambda t, y, lhs=lhs: y.y[lhs] / self.scale(t, y))
             for lhs, rhs in zip(stages[:-1], stages[1:])
         ]
         return tuple(reactions)

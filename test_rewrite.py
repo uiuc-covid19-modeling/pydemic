@@ -93,13 +93,13 @@ if __name__ == "__main__":
     t0_new = time.time()
     new_result = simulation(tspan, y0, lambda x: x, dt=dt)
     t1_new = time.time()
-    new_dates = [datetime(*start_date)+timedelta(x) for x in new_result['time']]
+    new_dates = [datetime(*start_date)+timedelta(x) for x in new_result.t]
 
     print("old method elapsed:", t1_old-t0_old, "s")
     print("new method elapsed:", t1_new-t0_new, "s")
     diffs = []
     for key in dkeys[1:]:
-        diffs = (result[key][:-1,:]-new_result[key]).max()
+        diffs = (result[key][:-1,:]-new_result.y[key]).max()
     print("max difference between data points:", diffs.max())
 
     # make figure
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     for key in dkeys[1:]:
         ax1.plot(dates, og_data[key], label=key)
-        ax1.plot(new_dates, new_result[key].sum(axis=1), '--')
+        ax1.plot(new_dates, new_result.y[key].sum(axis=1), '--')
 
     # plot on y log scale
     ax1.set_yscale('log')

@@ -33,11 +33,11 @@ from pydemic import Reaction, CompartmentalModelSimulation
 def test_SEIR(total_pop, beta, a=1, gamma=1, plot=False):
     reactions = (
         Reaction('susceptible', 'exposed',
-                 lambda t, y: y['susceptible']*y['infectious']*beta/total_pop),
+                 lambda t, y: y.susceptible*y.infectious*beta/total_pop),
         Reaction('exposed', 'infectious',
-                 lambda t, y: a * y['exposed']),
+                 lambda t, y: a * y.exposed),
         Reaction('infectious', 'recovered',
-                 lambda t, y: gamma * y['infectious']),
+                 lambda t, y: gamma * y.infectious),
     )
 
     simulation = CompartmentalModelSimulation(reactions)
@@ -66,17 +66,17 @@ def test_SEIR(total_pop, beta, a=1, gamma=1, plot=False):
     res = solve_ivp(f, tspan, initial_position, rtol=1.e-13,
                     dense_output=True)
 
-    t = result['time']
+    t = result.t
 
     scipy_sol = {comp: res.sol(t)[i] for i, comp in enumerate(compartments)}
     for i, name in enumerate(compartments):
-        non_zero = np.logical_and(scipy_sol[name] > 0, result[name] > 0)
+        non_zero = np.logical_and(scipy_sol[name] > 0, result.y[name] > 0)
         test = np.logical_and(non_zero, t > 1)
-        relerr = np.abs(1 - scipy_sol[name][test] / result[name][test])
+        relerr = np.abs(1 - scipy_sol[name][test] / result.y[name][test])
         print('max err for', name, 'is', np.max(relerr))
         assert np.max(relerr) < .05
 
-    total_people = sum(result[name] for name in compartments)
+    total_people = sum(result.y[name] for name in compartments)
     total_err = np.max(np.abs(1 - total_people / total_pop))
     print('total error is', np.max(total_err))
     assert np.max(total_err) < 1.e-13
@@ -89,7 +89,7 @@ def test_SEIR(total_pop, beta, a=1, gamma=1, plot=False):
         fig, ax = plt.subplots()
         for i, name in enumerate(compartments):
             ax.semilogy(t, scipy_sol[name], linewidth=.5, label=name+', scipy')
-            ax.semilogy(t, result[name], '--', label=name + ', pydemic')
+            ax.semilogy(t, result.y[name], '--', label=name + ', pydemic')
 
         ax.legend(loc='center left', bbox_to_anchor=(1, .5))
         fig.savefig('SEIR_example.png', bbox_inches='tight')

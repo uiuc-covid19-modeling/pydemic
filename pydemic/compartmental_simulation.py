@@ -33,29 +33,47 @@ __doc__ = """
 """
 
 
-class StateLogger(dict):
-    def __init__(self, n_time_steps, **kwargs):
-        super().__init__(**kwargs)
-        self.__dict__ = self
-        self.init_keys = tuple(kwargs.keys())
+class SimulationState:
+    def __init__(self, t, compartments, hidden_compartments):
+        self.t = t
+        self.y = {**compartments, **hidden_compartments}
+        self.compartments = list(compartments.keys())
+        self.hidden_compartments = list(hidden_compartments.keys())
 
-        self.y = {}
-        for key, val in kwargs.items():
-            if not isinstance(val, np.ndarray):
-                val = np.array(val)
-            ary = np.zeros(shape=(n_time_steps,)+val.shape)
-            ary[0] = val
-            self[key] = ary
+        self.sum_compartments = {}
+        for item in self.compartments:
+            self.sum_compartments[item] = [item]
+            for full_key in self.hidden_compartments:
+                if item == full_key.split(':')[0]:
+                    self.sum_compartments[item].append(full_key)
+
+    def __getattr__(self, item):
+        return sum(self.y[key] for key in self.sum_compartments[item])
+
+
+class StateLogger:
+    def __init__(self, state, n_time_steps):
+        self.t = np.zeros(shape=(n_time_steps,))
+        self.t[0] = state.t
         self.slice = 0
 
-    def extend(self, **kwargs):
+        self.y = {}
+        for key in state.compartments:
+            val = state.y[key]
+            ary = np.zeros(shape=(n_time_steps,)+val.shape)
+            ary[0] = val
+            self.y[key] = ary
+
+    def extend(self, state):
         self.slice += 1
-        for key, val in kwargs.items():
-            self[key][self.slice] = val
+        self.t[self.slice] = state.t
+        for key in state.compartments:
+            self.y[key][self.slice] = state.__getattr__(key)
 
     def trim(self):
-        for key in self.init_keys:
-            self[key] = self[key][:self.slice, ...]
+        self.t = self.t[:self.slice]
+        for key in self.y.keys():
+            self.y[key] = self.y[key][:self.slice, ...]
 
 
 class CompartmentalModelSimulation:
@@ -82,7 +100,7 @@ class CompartmentalModelSimulation:
             reaction_rate = reaction.evaluator(time, state)
             dY = (dt * reaction_rate)
 
-            dY_min = state[reaction.lhs].copy()
+            dY_min = state.y[reaction.lhs].copy()
             for (_lhs, _rhs), incr in increments.items():
                 if reaction.lhs == _lhs:
                     dY_min -= incr
@@ -94,19 +112,20 @@ class CompartmentalModelSimulation:
                 increments[reaction.lhs, reaction.rhs] = dY
 
         for (lhs, rhs), dY in increments.items():
-            state[lhs] -= dY
-            state[rhs] += dY
+            state.y[lhs] -= dY
+            state.y[rhs] += dY
 
     def initialize_full_state(self, time, y0):
-        state = {}
-        state['time'] = np.array(time)
+        compartment_vals = {}
         for key, ary in y0.items():
-            state[key] = np.array(ary, dtype='float64')
+            compartment_vals[key] = np.array(ary, dtype='float64')
 
-        template = state[self.compartments[0]]
+        hidden_compartment_vals = {}
+        template = compartment_vals[self.compartments[0]]
         for key in self.hidden_compartments:
-            state[key] = np.zeros_like(template)
+            hidden_compartment_vals[key] = np.zeros_like(template)
 
+        state = SimulationState(time, compartment_vals, hidden_compartment_vals)
         return state
 
     def __call__(self, tspan, y0, sampler, dt=.01):
@@ -124,15 +143,15 @@ class CompartmentalModelSimulation:
         state = self.initialize_full_state(start_time, y0)
 
         n_time_steps = int(np.ceil((end_time - start_time) / dt)) + 2
-        result = StateLogger(n_time_steps, **state)
+        result = StateLogger(state, n_time_steps)
 
         time = start_time
         while time < end_time:
             # dt = 1. # FIXME: get dt in a reasonable way
             self.step(time, state, dt)
             time += dt
-            state['time'] = time
-            result.extend(**state)
+            state.t = time
+            result.extend(state)
 
         result.trim()
         return result

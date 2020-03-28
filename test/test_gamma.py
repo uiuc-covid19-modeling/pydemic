@@ -42,7 +42,7 @@ def test_gamma(shape, scale, plot=False):
     dt = 1e-3
 
     result = simulation(tspan, y0, lambda x: x, dt=dt)
-    t = result['time']
+    t = result.t
 
     def f(t, y):
         dy = np.zeros_like(y)
@@ -60,16 +60,16 @@ def test_gamma(shape, scale, plot=False):
     res = solve_ivp(f, tspan, y0, rtol=1.e-13,
                     dense_output=True)
 
-    scipy_sol = {'a': res.sol(t)[0], 'b': res.sol(t)[-1]}
+    scipy_sol = {'a': np.sum(res.sol(t)[:-1], axis=0), 'b': res.sol(t)[-1]}
     for i, name in enumerate(compartments):
-        non_zero = np.logical_and(scipy_sol[name] > 0, result[name] > 0)
+        non_zero = np.logical_and(scipy_sol[name] > 0, result.y[name] > 0)
         test = np.logical_and(non_zero, t > 1)
-        relerr = np.abs(1 - scipy_sol[name][test] / result[name][test])
+        relerr = np.abs(1 - scipy_sol[name][test] / result.y[name][test])
         print('max err for', name, 'is', np.max(relerr))
         assert np.max(relerr) < .05
 
-    all_keys = simulation.compartments + simulation.hidden_compartments
-    total_people = sum(result[key] for key in all_keys)
+    all_keys = simulation.compartments
+    total_people = sum(result.y[key] for key in all_keys)
     total_pop = total_people[0]
     total_err = np.max(np.abs(1 - total_people / total_pop))
     print('total error is', np.max(total_err))
@@ -83,7 +83,7 @@ def test_gamma(shape, scale, plot=False):
         fig, ax = plt.subplots()
         for i, name in enumerate(compartments):
             ax.plot(t, scipy_sol[name], linewidth=.5, label=name+', scipy')
-            ax.plot(t, result[name], '--', label=name + ', pydemic')
+            ax.plot(t, result.y[name], '--', label=name + ', pydemic')
 
         ax.legend(loc='center left', bbox_to_anchor=(1, .5))
         fig.savefig('test_gamma.png', bbox_inches='tight')
