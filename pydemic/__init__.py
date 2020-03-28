@@ -38,6 +38,49 @@ from pydemic.containment import ContainmentModel
 from pydemic.simulation import Simulation
 
 
+class DemographicClass(AttrDict):
+    """
+    .. attribute:: name
+
+        TODO
+
+    .. attribute:: options
+
+        TODO
+    """
+    expected_kwargs = {
+        "name",
+        "options"
+    }
+
+
+class Reaction(AttrDict):
+    """
+    .. attribute:: 
+    """
+    expected_kwargs = {
+        "lhs",
+        "rhs",
+        "evaluation"
+    }
+
+
+class ErlangProcess(AttrDict):  # TODO: make this a subclass
+    """
+    .. attribute::
+    """
+    expected_kwargs = {
+        "lhs",
+        "rhs",
+        "shape",
+        "scale"
+    }
+GammaProcess = ErlangProcess
+
+from pydemic.compartmental_simulation import CompartmentalModelSimulation
+
+
+
 class AgeDistribution(AttrDict):
     """
     .. attribute:: bin_edges
@@ -209,12 +252,17 @@ def date_to_ms(date):
 
 __all__ = [
     "AttrDict",
+    "CompartmentalModelSimulation",
+    "DemographicClass",
+    "Reaction",
+    "ErlangProcess",
+    "GammaProcess",
+
     "AgeDistribution",
     "PopulationModel",
     "EpidemiologyModel",
     "SeverityModel",
     "ContainmentModel",
     "CaseData",
-    "Simulation",
     "date_to_ms",
 ]
