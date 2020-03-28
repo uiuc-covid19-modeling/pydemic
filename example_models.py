@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pydemic import DemographicClass, Reaction, GammaProcess
-from pydemic import CompartmentalModelSimulation
+from pydemic import CompartmentalModelSimulation, SeverityModel, EpidemiologyModel
 
 from pydemic.models import SEIRModelSimulation, NeherModelSimulation
 
@@ -36,7 +36,32 @@ if __name__ == "__main__":
 
 
     ## run a Neherlab-like simulation with pydemic
-    sim = NeherModelSimulation()
+
+    # set severity model
+    n_age_groups = 9
+    severity = SeverityModel(
+        id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
+        age_group=np.arange(0., 90., 10),
+        isolated=np.zeros(n_age_groups),
+        confirmed=np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]),
+        severe=np.array([1., 3., 3., 3., 6., 10., 25., 35., 50.]),
+        critical=np.array([5., 10., 10., 15., 20., 25., 35., 45., 55.]),
+        fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
+    )
+
+    # set epidemiology model
+    epidemiology = EpidemiologyModel(
+        r0=2.7,
+        incubation_time=5,
+        infectious_period=3,
+        length_hospital_stay=4,
+        length_ICU_stay=14,
+        seasonal_forcing=0.,
+        peak_month=0,
+        overflow_severity=2
+    )
+
+    sim = NeherModelSimulation(epidemiology, severity)
 
 
     """
