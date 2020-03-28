@@ -54,29 +54,57 @@ class DemographicClass(AttrDict):
     }
 
 
-class Reaction(AttrDict):
-    """
-    .. attribute:: 
-    """
-    expected_kwargs = {
-        "lhs",
-        "rhs",
-        "evaluation"
-    }
-    def __repr__(self):
-        return "(reaction) {0:s} --> {1:s}".format(self.lhs, self.rhs)
-
-
-class ErlangProcess(AttrDict):  # TODO: make this a subclass
+class Reaction:
     """
     .. attribute::
     """
-    expected_kwargs = {
-        "lhs",
-        "rhs",
-        "shape",
-        "scale"
-    }
+
+    def __init__(self, lhs, rhs, evaluator):
+        self.lhs = lhs
+        self.rhs = rhs
+        self.evaluator = evaluator
+
+    def __repr__(self):
+        return "(reaction) {0:s} --> {1:s}".format(self.lhs, self.rhs)
+
+    def get_reactions(self):
+        return tuple([self])
+
+
+class ErlangProcess(Reaction):
+    def __init__(self, lhs, rhs, shape, scale):
+        self.lhs = lhs
+        self.rhs = rhs
+        self.shape = shape
+        self.scale = scale
+
+    def get_reactions(self):
+        if self.shape == 1:
+            return tuple([
+                Reaction(self.lhs, self.rhs,
+                         lambda t, y: y[self.lhs] / self.scale(t, y))
+            ])
+        else:
+            lhs = self.lhs
+            rhs = self.lhs + ":{0:s}:{1:d}".format(self.rhs, 0)
+            reactions = [Reaction(lhs, rhs, lambda t, y: y[lhs] / self.scale(t, y))]
+
+            for k in range(0, self.shape-1):
+                lhs = self.lhs+":{0:s}:{1:d}".format(self.rhs, k)
+                rhs = self.lhs+":{0:s}:{1:d}".format(self.rhs, k+1)
+                reactions.append(
+                    Reaction(lhs, rhs, lambda t, y: y[lhs] / self.scale(t, y))
+                )
+
+            lhs = self.lhs+":{0:s}:{1:d}".format(self.rhs, self.shape-1)
+            rhs = self.rhs
+            reactions.append(
+                Reaction(lhs, rhs, lambda t, y: y[lhs] / self.scale(t, y))
+            )
+
+            return tuple(reactions)
+
+
 GammaProcess = ErlangProcess
 
 from pydemic.compartmental_simulation import CompartmentalModelSimulation

@@ -19,7 +19,7 @@ def solve_seir(N, beta, a, gamma):
 
 if __name__ == "__main__":
 
-    ## 
+    ##
     N = 1.e6
     beta = 12.
     a = 1.
@@ -30,35 +30,32 @@ if __name__ == "__main__":
 
     ## now run the same SEIR model but using pydemic## here we provide an example of a slightly more complicated
     ## SEIR model extension that is meant to demonstrate several
-    ## of the more complicated features pydemic supports. 
+    ## of the more complicated features pydemic supports.
     reactions = (
-        Reaction(
-            lhs='susceptible',
-            rhs='exposed',
-            evaluation=lambda t,y: y['susceptible']*y['infectious']*beta/N
-        ),
-        GammaProcess(
-            lhs='exposed',
-            rhs='infectious',
-            shape=3,
-            scale=lambda t,y: 5.
-        ),
+        Reaction('susceptible', 'exposed',
+                 lambda t,y: y['susceptible']*y['infectious']*beta/N),
+        GammaProcess('exposed', 'infectious', shape=1,
+                     scale=lambda t, y: 5.),
         GammaProcess(
             lhs='infectious',
             rhs='recovered',
             shape=2,
-            scale=lambda t,y: 8.
+            scale=lambda t, y: 8.
         )
     )
-    demographics = (
-    )
 
-        
-    simulation = CompartmentalModelSimulation(reactions, demographics)
+
+    simulation = CompartmentalModelSimulation(reactions)
+
+    y0 = {
+        'susceptible': np.array(90),
+        'exposed': np.array(0),
+        'infectious': np.array(10),
+        'recovered': np.array(0),
+    }
 
     simulation.print_network()
-    simulation.step(1.0, 0.1)
-
+    simulation((0, 2), y0, lambda x: x)
 
     print("\n\n\n")
 
@@ -68,7 +65,7 @@ if __name__ == "__main__":
 
     ## here we provide an example of a slightly more complicated
     ## SEIR model extension that is meant to demonstrate several
-    ## of the more complicated features pydemic supports. 
+    ## of the more complicated features pydemic supports.
     compartments = (
         'susceptible',
         'exposed',
@@ -119,15 +116,15 @@ if __name__ == "__main__":
     )
     demographics = (
         DemographicClass(
-            name="age", 
+            name="age",
             options=[
-                ("<10"), 
-                ("10-19"), 
-                ("20-29"), 
-                ("30-39"), 
-                ("40-49"), 
-                ("50-59"), 
-                ("60-69"), 
+                ("<10"),
+                ("10-19"),
+                ("20-29"),
+                ("30-39"),
+                ("40-49"),
+                ("50-59"),
+                ("60-69"),
                 ("70+")
             ]
         ),
@@ -143,7 +140,7 @@ if __name__ == "__main__":
         )
     )
 
-        
+
 
     simulation = CompartmentalModelSimulation(reactions, demographics)
 
@@ -185,14 +182,14 @@ class SEIRModel(CompartmentalModelSimulation):
             GammaProcess('exposed', 'infectious', mean(t_EI), std(t_EI)),
             GammaProcess('infectious', 'recovered', mean(t_IR), std(t_IR)),
         )
-        
+
         compartments = {
             'susceptible',
             'exposed',
             'infectious',
             'recovered',
         }
-        
+
         super().__init__(compartments, reactions)
       """
 
