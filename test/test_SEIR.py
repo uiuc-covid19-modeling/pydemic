@@ -30,7 +30,7 @@ from pydemic import Reaction, CompartmentalModelSimulation
 
 @pytest.mark.parametrize("total_pop", [1e4, 1e6])
 @pytest.mark.parametrize("beta", [12, 8])
-def test_SEIR(total_pop=1e6, beta=12, a=1, gamma=1, plot=False):
+def test_SEIR(total_pop, beta, a=1, gamma=1, plot=False):
     reactions = (
         Reaction('susceptible', 'exposed',
                  lambda t, y: y['susceptible']*y['infectious']*beta/total_pop),
@@ -96,4 +96,4 @@ def test_SEIR(total_pop=1e6, beta=12, a=1, gamma=1, plot=False):
 
 
 if __name__ == "__main__":
-    test_SEIR(plot=True)
+    test_SEIR(1e6, 12, plot=True)

@@ -23,6 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+
 class AttrDict(dict):
     expected_kwargs = set()
 
@@ -274,7 +275,7 @@ __all__ = [
     "Reaction",
     "ErlangProcess",
     "GammaProcess",
-
+    "Simulation",
     "AgeDistribution",
     "PopulationModel",
     "EpidemiologyModel",

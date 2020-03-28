@@ -253,7 +253,7 @@ class Simulation:
         self.avg_infection_rate = epidemiology.r0 / epidemiology.infectious_period
 
         self.num_age_groups = len(age_distribution.counts)
-        total = np.sum(age_distribution)
+        # total = np.sum(age_distribution)
 
         freqs = age_distribution.counts / np.sum(age_distribution.counts)
         self.infection_severity_ratio = (
@@ -329,7 +329,7 @@ class Simulation:
         phase = 2 * np.pi * time_offset / 365
         return (
             self.avg_infection_rate *
-            (1 + self.epidemiology.seasonal_forcing  * np.cos(phase))
+            (1 + self.epidemiology.seasonal_forcing * np.cos(phase))
         )
 
     def step(self, time, state, sample):

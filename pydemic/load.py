@@ -36,17 +36,17 @@ _agedata_filename = os.path.join(
     cwd, "../assets/country_age_distribution.json"
 )
 _casedata_filename = os.path.join(
-     cwd, "../assets/case_counts.json"
+    cwd, "../assets/case_counts.json"
 )
 
 with open(_popdata_filename, 'r') as f:
     _populations = json.load(f)
     for el in _populations:
-      el["data"]["population_served"] = el["data"].pop("populationServed")
-      el["data"]["suspected_cases_today"] = el["data"].pop("suspectedCasesToday")
-      el["data"]["ICU_beds"] = el["data"].pop("ICUBeds")
-      el["data"]["hospital_beds"] = el["data"].pop("hospitalBeds")
-      el["data"]["imports_per_day"] = el["data"].pop("importsPerDay")
+        el["data"]["population_served"] = el["data"].pop("populationServed")
+        el["data"]["suspected_cases_today"] = el["data"].pop("suspectedCasesToday")
+        el["data"]["ICU_beds"] = el["data"].pop("ICUBeds")
+        el["data"]["hospital_beds"] = el["data"].pop("hospitalBeds")
+        el["data"]["imports_per_day"] = el["data"].pop("importsPerDay")
     _population_dict = {pop['name']: pop['data'] for pop in _populations}
 
 with open(_agedata_filename, 'r') as f:
@@ -87,7 +87,7 @@ def get_case_data(subregion):
 
     data_dict = {}
     for key in CaseData.expected_kwargs:
-        if key not in  ('dates', 'last_date'):
+        if key not in ('dates', 'last_date'):
             # replace None with 0
             dat = [d[key] or 0 for d in data_series]
             data_dict[key] = np.array(dat)
@@ -100,7 +100,7 @@ def get_case_data(subregion):
     times = np.array(list(map(date_to_ms, date_tuples)))
     ms_per_day = 24 * 60 * 60 * 1000
 
-    data_dict['dates'] = [ int(x) for x in (times - times[-1]) // ms_per_day ]
+    data_dict['dates'] = [int(x) for x in (times - times[-1]) // ms_per_day]
     data_dict['last_date'] = date_tuples[-1]
 
     return CaseData(**data_dict)
