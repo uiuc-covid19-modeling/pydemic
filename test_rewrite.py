@@ -3,6 +3,7 @@ import matplotlib as mpl ; mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
+import time
 
 from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
 from pydemic import Simulation
@@ -49,7 +50,9 @@ if __name__ == "__main__":
                      containment)
     start_time = date_to_ms(start_date)
     end_time = date_to_ms(end_date)
+    t0_old = time.time()
     result = sim(start_time, end_time, lambda x: x)
+    t1_old = time.time()
     og_data = {}
     dkeys = [ 'time', 'susceptible', 'exposed', 'infectious', 'hospitalized', 'critical', 'recovered', 'dead' ]
     dates = [ datetime.utcfromtimestamp(x//1000) for x in result['time'] ]
@@ -75,9 +78,17 @@ if __name__ == "__main__":
     y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
     tspan = (0, (datetime(*end_date)-datetime(*start_date)).days)
     dt = 0.25
+    t0_new = time.time()
     new_result = simulation(tspan, y0, lambda x: x, dt=dt)
+    t1_new = time.time()
     new_dates = [ datetime(*start_date)+timedelta(x) for x in new_result['time'] ]
 
+    print("old method elapsed:", t1_old-t0_old, "s")
+    print("new method elapsed:", t1_new-t0_new, "s")
+    diffs = []
+    for key in dkeys[1:]:
+        diffs = (result[key][:-1,:]-new_result[key]).max()
+    print("max difference between data points:", diffs.max())
 
     ### make figure
     fig = plt.figure(figsize=(10,8))
