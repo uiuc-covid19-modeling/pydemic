@@ -25,7 +25,9 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     t_c = 1.
     t_h = 1.
 
-    m = np.ones(9)
+    m = np.ones(9)  # going from infectious to recovered
+    c = np.ones(9)  # going from hospitalized to go to critical
+    f = np.ones(9)  # going from critical to dead
 
 
     def __init__(self):
@@ -43,15 +45,35 @@ class NeherModelSimulation(CompartmentalModelSimulation):
                 rhs="infectious",
                 evaluator=lambda t,y: y["exposed"]/t_l
             ),
-            Reaction(  ## TODO, fix here and on.
+            Reaction(
                 lhs="infectious",
                 rhs="hospitalized",
-                evaluator=lambda t,y: 1.
+                evaluator=lambda t,y: m*y["infectious"]/t_i
             ),
             Reaction(
                 lhs="infectious",
                 rhs="recovered",
-                evaluator=lambda t,y: 1.
+                evaluator=lambda t,y: (1.-m)*y["infectious"]/t_i
+            ),
+            Reaction(
+                lhs="hospitalized",
+                rhs="recovered",
+                evaluator=lambda t,y: (1.-c)*y["hospitalized"]/t_h
+            ),
+            Reaction(
+                lhs="hospitalized",
+                rhs="critical",
+                evaluator=lambda t,y: c*y["hospitalized"]/t_h
+            ),
+            Reaction(
+                lhs="critical",
+                rhs="hospitalized",
+                evaluator=lambda t,y: (1.-f)*y["critical"]/t_c
+            ),
+            Reaction(
+                lhs="critical",
+                rhs="dead",
+                evaluator=lambda t,y: f*y["critical"]/t_c
             )
         )
 
