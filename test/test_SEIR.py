@@ -25,48 +25,42 @@ THE SOFTWARE.
 
 import numpy as np
 import pytest
-from pydemic import Reaction, CompartmentalModelSimulation
+from pydemic import Reaction
+from pydemic.models import SEIRModelSimulation
 
 
 @pytest.mark.parametrize("total_pop", [1e4, 1e6])
-@pytest.mark.parametrize("beta", [12, 8])
-def test_SEIR(total_pop, beta, a=1, gamma=1, plot=False):
-    reactions = (
-        Reaction('susceptible', 'exposed',
-                 lambda t, y: y.susceptible*y.infectious*beta/total_pop),
-        Reaction('exposed', 'infectious',
-                 lambda t, y: a * y.exposed),
-        Reaction('infectious', 'recovered',
-                 lambda t, y: gamma * y.infectious),
-    )
+@pytest.mark.parametrize("avg_infection_rate", [12, 8])
+def test_SEIR(total_pop, avg_infection_rate, infectious_rate=1,
+              removal_rate=1, plot=False):
+    simulation = SEIRModelSimulation(avg_infection_rate, infectious_rate,
+                                     removal_rate, population=1e6)
 
-    simulation = CompartmentalModelSimulation(reactions)
-
+    compartments = ('susceptible', 'exposed', 'infectious', 'removed')
     y0 = {
         'susceptible': np.array(total_pop-1),
         'exposed': np.array(1),
         'infectious': np.array(0),
-        'recovered': np.array(0),
+        'removed': np.array(0),
     }
-
-    compartments = ('susceptible', 'exposed', 'infectious', 'recovered')
 
     tspan = (0, 10)
     dt = 1e-3
-
     result = simulation(tspan, y0, lambda x: x, dt=dt)
+    t = result.t
 
     def f(t, y):
         S, E, I, R = y
-        dydt = [-beta*S*I/total_pop, beta*S*I/total_pop - a*E, a*E-gamma*I, gamma*I]
+        S_to_E = avg_infection_rate * S * I / total_pop
+        E_to_I = infectious_rate * E
+        I_to_R = removal_rate * I
+        dydt = [-S_to_E, S_to_E - E_to_I, E_to_I - I_to_R, I_to_R]
         return np.array(dydt)
 
     initial_position = [total_pop-1, 1, 0, 0]
     from scipy.integrate import solve_ivp
     res = solve_ivp(f, tspan, initial_position, rtol=1.e-13,
                     dense_output=True)
-
-    t = result.t
 
     scipy_sol = {comp: res.sol(t)[i] for i, comp in enumerate(compartments)}
     for i, name in enumerate(compartments):

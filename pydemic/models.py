@@ -44,7 +44,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     population = 1.e6
     avg_infection_rate = 1.
     peak_day = 15
-    seasonal_forcing = 0. 
+    seasonal_forcing = 0.
 
     def beta(self, t, y):
         phase = 2. * np.pi * (t-self.peak_day)/365
@@ -142,18 +142,19 @@ class ExtendedSimulation(CompartmentalModelSimulation):
 
 
 class SEIRModelSimulation(CompartmentalModelSimulation):
-    def __init__(self, avg_infection_rate=10., infectious_rate=5., removal_rate=1.):
+    def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1,
+                 population=None):
         self.avg_infection_rate = avg_infection_rate
-        self.population = 1.e6
+        self.population = population
 
         reactions = (
             Reaction("susceptible", "exposed",
                      lambda t, y: (self.beta(t, y) * y.susceptible
                                    * y.infectious.sum() / self.population)),
             Reaction("exposed", "infectious",
-                     lambda t, y: y.exposed*infectious_rate),
+                     lambda t, y: infectious_rate * y.exposed),
             Reaction("infectious", "removed",
-                     lambda t, y: y.infectious*removal_rate),
+                     lambda t, y: removal_rate * y.infectious),
         )
         super().__init__(reactions)
 
@@ -161,6 +162,5 @@ class SEIRModelSimulation(CompartmentalModelSimulation):
         return self.avg_infection_rate
 
     def __call__(self, t_span, y0, sampler, dt=.01, **kwargs):
-        self.population = sum([y0[x] for x in y0])
-        rval = super().__call__(t_span, y0, sampler, dt=dt, **kwargs)
-        return rval
+        self.population = sum(y0[x] for x in y0)
+        return super().__call__(t_span, y0, sampler, dt=dt, **kwargs)
