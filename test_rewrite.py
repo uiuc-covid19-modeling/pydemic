@@ -78,24 +78,10 @@ if __name__ == "__main__":
         epidemiology, severity, population.imports_per_day,
         n_age_groups, containment
     )
-    N = population.population_served
-    y0 = {
-        'susceptible': np.array([int(np.round(x)) for x in np.array(age_distribution.counts)*N/sum(age_distribution.counts)]),
-        'exposed': np.zeros(n_age_groups),
-        'infectious': np.zeros(n_age_groups),
-        'recovered': np.zeros(n_age_groups),
-        'hospitalized': np.zeros(n_age_groups),
-        'critical': np.zeros(n_age_groups),
-        'dead': np.zeros(n_age_groups)
-    }
-    i_middle = round(n_age_groups / 2) + 1
-    y0['susceptible'][i_middle] -= population.suspected_cases_today
-    y0['exposed'][i_middle] += population.suspected_cases_today * 0.7
-    y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
-    dt = 0.25
+    
+    y0 = simulation.get_initial_population(population, age_distribution)
     t0_new = time.time()
-    print("run")
-    new_result = simulation([start_date, end_date], y0, lambda x: x, dt=dt)
+    new_result = simulation([start_date, end_date], y0, lambda x: x, dt=0.25)
     t1_new = time.time()
     new_dates = [datetime(2020, 1, 1)+timedelta(x) for x in new_result.t]
 

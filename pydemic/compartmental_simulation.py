@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 
+from scipy.stats import poisson
 import numpy as np
 
 __doc__ = """
@@ -53,14 +54,14 @@ class SimulationState:
 
 class StateLogger:
     def __init__(self, state, n_time_steps):
-        self.t = np.zeros(shape=(n_time_steps,))
+        self.t = np.zeros(shape=(n_time_steps*10000,))
         self.t[0] = state.t
         self.slice = 0
 
         self.y = {}
         for key in state.compartments:
             val = state.y[key]
-            ary = np.zeros(shape=(n_time_steps,)+val.shape)
+            ary = np.zeros(shape=(n_time_steps*10000,)+val.shape)
             ary[0] = val
             self.y[key] = ary
 
@@ -93,12 +94,14 @@ class CompartmentalModelSimulation:
         for reaction in self._network:
             print(reaction)
 
-    def step(self, time, state, dt):
+    def step(self, time, state, dt, stochastic_method=None):
         increments = {}
 
         for reaction in self._network:
             reaction_rate = reaction.evaluator(time, state)
-            dY = (dt * reaction_rate)
+            dY = reaction_rate
+            if stochastic_method == "tau_leap":
+                dY = poisson.rvs(dY)
 
             dY_min = state.y[reaction.lhs].copy()
             for (_lhs, _rhs), incr in increments.items():
@@ -111,9 +114,27 @@ class CompartmentalModelSimulation:
             else:
                 increments[reaction.lhs, reaction.rhs] = dY
 
-        for (lhs, rhs), dY in increments.items():
-            state.y[lhs] -= dY
-            state.y[rhs] += dY
+        if stochastic_method == "direct":
+            # WARNING: need to be sure we're pulling from the right
+            # reaction here! I might have solved an XY problem ...
+            reactions = list(increments.keys())
+            r1, r2 = np.random.random(2)
+            cumulative_rates = np.cumsum([increments[k] for k in reactions]) 
+            dt = - np.log(r1) / cumulative_rates[-1]
+            r2 *= cumulative_rates[-1]
+            reaction_index = np.searchsorted(cumulative_rates, r2)
+            # WARNING: It's also not entirely clear that this produces
+            # the right rate distributions for processes that have two
+            # different lhs <--> rhs reactions ...
+            lhs,rhs = reactions[reaction_index]
+            state.y[lhs] -= 1.
+            state.y[rhs] += 1.
+        else:
+            for (lhs, rhs), dY in increments.items():
+                state.y[lhs] -= dY*dt
+                state.y[rhs] += dY*dt
+
+        return dt
 
     def initialize_full_state(self, time, y0):
         compartment_vals = {}
@@ -128,7 +149,7 @@ class CompartmentalModelSimulation:
         state = SimulationState(time, compartment_vals, hidden_compartment_vals)
         return state
 
-    def __call__(self, tspan, y0, sampler, dt=.01):
+    def __call__(self, tspan, y0, sampler, dt=.01, stochastic_method=None):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times
             in miliseconds from January 1st, 1970.
@@ -148,7 +169,7 @@ class CompartmentalModelSimulation:
         time = start_time
         while time < end_time:
             # dt = 1. # FIXME: get dt in a reasonable way
-            self.step(time, state, dt)
+            dt = self.step(time, state, dt, stochastic_method=stochastic_method)
             time += dt
             state.t = time
             result.extend(state)

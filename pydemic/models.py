@@ -97,10 +97,28 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         )
         super().__init__(reactions)
 
-    def __call__(self, tspan, y0, sampler, dt=.01):
+    def get_initial_population(self, population, age_distribution):
+        N = population.population_served
+        n_age_groups = len(age_distribution.counts)
+        y0 = {
+            'susceptible': np.array([int(np.round(x)) for x in np.array(age_distribution.counts)*N/sum(age_distribution.counts)]),
+            'exposed': np.zeros(n_age_groups),
+            'infectious': np.zeros(n_age_groups),
+            'recovered': np.zeros(n_age_groups),
+            'hospitalized': np.zeros(n_age_groups),
+            'critical': np.zeros(n_age_groups),
+            'dead': np.zeros(n_age_groups)
+        }
+        i_middle = round(n_age_groups / 2) + 1
+        y0['susceptible'][i_middle] -= population.suspected_cases_today
+        y0['exposed'][i_middle] += population.suspected_cases_today * 0.7
+        y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
+        return y0
+
+    def __call__(self, t_span, y0, sampler, dt=.01):
         self.population = sum([y0[x].sum() for x in y0])
-        t_start = (datetime(*tspan[0]) - datetime(2020, 1, 1)).days
-        t_end = (datetime(*tspan[1]) - datetime(2020, 1, 1)).days
+        t_start = (datetime(*t_span[0]) - datetime(2020, 1, 1)).days
+        t_end = (datetime(*t_span[1]) - datetime(2020, 1, 1)).days
         rval = super().__call__([t_start, t_end], y0, sampler, dt=dt)
         return rval
 
@@ -124,9 +142,8 @@ class ExtendedSimulation(CompartmentalModelSimulation):
 
 
 class SEIRModelSimulation(CompartmentalModelSimulation):
-    def __init__(self, avg_infection_rate=12, infectious_rate=1, removal_rate=1):
+    def __init__(self, avg_infection_rate=10., infectious_rate=5., removal_rate=1.):
         self.avg_infection_rate = avg_infection_rate
-        # FIXME: need a reference to y.population
         self.population = 1.e6
 
         reactions = (
@@ -136,9 +153,14 @@ class SEIRModelSimulation(CompartmentalModelSimulation):
             Reaction("exposed", "infectious",
                      lambda t, y: y.exposed*infectious_rate),
             Reaction("infectious", "removed",
-                     lambda t, y: y.removed*removal_rate),
+                     lambda t, y: y.infectious*removal_rate),
         )
         super().__init__(reactions)
 
     def beta(self, t, y):
         return self.avg_infection_rate
+
+    def __call__(self, t_span, y0, sampler, dt=.01, **kwargs):
+        self.population = sum([y0[x] for x in y0])
+        rval = super().__call__(t_span, y0, sampler, dt=dt, **kwargs)
+        return rval
