@@ -1,4 +1,5 @@
 from scipy.interpolate import interp1d
+from multiprocessing import Pool, cpu_count
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
@@ -30,7 +31,8 @@ def set_numpy_threads(nthreads=1):
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(nthreads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(nthreads)
 
-def generate_stochastic_data(n_sims, method, datafile_name, dt=0.005):
+def run_stochastic_simulation(args):
+    i, method, dt = args
     from pydemic.models import SEIRModelSimulation
     t_span = [0., 10.]
     y0 = {
@@ -39,25 +41,33 @@ def generate_stochastic_data(n_sims, method, datafile_name, dt=0.005):
         'infectious': 14.,
         'removed': 0 
     }
+    print(" - running stochastic ({0:s}) simulation {1:d}".format(method, i+1))
     simulation = SEIRModelSimulation()
-    stochastic_results = []
+    sresult = simulation(t_span, y0, stochastic_method=method, dt=dt)
+    packed_data = np.zeros((5, sresult.t.shape[0]))
+    packed_data[0,:] = sresult.t
+    packed_data[1,:] = sresult.y['susceptible']
+    packed_data[2,:] = sresult.y['exposed']
+    packed_data[3,:] = sresult.y['infectious']
+    packed_data[4,:] = sresult.y['removed']
+    return packed_data
+
+def generate_stochastic_data(n_sims, method, datafile_name, dt=0.005):
+    n_cores = int(cpu_count()*0.9)
+    p = Pool(n_cores)
+    print(" - generating stochastic samples with {0:d} cores".format(n_cores))
+    args_vec = [(i, method, dt) for i in range(n_sims)]
+    stochastic_results = p.map(run_stochastic_simulation, args_vec)
     hfp = h5py.File(datafile_name, 'w')
     hfp['n_sims'] = n_sims
     for i in range(n_sims):
-        print(" - running stochastic ({0:s}) sample {1:d} of {2:d}".format(method, i+1, n_sims))
-        sresult = simulation(t_span, y0, stochastic_method=method, dt=dt)
-        packed_data = np.zeros((5, sresult.t.shape[0]))
-        packed_data[0,:] = sresult.t
-        packed_data[1,:] = sresult.y['susceptible']
-        packed_data[2,:] = sresult.y['exposed']
-        packed_data[3,:] = sresult.y['infectious']
-        packed_data[4,:] = sresult.y['removed']
-        hfp["{0:d}".format(i)] = packed_data
+        hfp["{0:d}".format(i)] = stochastic_results[i]
     hfp.close()
+    
 
-def load_tauleap(fname, keys):
-    if not os.path.exists(fname):
-        generate_stochastic_data(100, 'tau_leap', fname)
+def load_tauleap(fname, keys, force=False, n_sims=100):
+    if force or not os.path.exists(fname):
+        generate_stochastic_data(n_sims, 'tau_leap', fname)
     data = {}
     for key in keys:
         data[key] = []
@@ -71,9 +81,9 @@ def load_tauleap(fname, keys):
     hfp.close()
     return data
 
-def load_direct(fname, keys, times):
-    if not os.path.exists(fname):
-        generate_stochastic_data(100, 'direct', fname)
+def load_direct(fname, keys, times, force=False, n_sims=100):
+    if force or not os.path.exists(fname):
+        generate_stochastic_data(n_sims, 'direct', fname)
     data = {}
     for key in keys:
         data[key] = []
@@ -93,9 +103,9 @@ if __name__ == "__main__":
 
     # load (or generate) data from tauleap and gillespie direct methods
     keys = ['t', 'susceptible', 'exposed', 'infectious', 'removed']
-    tauleap_data = load_tauleap("data/stochastic_runs_tauleap.h5", keys)
+    tauleap_data = load_tauleap("data/stochastic_runs_tauleap.h5", keys, force=True, n_sims=100)
     times = tauleap_data['t'][0]
-    direct_data = load_direct("data/stochastic_runs_direct.h5", keys, times)
+    direct_data = load_direct("data/stochastic_runs_direct.h5", keys, times, force=True, n_sims=100)
 
     # translate to quantiles
     quantiles = [ 0.0455, 0.3173, 0.5, 0.6827, 0.9545 ]
@@ -156,4 +166,4 @@ if __name__ == "__main__":
     ax3.set_xlabel('time')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/stochastic_resolution_study.png')
-
+    
