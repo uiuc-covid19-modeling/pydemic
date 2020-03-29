@@ -225,6 +225,8 @@ __all__ = [
     "ErlangProcess",
     "GammaProcess",
     "Simulation",
+    "SimulationState",
+    "StateLogger",
     "AgeDistribution",
     "PopulationModel",
     "EpidemiologyModel",
