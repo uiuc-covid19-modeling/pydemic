@@ -24,9 +24,8 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from datetime import datetime, timezone
-
-from pydemic import Reaction, GammaProcess, CompartmentalModelSimulation, date_to_ms
+from datetime import datetime
+from pydemic import Reaction, GammaProcess, CompartmentalModelSimulation
 
 
 class NeherModelSimulation(CompartmentalModelSimulation):
@@ -41,18 +40,13 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     TODO Current model does not implement hospital overflow.
     """
 
-    population = 1.e6
-    avg_infection_rate = 1.
-    peak_day = 15
-    seasonal_forcing = 0.
-
     def beta(self, t, y):
         phase = 2. * np.pi * (t-self.peak_day)/365
         return self.avg_infection_rate * (1. + self.seasonal_forcing * np.cos(phase))
 
     def __init__(self, epidemiology, severity, imports_per_day,
                  n_age_groups, containment):
-        self.containment = lambda t,y: containment(t)
+        self.containment = lambda t, y: containment(t)
 
         # translate from epidemiology/severity models into rates
         dHospital = severity.severe/100. * severity.confirmed/100.
@@ -76,7 +70,8 @@ class NeherModelSimulation(CompartmentalModelSimulation):
 
         reactions = (
             Reaction("susceptible", "exposed",
-                     lambda t, y: ((1. - isolated_frac) * self.beta(t, y) * self.containment(t, y) * y.susceptible
+                     lambda t, y: ((1 - isolated_frac) * self.containment(t, y)
+                                   * self.beta(t, y) * y.susceptible
                                    * y.infectious.sum() / self.population)),
             Reaction("susceptible", "exposed",
                      lambda t, y: imports_per_day / n_age_groups),
@@ -98,10 +93,12 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         super().__init__(reactions)
 
     def get_initial_population(self, population, age_distribution):
+        # FIXME: remove this method?
         N = population.population_served
         n_age_groups = len(age_distribution.counts)
+        age_counts = age_distribution.counts
         y0 = {
-            'susceptible': np.array([int(np.round(x)) for x in np.array(age_distribution.counts)*N/sum(age_distribution.counts)]),
+            'susceptible': np.round(np.array(age_counts) * N / np.sum(age_counts)),
             'exposed': np.zeros(n_age_groups),
             'infectious': np.zeros(n_age_groups),
             'recovered': np.zeros(n_age_groups),
@@ -121,7 +118,6 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         t_end = (datetime(*t_span[1]) - datetime(2020, 1, 1)).days
         rval = super().__call__([t_start, t_end], y0, sampler, dt=dt)
         return rval
-
 
 
 class ExtendedSimulation(CompartmentalModelSimulation):
