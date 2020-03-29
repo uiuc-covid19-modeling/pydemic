@@ -6,10 +6,9 @@ import matplotlib.dates as mdates
 from datetime import datetime
 import numpy as np
 
-from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel
+from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
 from pydemic import Simulation
 from pydemic.load import get_country_population_model, get_age_distribution_model
-
 
 URL = "http://localhost:8081"
 
@@ -44,13 +43,14 @@ if __name__ == "__main__":
         infectious_period=3,
         length_hospital_stay=4,
         length_ICU_stay=14,
-        seasonal_forcing=0.,
+        seasonal_forcing=0.2,
         peak_month=0,
         overflow_severity=2
     )
 
     ## set containment model
     containment = ContainmentModel(start_time, end_time)
+    containment.add_sharp_event((2020, 3, 15), 0.6)
 
 
     ## the node/javascript wrapper expects some things in a certain foramt
@@ -75,10 +75,10 @@ if __name__ == "__main__":
       severities.append(dobj)
 
     ## generate and POST request to javascript api
-    body = { 
-        "simulation": simulation, 
-        "population": population, 
-        "containment": containment_dict, 
+    body = {
+        "simulation": simulation,
+        "population": population,
+        "containment": containment_dict,
         "epidemiology": epidemiology,
         "severities": severities
     }
@@ -87,6 +87,24 @@ if __name__ == "__main__":
     dkeys = [ 'time', 'susceptible', 'exposed', 'infectious', 'recovered', 'hospitalized', 'critical', 'overflow', 'discharged', 'intensive', 'dead' ]
     dates = [ datetime.utcfromtimestamp(x//1000) for x in data['time'] ]
 
+    # define simulation parameters
+    start_date = (2020, 3, 1, 6, 0, 0) # Differs from above because javascript/node (above) does not expect UTC.
+    end_date = (2020, 9, 1, 0, 0, 0)
+
+    # create simulation object
+    sim = Simulation(population, epidemiology, severity, age_distribution,
+                     containment)
+
+    start_time = date_to_ms(start_date)
+    end_time = date_to_ms(end_date)
+    result = sim(start_time, end_time, lambda x: x)
+
+    data2 = {}
+    dates2 = [ datetime.utcfromtimestamp(x//1000) for x in result.t ]
+
+    for key in dkeys:
+        data2[key] = np.sum(result.y[key], axis=-1)
+
     ## make figure
     fig = plt.figure(figsize=(10,8))
     gs = fig.add_gridspec(3, 1)
@@ -94,16 +112,9 @@ if __name__ == "__main__":
     ax2 = fig.add_subplot(gs[2,0], sharex=ax1)
 
     for key in dkeys[1:]:
-      ax1.plot(dates, data[key], label=key)
-
-    # plot nice hint data
-    ax1.axhline(y=population['hospital_beds'],ls=':',c='#999999')
-    ax1.axhline(y=population['ICU_beds'],ls=':',c='#999999')
-
-    # plot containment
-    mitigation_dates = [ datetime(*x[:-2]) for x in containment_dict["times"] ]
-    ax2.plot(mitigation_dates, containment_dict["factors"], 'ok-', lw=2)
-    ax2.set_ylim(0,1.2)
+      ax1.plot(dates, data[key], '-', label=key)
+    for key in dkeys[1:]:
+      ax1.plot(dates2, data2[key], '--')
 
     # plot on y log scale
     ax1.set_yscale('log')
@@ -111,9 +122,8 @@ if __name__ == "__main__":
 
     # plot x axis as dates
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
-    #ax1.set_xlim(dates[0],dates[-1])
+    ax1.set_xlim(dates[0],dates[-1])
     fig.autofmt_xdate()
-
 
     # formatting hints
     ax1.legend()
@@ -121,10 +131,12 @@ if __name__ == "__main__":
     ax2.set_ylabel('mitigation factor')
     ax1.set_ylabel('count (persons)')
 
+    # plot containment
+    mitigation_dates = [ datetime(*x[:-2]) for x in containment_dict["times"] ]
+    ax2.plot(mitigation_dates, containment_dict["factors"], 'ok-', lw=2)
+    ax2.set_ylim(0,1.2)
+
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig('example.png')
+    plt.savefig('comparison.png')
 
-
-
-
-
+    print(" - please check comparison plot: \"comparison.png\"")
