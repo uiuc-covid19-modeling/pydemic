@@ -34,6 +34,13 @@ class AttrDict(dict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+    def __getattr__(self, name):
+        # This method is implemented to avoid pylint 'no-member' errors for
+        # attribute access.
+        raise AttributeError(
+            "'%s' object has no attribute '%s'" % (self.__class__.__name__, name)
+        )
+
 
 from pydemic.containment import ContainmentModel
 from pydemic.simulation import Simulation

@@ -25,7 +25,6 @@ THE SOFTWARE.
 
 import numpy as np
 import pytest
-from pydemic import Reaction
 from pydemic.models import SEIRModelSimulation
 
 
