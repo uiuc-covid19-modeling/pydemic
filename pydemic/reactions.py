@@ -44,11 +44,15 @@ class Reaction:
 
             A :class:`string` specifying the compartment sourcing
             the reaction.
+            Only valid python identifiers are allowed, as their state is accessed
+            as an attribute.
 
         .. attribute:: rhs
 
             A :class:`string` specifying the compartment being sourced
             by the reaction.
+            Only valid python identifiers are allowed, as their state is accessed
+            as an attribute.
 
         .. attribute:: evaluator
 
@@ -85,11 +89,15 @@ class ErlangProcess(Reaction):
 
             A :class:`string` specifying the compartment sourcing
             the reaction.
+            Only valid python identifiers are allowed, as their state is accessed
+            as an attribute.
 
         .. attribute:: rhs
 
             A :class:`string` specifying the compartment being sourced
             by the reaction.
+            Only valid python identifiers are allowed, as their state is accessed
+            as an attribute.
 
         .. attribute:: shape
 
