@@ -112,14 +112,15 @@ def load_direct(fname, keys, times, force=False, n_sims=100):
 
 
 if __name__ == "__main__":
-    n_sims = 1000
+    n_sims = 100
+    force_regen = False
     # load (or generate) data from tauleap and gillespie direct methods
     keys = ['t', 'susceptible', 'exposed', 'infectious', 'removed']
     tauleap_data = load_tauleap("data/stochastic_runs_tauleap.h5", keys,
-                                force=True, n_sims=n_sims)
+                                force=force_regen, n_sims=n_sims)
     times = tauleap_data['t'][0]
     direct_data = load_direct("data/stochastic_runs_direct.h5", keys, times,
-                              force=True, n_sims=n_sims)
+                              force=force_regen, n_sims=n_sims)
 
     # translate to quantiles
     quantiles = [0.0455, 0.3173, 0.5, 0.6827, 0.9545]
