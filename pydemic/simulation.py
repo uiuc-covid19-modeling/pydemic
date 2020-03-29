@@ -107,7 +107,7 @@ class StateLogger:
         The time axis is the first axis of the :class:`numpy.ndarray`'s.
     """
 
-    def __init__(self, state, chunk_length=1000):
+    def __init__(self, chunk_length=1000):
         self.chunk_length = chunk_length
         self.t = np.zeros(shape=(self.chunk_length,))
         self.slice = 0
@@ -364,7 +364,7 @@ class Simulation:
         state = self.initialize_full_state(start_time, y0, samples)
 
         if logger is None:
-            result = StateLogger(state)
+            result = StateLogger()
         else:
             result = logger
 
