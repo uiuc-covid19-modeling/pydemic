@@ -5,7 +5,7 @@ mpl.use('agg')
 import matplotlib.pyplot as plt
 plt.rc('font', family='serif', size=12)
 import numpy as np
-import h5py
+import h5py  # pylint: disable=E0401
 import os
 
 
