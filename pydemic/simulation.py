@@ -327,7 +327,6 @@ class Simulation:
         peak_day = 30 * self.epidemiology.peak_month + 15
         time_offset = (time - jan_2020) / ms_per_day - peak_day
         phase = 2 * np.pi * time_offset / 365
-        print(phase)
         return (
             self.avg_infection_rate *
             (1 + self.epidemiology.seasonal_forcing * np.cos(phase))

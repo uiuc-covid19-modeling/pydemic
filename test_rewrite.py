@@ -42,12 +42,12 @@ if __name__ == "__main__":
         fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
     )
     epidemiology = EpidemiologyModel(
-        r0=2.7,
+        r0=3.7,
         incubation_time=5,
         infectious_period=3,
         length_hospital_stay=4,
         length_ICU_stay=14,
-        seasonal_forcing=0.8,
+        seasonal_forcing=0.2,
         peak_month=0,
         overflow_severity=2
     )
@@ -72,8 +72,7 @@ if __name__ == "__main__":
     # generate, run, and aggregate results for new pydemic model version
     simulation = NeherModelSimulation(
         epidemiology, severity, population.imports_per_day,
-        population.population_served, n_age_groups,
-        containment
+        n_age_groups, containment
     )
     N = population.population_served
     y0 = {
