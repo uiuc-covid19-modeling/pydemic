@@ -114,14 +114,6 @@ class CompartmentalModelSimulation:
             reaction_rate = reaction.evaluator(time, state)
             dY = reaction_rate
 
-            """
-            dY_max = state.y[reaction.lhs].copy()
-            for (_lhs, _rhs), incr in increments.items():
-                if reaction.lhs == _lhs:
-                    dY_max -= incr
-            dY = np.minimum(dY_max, dY)
-            """
-
             if (reaction.lhs, reaction.rhs) in increments:
                 increments[reaction.lhs, reaction.rhs] += dY
             else:
@@ -135,14 +127,13 @@ class CompartmentalModelSimulation:
 
         if cumulative_rates[-1] == 0.:
             return dt
-            
+
         dt = - np.log(r1) / cumulative_rates[-1]
         r2 *= cumulative_rates[-1]
         reaction_index = np.searchsorted(cumulative_rates, r2)
         # WARNING: It's also not entirely clear that this produces
         # the right rate distributions for processes that have two
         # different lhs <--> rhs reactions ...
-        #print(cumulative_rates, reaction_index)
 
         lhs,rhs = reactions[reaction_index]
         state.y[lhs] -= 1.
@@ -153,47 +144,6 @@ class CompartmentalModelSimulation:
             state.y[rhs] -= 1.
 
         return dt
-
-        """
-        for reaction in self._network:
-            reaction_rate = reaction.evaluator(time, state)
-            dY = dt * reaction_rate
-            if stochastic_method == "tau_leap":
-                dY = poisson.rvs(dY)
-
-            dY_max = state.y[reaction.lhs].copy()
-            for (_lhs, _rhs), incr in increments.items():
-                if reaction.lhs == _lhs:
-                    dY_max -= incr
-            dY = np.minimum(dY_max, dY)
-
-            if (reaction.lhs, reaction.rhs) in increments:
-                increments[reaction.lhs, reaction.rhs] += dY
-            else:
-                increments[reaction.lhs, reaction.rhs] = dY
-
-        if stochastic_method == "direct":
-            # WARNING: need to be sure we're pulling from the right
-            # reaction here! I might have solved an XY problem ...
-            reactions = list(increments.keys())
-            r1, r2 = np.random.random(2)
-            cumulative_rates = np.cumsum([increments[k] for k in reactions])
-            dt = - np.log(r1) / cumulative_rates[-1]
-            r2 *= cumulative_rates[-1]
-            reaction_index = np.searchsorted(cumulative_rates, r2)
-            # WARNING: It's also not entirely clear that this produces
-            # the right rate distributions for processes that have two
-            # different lhs <--> rhs reactions ...
-            lhs,rhs = reactions[reaction_index]
-            state.y[lhs] -= 1.
-            state.y[rhs] += 1.
-        else:
-            for (lhs, rhs), dY in increments.items():
-                state.y[lhs] -= dY
-                state.y[rhs] += dY
-
-        return dt
-        """
 
     def step(self, time, state, dt, stochastic_method=None):
         increments = {}
