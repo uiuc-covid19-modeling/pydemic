@@ -24,7 +24,7 @@ THE SOFTWARE.
 """
 
 
-from pydemic.simulation import Simulation
+from pydemic.simulation import Simulation, SimulationState, StateLogger
 from pydemic.reactions import Reaction, ErlangProcess, GammaProcess
 
 

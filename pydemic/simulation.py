@@ -30,7 +30,6 @@ import numpy as np
 __doc__ = """
 .. currentmodule:: pydemic
 .. autoclass:: Simulation
-.. currentmodule:: pydemic.simulation
 .. autoclass:: SimulationState
 .. autoclass:: StateLogger
 """
@@ -38,15 +37,37 @@ __doc__ = """
 
 class SimulationState:
     """
+    Manages the state for :class:`Simulation`'s.
+    User-specified compartments are accessed as attributes, e.g.::
+
+        >>> state = SimulationState(0., {'a': np.array([1., 0.])}, {})
+        >>> state.a
+        array([1., 0.])
+        >>> state.t
+        0.
+
+    Note that :class:`Simulation` initializes state with an extra axis
+    relative to the input data, corresponding to the number of requested
+    stochastic samples (see :meth:`Simulation.__call__`).
+    Any user-implemented axes occupy all but the first axis of the state arrays.
+
     .. automethod:: __init__
     .. automethod:: sum
     """
 
-    def __init__(self, t, compartments, hidden_compartments, seed=None):
-        if seed is not None:
-            np.random.seed(seed)
-        else:
-            np.random.seed()
+    def __init__(self, t, compartments, hidden_compartments):
+        """
+        :arg t: The current time.
+
+        :arg compartments: A :class:`dict` of current values
+            (as :class:`numpy.ndarray`'s) of all canonical compartments (the keys).
+
+        :arg hidden_compartments: A :class:`dict` of current values
+            (as :class:`numpy.ndarray`'s) of all compartments (the keys) not present
+            in ``compartments`` (i.e., those used to implement
+            and :class:`ErlangProcess`.)
+        """
+
         self.t = t
         self.y = {**compartments, **hidden_compartments}
         self.compartments = list(compartments.keys())
@@ -63,6 +84,10 @@ class SimulationState:
         return sum(self.y[key] for key in self.sum_compartments[item])
 
     def sum(self):
+        """
+        :returns: The total population across all summed compartments.
+        """
+
         return sum(val.sum() for val in self.y.values())
 
 
@@ -240,7 +265,7 @@ class Simulation:
         state = SimulationState(time, compartment_vals, hidden_compartment_vals)
         return state
 
-    def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1):
+    def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
@@ -257,8 +282,16 @@ class Simulation:
         :arg samples: The number of stochastic samples to simulate simultaneously.
             Defaults to ``1``.
 
+        :arg seed: The value with which to seed :mod:`numpy`'s random number.
+            Defaults to *None*, in which case no seed is passed.
+
         :returns: A :class:`~pydemic.simulation.StateLogger`.
         """
+
+        if seed is not None:
+            np.random.seed(seed)
+        else:
+            np.random.seed()
 
         start_time, end_time = tspan
         state = self.initialize_full_state(start_time, y0, samples)

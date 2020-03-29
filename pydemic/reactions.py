@@ -59,6 +59,8 @@ class Reaction:
             A :class:`callable` with signature ``(t, y)``
             of the time and :class:`SimulationState` returning the rate
             associated with the reaction.
+            See the documentation of :class:`~pydemic.simulation.SimulationState`
+            for guidance on accessing compartment state information from ``y``.
         """
 
         self.lhs = lhs
