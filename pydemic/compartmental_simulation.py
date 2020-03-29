@@ -101,7 +101,7 @@ class CompartmentalModelSimulation:
             reaction_rate = reaction.evaluator(time, state)
             dY = reaction_rate
             if stochastic_method == "tau_leap":
-                dY = poisson.rvs(dY)
+                dY = poisson.rvs(dY*dt)/dt
 
             dY_min = state.y[reaction.lhs].copy()
             for (_lhs, _rhs), incr in increments.items():
