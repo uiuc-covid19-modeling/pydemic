@@ -3,22 +3,45 @@ from scipy.interpolate import interp1d
 
 
 class ContainmentModel:
+    """
+        If is_in_days is True, then all times are measured with
+        respect to 2020-01-01.
+    """
+
+    _is_in_days = False
+    _2020_01_01 = 1577836800000
+    _ms_per_day = 86400000
+
     _interp = None
 
-    def __init__(self, start_time, end_time):
-        self.times = [
-            int(datetime(*start_time, tzinfo=timezone.utc).timestamp()*1000),
-            int(datetime(*end_time, tzinfo=timezone.utc).timestamp()*1000)
-        ]
+    def __init__(self, start_time, end_time, is_in_days=False):
+        self._is_in_days = is_in_days
+        if self._is_in_days:
+            self.times = [
+                int(datetime(*start_time, tzinfo=timezone.utc).timestamp()*1000-self._2020_01_01)//self._ms_per_day,
+                int(datetime(*end_time, tzinfo=timezone.utc).timestamp()*1000-self._2020_01_01)//self._ms_per_day
+            ]
+        else:
+            self.times = [
+                int(datetime(*start_time, tzinfo=timezone.utc).timestamp()*1000),
+                int(datetime(*end_time, tzinfo=timezone.utc).timestamp()*1000)
+            ]
         self.factors = [1., 1.]
 
     def add_sharp_event(self, time, factor):
-        time_ts = int(datetime(*time, tzinfo=timezone.utc).timestamp()*1000)
+        if self._is_in_days:
+            time_ts = int(datetime(*time, tzinfo=timezone.utc).timestamp()*1000-self._2020_01_01)//self._ms_per_day
+        else:
+            time_ts = int(datetime(*time, tzinfo=timezone.utc).timestamp()*1000)
         index_before = [i for i, v in enumerate(self.times) if v < time_ts][-1]
         index_after = [i for i, v in enumerate(self.times) if v > time_ts][0]
-        self.times.append(time_ts-30000)
+        if self._is_in_days:
+            self.times.append(time_ts-0.000347) # 30 second delta
+            self.times.append(time_ts+0.000347)
+        else:
+            self.times.append(time_ts-30000)
+            self.times.append(time_ts+30000)
         self.factors.append(self.factors[index_before])
-        self.times.append(time_ts+30000)
         self.factors.append(factor)
         self.factors[index_after] = factor
         self.sort_times()

@@ -51,12 +51,9 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         phase = 2. * np.pi * (t-self.peak_day)/365
         return self.avg_infection_rate * (1. + self.seasonal_forcing * np.cos(phase))
 
-    def containment(self, t, y):
-        return 1.
-
     def __init__(self, epidemiology, severity, imports_per_day,
                  n_age_groups, containment):
-        #self.containment = lambda t,y: containment(t)
+        self.containment = lambda t,y: containment(t)
 
         # translate from epidemiology/severity models into rates
         dHospital = severity.severe/100. * severity.confirmed/100.
@@ -103,8 +100,8 @@ class NeherModelSimulation(CompartmentalModelSimulation):
 
     def __call__(self, tspan, y0, sampler, dt=.01):
         self.population = sum([y0[x].sum() for x in y0])
-        t_start = (datetime(*tspan[0]) - datetime(2020,1,1)).days
-        t_end = (datetime(*tspan[1]) - datetime(2020,1,1)).days
+        t_start = (datetime(*tspan[0]) - datetime(2020, 1, 1)).days
+        t_end = (datetime(*tspan[1]) - datetime(2020, 1, 1)).days
         rval = super().__call__([t_start, t_end], y0, sampler, dt=dt)
         return rval
 

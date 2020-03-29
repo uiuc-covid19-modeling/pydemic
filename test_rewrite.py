@@ -17,6 +17,8 @@ if __name__ == "__main__":
     n_age_groups = 9
     start_date = (2020, 3, 1, 0, 0, 0)
     end_date = (2020, 9, 1, 0, 0, 0)
+    containment_date = (2020, 3, 20)
+    containment_factor = 0.6
 
     population = PopulationModel(
         country='United States of America',
@@ -52,7 +54,7 @@ if __name__ == "__main__":
         overflow_severity=2
     )
     containment = ContainmentModel(start_date, end_date)
-    containment.add_sharp_event((2020, 3, 15), 1.0)
+    containment.add_sharp_event(containment_date, containment_factor)
 
     # generate, run, and aggregate results for old pydemic model version
     sim = Simulation(population, epidemiology, severity, age_distribution,
@@ -70,6 +72,8 @@ if __name__ == "__main__":
         og_data[key] = np.sum(result[key], axis=-1)
 
     # generate, run, and aggregate results for new pydemic model version
+    containment = ContainmentModel(start_date, end_date, is_in_days=True)
+    containment.add_sharp_event(containment_date, containment_factor)
     simulation = NeherModelSimulation(
         epidemiology, severity, population.imports_per_day,
         n_age_groups, containment
@@ -90,9 +94,10 @@ if __name__ == "__main__":
     y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
     dt = 0.25
     t0_new = time.time()
+    print("run")
     new_result = simulation([start_date, end_date], y0, lambda x: x, dt=dt)
     t1_new = time.time()
-    new_dates = [datetime(2020,1,1)+timedelta(x) for x in new_result.t]
+    new_dates = [datetime(2020, 1, 1)+timedelta(x) for x in new_result.t]
 
     print("old method elapsed:", t1_old-t0_old, "s")
     print("new method elapsed:", t1_new-t0_new, "s")
