@@ -24,97 +24,65 @@ THE SOFTWARE.
 """
 
 
+from scipy.stats import poisson
 import numpy as np
-from pydemic import AttrDict
 
 __doc__ = """
 .. currentmodule:: pydemic
 .. autoclass:: Simulation
 .. currentmodule:: pydemic.simulation
-.. autoclass:: SimulationState
-.. autoclass:: SimulationResult
 """
 
 
-class SimulationState(AttrDict):
-    """
-    .. attribute:: infectious
+class SimulationState:
+    def __init__(self, t, compartments, hidden_compartments):
+        self.t = t
+        self.y = {**compartments, **hidden_compartments}
+        self.compartments = list(compartments.keys())
+        self.hidden_compartments = list(hidden_compartments.keys())
 
-    .. attribute:: time
+        self.sum_compartments = {}
+        for item in self.compartments:
+            self.sum_compartments[item] = [item]
+            for full_key in self.hidden_compartments:
+                if item == full_key.split(':')[0]:
+                    self.sum_compartments[item].append(full_key)
 
-    .. attribute:: susceptible
+    def __getattr__(self, item):
+        return sum(self.y[key] for key in self.sum_compartments[item])
 
-    .. attribute:: exposed
-
-    .. attribute:: hospitalized
-
-    .. attribute:: intensive
-
-    .. attribute:: discharged
-
-    .. attribute:: recovered
-
-    .. attribute:: critical
-
-    .. attribute:: dead
-
-    .. attribute:: overflow
-    """
-
-    expected_kwargs = {
-        'infectious',
-        'time',
-        'susceptible',
-        'exposed',
-        'hospitalized',
-        'intensive',
-        'discharged',
-        'recovered',
-        'critical',
-        'dead',
-        'overflow',
-    }
-
-    def get_total_population(self):
-        # FIXME: does this work?
-        return sum(self[key] for key in self.expected_kwargs)
-
-    def copy(self):
-        input_vals = {}
-        for key in self.expected_kwargs:
-            if isinstance(self[key], np.ndarray):
-                input_vals[key] = self[key].copy()
-            else:
-                input_vals[key] = self[key]
-        return SimulationState(**input_vals)
-
-    def __repr__(self):
-        string = ""
-        for key in self.expected_kwargs:
-            string += key + '\t' + str(self[key]) + '\n'
-        return string
+    def sum(self):
+        return sum(val.sum() for val in self.y.values())
 
 
-class SimulationResult:
-    def __init__(self, state, n_time_steps):
-        self.t = np.zeros(shape=(n_time_steps,))
-        self.t[0] = state['time']
+class StateLogger:
+    def __init__(self, state, chunk_length=1000):
+        self.chunk_length = chunk_length
+        self.t = np.zeros(shape=(chunk_length,))
+        self.t[0] = state.t
         self.slice = 0
 
         self.y = {}
-        for key in set(state.expected_kwargs) - set(['time']):
-            val = state[key]
-            ary = np.zeros(shape=(n_time_steps,)+val.shape)
+        for key in state.compartments:
+            val = state.y[key]
+            ary = np.zeros(shape=(chunk_length,)+val.shape)
             ary[0] = val
             self.y[key] = ary
 
-        self.slice = 0
-
     def extend(self, state):
         self.slice += 1
-        self.t[self.slice] = state['time']
-        for key in set(state.expected_kwargs) - set(['time']):
-            self.y[key][self.slice] = state[key]
+        if self.slice == self.t.shape[0]:
+            self.add_chunk()
+
+        self.t[self.slice] = state.t
+        for key in state.compartments:
+            self.y[key][self.slice] = state.__getattr__(key)
+
+    def add_chunk(self):
+        self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
+        for key, val in self.y.items():
+            shape = (self.chunk_length,)+val.shape[1:]
+            self.y[key] = np.concatenate([val, np.zeros(shape=shape)])
 
     def trim(self):
         self.t = self.t[:self.slice]
@@ -122,500 +90,125 @@ class SimulationResult:
             self.y[key] = self.y[key][:self.slice, ...]
 
 
-ms_per_day = 24 * 60 * 60 * 1000
-
-
 class Simulation:
-    """
-    Main simulation driver.
-
-    .. attribute:: dt_days
-
-        The time step increment in days.
-
-    .. attribute:: dt
-
-        :attr:`dt_days` in miliseconds.
-
-    The following are determined by the passed :class:`SeverityModelModel`.
-
-    .. attribute:: infection_severity_ratio
-
-        The fraction of cases(?) which are confirmed
-        (:attr:`SeverityModel.confirmed`) and
-        (:attr:`SeverityModel.severe`).
-
-    .. attribute:: infection_critical
-
-        The fraction of cases(?) which are severe (:attr:`infection_severity_ratio`)
-        and also critical (:attr:`SeverityModel.critical`).
-
-    .. attribute:: infection_fatality
-
-        The fraction of cases(?) which are critical (:attr:`infection_critical`)
-        and also fatal (:attr:`SeverityModel.fatal`).
-
-    .. attribute:: isolated_frac
-
-        The fraction of cases(?) which are isolated (:attr:`SeverityModel.isoalted`).
-
-    The following are determined by the passed
-    :class:`EpidemiologyModel`.
-
-    .. attribute:: avg_infection_rate
-
-        The average rate of infection, determined by
-        :attr:`EpidemiologyModel.r0` divided by the duration of
-        infectiousness (:attr:`EpidemiologyModel.infectious_period`).
-
-    .. automethod:: infection_rate
-
-    .. attribute:: recovery_rate
-
-        The number of non-hospitalized cases(?) divided by
-        :attr:`EpidemiologyModel.infectious_period`.
-
-    .. attribute:: hospitalized_rate
-
-        The number of hospitalized cases(?) divided by
-        :attr:`EpidemiologyModel.infectious_period`.
-
-    .. attribute:: discharge_rate
-
-        The rate at which cases(?) are discharged, equal to the
-        fraction of non-critical cases (the complement of
-        :attr:`SeverityModelModel.critical`)
-        divided by :attr:`EpidemiologyModel.length_hospital_stay`.
-
-    .. attribute:: critical_rate
-
-        The rate at which cases(?) become critical, equal to the
-        fraction of critical cases (:attr:`SeverityModelModel.critical`)
-        divided by :attr:`EpidemiologyModel.length_hospital_stay`.
-
-    .. attribute:: stabilization_rate
-
-        The rate at which critical cases(?) stabilize, equal to the
-        fraction of non-fatal cases (the complement of
-        :attr:`SeverityModelModel.fatal`)
-        divided by :attr:`EpidemiologyModel.length_ICU_stay`.
-
-    .. attribute:: death_rate
-
-        The rate at which critical cases(?) become fatal, equal to the
-        fraction of fatal cases (:attr:`SeverityModelModel.fatal`)
-        divided by :attr:`EpidemiologyModel.length_ICU_stay`.
-
-    .. attribute:: overflow_death_rate
-
-        A multiple of :attr:`Simulation.death_rate` determined by
-        :attr:`EpidemiologyModel.overflow_severity`.
-
-    The following are determined by the passed
-    :class:`PopulationModel`.
-
-    .. attribute:: imports_per_day
-
-        The number of cases imported into a population per day
-        (:attr:`PopulationModel.imports_per_day`) per age group
-        (which are evenly distributed).
-
-    Other attributes:
-
-    .. attribute:: num_age_groups
-
-        The total number of age groups, given by the length of ``age_distribution``.
-
-    .. attribute:: totals
-
-    .. automethod:: step
-
-    .. automethod:: __call__
-    """
-
-    def __init__(self, population, epidemiology, severity, age_distribution,
-                 containment):
-        """
-        :arg population: A :class:`PopulationModel.`
-
-        :arg population: A :class:`EpidemiologyModel.`
-
-        :arg population: A :class:`SeverityModelModel.`
-
-        :arg population: A :class:`AgeDistribution.`
-
-        :arg population: A :class:`ContainmentModel.`
-        """
-
-        self.population = population
-        self.epidemiology = epidemiology
-        self.severity = severity
-        self.age_distribution = age_distribution
-        self.containment = containment
-
-        # infer parameters
-        self.dt_days = .25
-        self.dt = .25 * ms_per_day
-
-        self.avg_infection_rate = epidemiology.r0 / epidemiology.infectious_period
-
-        self.num_age_groups = len(age_distribution.counts)
-        # total = np.sum(age_distribution)
-
-        freqs = age_distribution.counts / np.sum(age_distribution.counts)
-        self.infection_severity_ratio = (
-            severity.severe / 100 * severity.confirmed / 100
-        )
-
-        self.infection_critical = (
-            self.infection_severity_ratio * (severity.critical / 100)
-        )
-        self.infection_fatality = self.infection_critical * (severity.fatal / 100)
-
-        dHospital = self.infection_severity_ratio
-        dCritical = severity.critical / 100
-        dFatal = severity.fatal / 100
-
-        # Age specific rates
-        self.isolated_frac = severity.isolated / 100
-        self.recovery_rate = (1 - dHospital) / epidemiology.infectious_period
-        self.hospitalized_rate = dHospital / epidemiology.infectious_period
-        self.discharge_rate = (1 - dCritical) / epidemiology.length_hospital_stay
-        self.critical_rate = dCritical / epidemiology.length_hospital_stay
-        self.stabilization_rate = (1 - dFatal) / epidemiology.length_ICU_stay
-        self.death_rate = dFatal / epidemiology.length_ICU_stay
-        self.overflow_death_rate = epidemiology.overflow_severity * self.death_rate
-
-        hospitalized_frac = np.sum(freqs * dHospital)
-        critical_frac_hospitalized = np.sum(freqs * dCritical)
-        fatal_frac_critical = np.sum(freqs * dFatal)
-        avg_isolated_frac = np.sum(freqs * severity.isolated) / 100
-
-        # assume flat distribution of imports among age groups
-        fractional_imports = population.imports_per_day / self.num_age_groups
-        self.imports_per_day = fractional_imports * np.ones(self.num_age_groups)
-
-        self.totals = {
-            'recovery_rate': (
-                (1 - hospitalized_frac) / epidemiology.infectious_period
-            ),
-            'hospitalized_rate': hospitalized_frac / epidemiology.infectious_period,
-            'discharge_rate': (
-                (1 - critical_frac_hospitalized) / epidemiology.length_hospital_stay
-            ),
-            'critical_rate': (
-                critical_frac_hospitalized / epidemiology.length_hospital_stay
-            ),
-            'death_rate': fatal_frac_critical / epidemiology.length_ICU_stay,
-            'stabilization_rate': (
-                (1 - fatal_frac_critical) / epidemiology.length_ICU_stay
-            ),
-            'overflowDeath_rate': (
-                epidemiology.overflow_severity
-                * fatal_frac_critical
-                / epidemiology.length_ICU_stay
-            ),
-            'isolatedFrac': avg_isolated_frac,
-        }
-
-    def infection_rate(self, time):
-        """
-        :arg time: The time in units of miliseconds.
-
-        :returns: The current infection rate, given by the average rate
-            :attr:`avg_infection_rate` modulated by the relative importance
-            (:attr:`EpidemiologyModel.seasonal_forcing`)
-            of the time of year (as a phase), relative to the month of peak
-            infection rate (:attr:`EpidemiologyModel.peak_month`).
-        """
-
-        from pydemic import date_to_ms
-        jan_2020 = date_to_ms((2020, 1, 1))
-        peak_day = 30 * self.epidemiology.peak_month + 15
-        time_offset = (time - jan_2020) / ms_per_day - peak_day
-        phase = 2 * np.pi * time_offset / 365
-        return (
-            self.avg_infection_rate *
-            (1 + self.epidemiology.seasonal_forcing * np.cos(phase))
-        )
-
-    def step(self, time, state, sample):
-        """
-        Performs a timestep.
-
-        :arg time: The current time.
-
-        :arg state: The current :class:`~pydemic.simulation.SimulationState`.
-
-        :arg sample: The sampling function, specified as a
-            :class:`callable` with signature...
-
-        :returns: The new :class:`~pydemic.simulation.SimulationState`
-            after one time step.
-
-        This method computes the following quantities:
-
-        * The number of new cases, equal to the total imports during
-          the timestep interval plus the number of new infections via transmission,
-          determined by the fraction of non-isolated (i.e., the complement of
-          :attr:`isolated_frac`),
-          :attr:`~pydemic.simulation.SimulationState.susceptible` individuals
-          multiplied by the fraction of infected individuals
-          (:attr:`~pydemic.simulation.SimulationState.infectious`
-          divided by :attr:`PopulationModel.population_served`),
-          further multiplied by the infection rate (:meth:`infection_rate`)
-          and a containment factor :attr:`containment`.
-
-        * The number of new infectious individuals, determined by the number exposed
-          :attr:`~pydemic.simulation.SimulationState.exposed` divded by
-          :attr:`EpidemiologyModel.incubation_time`
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.exposed`).
-
-        * The number of new recoveries, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.infectious` times
-          the :attr:`recovery_rate`
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.infectious`).
-
-        * The number of new hospitalizations, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.infectious` multiplied by the
-          :attr:`hospitalization_rate`
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.infectious` less the
-          number of new recoveries).
-
-        * The number of new discharged patients, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.hospitalized` multiplied by the
-          :attr:`discharge_rate`
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.hospitalized`).
-
-        * The number of new critical (ICU) patitents, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.hospitalized` multiplied by the
-          :attr:`critical_rate`.
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.hospitalized` less the
-          number of new discharges).
-
-        * The number of new ICU stabilizations, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.critical` multiplied by the
-          :attr:`stabilization_rate`.
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.critical`).
-
-        * The number of new ICU deaths, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.critical` multiplied by the
-          :attr:`death_rate`.
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.critical` less the
-          number of new stabilizations).
-
-        * The number of new overflow stabilizations, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.overflow` multiplied by the
-          :attr:`stabilization_rate`.
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.overflow`).
-
-        * The number of new overflow deaths, determined by the number of
-          :attr:`~pydemic.simulation.SimulationState.overflow` multiplied by the
-          :attr:`overflow_death_rate`.
-          (but no larger than the current number of
-          :attr:`~pydemic.simulation.SimulationState.overflow` less the
-          number of new stabilizations).
-
-        The different populations are incremented as follows:
-
-        * :attr:`~pydemic.simulation.SimulationState.susceptible` is decremented
-          by the number of new cases.
-
-        * :attr:`~pydemic.simulation.SimulationState.exposed` is incremented by
-          the number of new cases less the number of new infections.
-
-        * :attr:`~pydemic.simulation.SimulationState.infectious` is incremented by
-          the number of new infections, less the number recovered and hospitalized.
-
-        * :attr:`~pydemic.simulation.SimulationState.hospitalized` is incremented by
-          the number of new hospitalizations, stabilizations, and overflow
-          stabilizations, less the number discharged and newly critical.
-
-        * :attr:`~pydemic.simulation.SimulationState.recovered` is incremeneted by
-          the number of recoveries and discharges.
-
-        * :attr:`~pydemic.simulation.SimulationState.intensive` is incremented by
-          the number of new critical cases.
-
-        * :attr:`~pydemic.simulation.SimulationState.discharged` is incremented by
-          the number of discharges.
-
-        * :attr:`~pydemic.simulation.SimulationState.dead` is incremented by the
-          number of ICU and overflow deaths.
-
-        Then any newly critical cases are allocated ICU beds, up until the point
-        that they run out (if they do), proceeding from youngest to oldest age group.
-        Specifically,
-
-        * :attr:`~pydemic.simulation.SimulationState.critical` is incremented by the
-          smaller of the number of new cases and free ICU beds and decremented by
-          the number of stabilizations and deaths.
-
-        * :attr:`~pydemic.simulation.SimulationState.overflow` is incremented by
-          the number of new critical cases who weren't alloted an ICU bed and
-          decremented by the number of new overflow stabilizations and deaths.
-
-        If any ICU beds remain at this point, any overflow patients are moved
-        from :attr:`~pydemic.simulation.SimulationState.overflow` to
-        :attr:`~pydemic.simulation.SimulationState.critical`,
-        proceeding again in order of age.
-        """
-
-        frac_infected = sum(state.infectious) / self.population.population_served
-        new_time = time + self.dt
-        new_state = state.copy()
-        new_state.time = new_time
-
-        new_cases = (
-            sample(self.imports_per_day * self.dt_days)
-            + sample((1 - self.isolated_frac)
-                     * self.containment(time)
-                     * self.infection_rate(new_time)
-                     * state.susceptible * frac_infected * self.dt_days)
-        )
-        new_infectious = np.minimum(
-            state.exposed,
-            sample(state.exposed * self.dt_days / self.epidemiology.incubation_time)
-        )
-        new_recovered = np.minimum(
-            state.infectious,
-            sample(state.infectious * self.dt_days * self.recovery_rate)
-        )
-        new_hospitalized = np.minimum(
-            state.infectious - new_recovered,
-            sample(state.infectious * self.dt_days * self.hospitalized_rate)
-        )
-        new_discharged = np.minimum(
-            state.hospitalized,
-            sample(state.hospitalized * self.dt_days * self.discharge_rate)
-        )
-        new_critical = np.minimum(
-            state.hospitalized - new_discharged,
-            sample(state.hospitalized * self.dt_days * self.critical_rate)
-        )
-        new_stabilized = np.minimum(
-            state.critical,
-            sample(state.critical * self.dt_days * self.stabilization_rate)
-        )
-        new_ICU_dead = np.minimum(
-            state.critical - new_stabilized,
-            sample(state.critical * self.dt_days * self.death_rate)
-        )
-        new_overflow_stabilized = np.minimum(
-            state.overflow,
-            sample(state.overflow * self.dt_days * self.stabilization_rate)
-        )
-        new_overflow_dead = np.minimum(
-            state.overflow - new_overflow_stabilized,
-            sample(state.overflow * self.dt_days * self.overflow_death_rate)
-        )
-
-        new_state.susceptible += - new_cases
-        new_state.exposed += new_cases - new_infectious
-        new_state.infectious += new_infectious - new_recovered - new_hospitalized
-        new_state.hospitalized += (new_hospitalized + new_stabilized
-                                   + new_overflow_stabilized - new_discharged
-                                   - new_critical)
-
-        # Cumulative categories
-        new_state.recovered += new_recovered + new_discharged
-        new_state.intensive += new_critical
-        new_state.discharged += new_discharged
-        new_state.dead += new_ICU_dead + new_overflow_dead
-
-        free_ICU_beds = (
-            self.population.ICU_beds
-            - (sum(state.critical) - sum(new_stabilized) - sum(new_ICU_dead))
-        )
-
-        for age in range(self.num_age_groups):
-            if free_ICU_beds > new_critical[age]:
-                free_ICU_beds -= new_critical[age]
-                new_state.critical[age] += (new_critical[age] - new_stabilized[age]
-                                            - new_ICU_dead[age])
-                new_state.overflow[age] += (- new_overflow_dead[age]
-                                            - new_overflow_stabilized[age])
-            elif free_ICU_beds > 0:
-                new_overflow = new_critical[age] - free_ICU_beds
-                new_state.critical[age] += (free_ICU_beds - new_stabilized[age]
-                                            - new_ICU_dead[age])
-                new_state.overflow[age] += (new_overflow - new_overflow_dead[age]
-                                            - new_overflow_stabilized[age])
-                free_ICU_beds = 0
+    def __init__(self, reactions):
+        lhs_keys = set(x.lhs for x in reactions)
+        rhs_keys = set(x.rhs for x in reactions)
+        self.compartments = list(lhs_keys | rhs_keys)
+
+        self._network = tuple(react for reaction in reactions
+                              for react in reaction.get_reactions())
+
+        all_lhs = set(x.lhs for x in self._network)
+        all_rhs = set(x.rhs for x in self._network)
+        self.hidden_compartments = list((all_lhs | all_rhs) - set(self.compartments))
+
+    def print_network(self):
+        for reaction in self._network:
+            print(reaction)
+
+    def step_gillespie_direct(self, time, state, dt):
+        increments = {}
+
+        for reaction in self._network:
+            reaction_rate = reaction.evaluator(time, state)
+            dY = reaction_rate
+
+            if (reaction.lhs, reaction.rhs) in increments:
+                increments[reaction.lhs, reaction.rhs] += dY
             else:
-                new_state.critical[age] += - new_stabilized[age] - new_ICU_dead[age]
-                new_state.overflow[age] += (
-                    new_critical[age] - new_overflow_dead[age]
-                    - new_overflow_stabilized[age]
-                )
+                increments[reaction.lhs, reaction.rhs] = dY
 
-        # If any overflow patients are left AND there are free beds, move them back.
-        # Again, move w/ lower age as priority.
-        i = 0
-        while free_ICU_beds > 0 and i < self.num_age_groups:
-            if new_state.overflow[i] < free_ICU_beds:
-                new_state.critical[i] += new_state.overflow[i]
-                free_ICU_beds -= new_state.overflow[i]
-                new_state.overflow[i] = 0
+        # WARNING: need to be sure we're pulling from the right
+        # reaction here! I might have solved an XY problem ...
+        reactions = list(increments.keys())
+        r1, r2 = np.random.rand(2)
+        cumulative_rates = np.cumsum([increments[k] for k in reactions])
+
+        if cumulative_rates[-1] == 0.:
+            return dt
+
+        dt = - np.log(r1) / cumulative_rates[-1]
+        r2 *= cumulative_rates[-1]
+        reaction_index = np.searchsorted(cumulative_rates, r2)
+        # WARNING: It's also not entirely clear that this produces
+        # the right rate distributions for processes that have two
+        # different lhs <--> rhs reactions ...
+
+        lhs, rhs = reactions[reaction_index]
+        state.y[lhs] -= 1.
+        state.y[rhs] += 1.
+
+        if state.y[lhs] < 0:
+            state.y[lhs] += 1.
+            state.y[rhs] -= 1.
+
+        return dt
+
+    def step(self, time, state, dt, stochastic_method=None):
+        increments = {}
+
+        for reaction in self._network:
+            reaction_rate = reaction.evaluator(time, state)
+            dY = dt * reaction_rate
+
+            if stochastic_method == "tau_leap":
+                dY = poisson.rvs(dY)
+
+            dY_max = state.y[reaction.lhs].copy()
+            for (_lhs, _rhs), incr in increments.items():
+                if reaction.lhs == _lhs:
+                    dY_max -= incr
+            dY = np.minimum(dY_max, dY)
+
+            if (reaction.lhs, reaction.rhs) in increments:
+                increments[reaction.lhs, reaction.rhs] += dY
             else:
-                new_state.critical[i] += free_ICU_beds
-                new_state.overflow[i] -= free_ICU_beds
-                free_ICU_beds = 0
-            i += 1
+                increments[reaction.lhs, reaction.rhs] = dY
 
-        # NOTE: For debug purposes only.
-        # popSum = new_state.get_total_population()
+        for (lhs, rhs), dY in increments.items():
+            state.y[lhs] -= dY
+            state.y[rhs] += dY
 
-        return new_state
+        return dt
 
-    def initialize_population(self, start_time):
-        ages = np.array(self.age_distribution.counts, dtype='float64')
+    def initialize_full_state(self, time, y0):
+        compartment_vals = {}
+        for key, ary in y0.items():
+            compartment_vals[key] = np.array(ary, dtype='float64')
 
-        init = {key: np.zeros(len(ages))
-                for key in SimulationState.expected_kwargs}
-        init['time'] = start_time
+        hidden_compartment_vals = {}
+        template = compartment_vals[self.compartments[0]]
+        for key in self.hidden_compartments:
+            hidden_compartment_vals[key] = np.zeros_like(template)
 
-        fracs = ages / np.sum(ages)
-        init['susceptible'] = np.round(fracs * self.population.population_served)
+        state = SimulationState(time, compartment_vals, hidden_compartment_vals)
+        return state
 
-        i_middle = round(ages.shape[0] / 2) + 1  # pylint: disable=E1136
-        initial_cases = self.population.suspected_cases_today
-        init['susceptible'][i_middle] -= initial_cases
-        init['infectious'][i_middle] = 0.3 * initial_cases
-        init['exposed'][i_middle] = 0.7 * initial_cases
-
-        initial_state = SimulationState(**init)
-
-        return initial_state
-
-    def __call__(self, start_time, end_time, sample):
+    def __call__(self, tspan, y0, dt=.01, stochastic_method=None):
         """
-        :arg start_time: The initial time, in miliseconds from January 1st, 1970.
+        :arg tspan: A :class:`tuple` specifying the initiala and final times
+            in miliseconds from January 1st, 1970.
 
-        :arg end_time: The final time, in miliseconds from January 1st, 1970.
-
-        :arg sample: The sampling function.
+        :arg y0: A :class:`dict` with the initial values
+            (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
 
         :returns: The :class:`SimulationResult`.
         """
 
-        n_time_steps = int(np.ceil((end_time - start_time) / self.dt)) + 1
-        state = self.initialize_population(start_time)
-        result = SimulationResult(state, n_time_steps)
+        start_time, end_time = tspan
+        state = self.initialize_full_state(start_time, y0)
+
+        result = StateLogger(state)
 
         time = start_time
         while time < end_time:
-            state = self.step(time, state, sample)
-            time += self.dt
-            state['time'] = time
+            if stochastic_method in [None, "tau_leap"]:
+                dt = self.step(time, state, dt, stochastic_method=stochastic_method)
+            elif stochastic_method in ["direct"]:
+                dt = self.step_gillespie_direct(time, state, dt)
+            time += dt
+            state.t = time
             result.extend(state)
 
         result.trim()

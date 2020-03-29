@@ -27,7 +27,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, date_to_ms)
-from pydemic import Simulation
+from neher_port import NeherPortSimulation
 from pydemic.models import NeherModelSimulation
 
 
@@ -85,8 +85,8 @@ def test_neher(plot=False):
     containment.add_sharp_event(containment_date, containment_factor)
 
     # generate, run, and aggregate results for old pydemic model version
-    sim = Simulation(population, epidemiology, severity, age_distribution,
-                     containment)
+    sim = NeherPortSimulation(population, epidemiology, severity, age_distribution,
+                              containment)
     start_time = date_to_ms(start_date)
     end_time = date_to_ms(end_date)
     result = sim(start_time, end_time, lambda x: x)
@@ -95,7 +95,7 @@ def test_neher(plot=False):
     dates = [datetime.utcfromtimestamp(x//1000) for x in result.t]
 
     y0 = simulation.get_initial_population(population, age_distribution)
-    new_result = simulation([start_date, end_date], y0, lambda x: x, dt=0.25)
+    new_result = simulation([start_date, end_date], y0, dt=0.25)
     new_dates = [datetime(2020, 1, 1)+timedelta(x) for x in new_result.t]
 
     for name in compartments:

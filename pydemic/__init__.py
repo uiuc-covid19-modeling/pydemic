@@ -24,42 +24,7 @@ THE SOFTWARE.
 """
 
 
-class AttrDict(dict):
-    expected_kwargs = set()
-
-    def __init__(self, *args, **kwargs):
-        if not self.expected_kwargs.issubset(set(kwargs.keys())):
-            raise ValueError
-
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-    def __getattr__(self, name):
-        # This method is implemented to avoid pylint 'no-member' errors for
-        # attribute access.
-        raise AttributeError(
-            "'%s' object has no attribute '%s'" % (self.__class__.__name__, name)
-        )
-
-
-from pydemic.containment import ContainmentModel
 from pydemic.simulation import Simulation
-
-
-class DemographicClass(AttrDict):
-    """
-    .. attribute:: name
-
-        TODO
-
-    .. attribute:: options
-
-        TODO
-    """
-    expected_kwargs = {
-        "name",
-        "options"
-    }
 
 
 class Reaction:
@@ -103,7 +68,31 @@ class ErlangProcess(Reaction):
 
 GammaProcess = ErlangProcess
 
-from pydemic.compartmental_simulation import CompartmentalModelSimulation
+
+class AttrDict(dict):
+    expected_kwargs = set()
+
+    def __init__(self, *args, **kwargs):
+        if not self.expected_kwargs.issubset(set(kwargs.keys())):
+            raise ValueError
+
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+    def __getattr__(self, name):
+        # This method is implemented to avoid pylint 'no-member' errors for
+        # attribute access.
+        raise AttributeError(
+            "'%s' object has no attribute '%s'" % (self.__class__.__name__, name)
+        )
+
+
+def date_to_ms(date):
+    from datetime import datetime, timezone
+    return int(datetime(*date, tzinfo=timezone.utc).timestamp() * 1000)
+
+
+from pydemic.containment import ContainmentModel
 
 
 class AgeDistribution(AttrDict):
@@ -270,15 +259,9 @@ class CaseData(AttrDict):
     }
 
 
-def date_to_ms(date):
-    from datetime import datetime, timezone
-    return int(datetime(*date, tzinfo=timezone.utc).timestamp() * 1000)
-
-
 __all__ = [
     "AttrDict",
-    "CompartmentalModelSimulation",
-    "DemographicClass",
+    "Simulation",
     "Reaction",
     "ErlangProcess",
     "GammaProcess",

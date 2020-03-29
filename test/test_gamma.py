@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 import numpy as np
 import pytest
-from pydemic import GammaProcess, CompartmentalModelSimulation
+from pydemic import GammaProcess, Simulation
 
 
 @pytest.mark.parametrize("shape", [1, 2, 8])
@@ -35,13 +35,13 @@ def test_gamma(shape, scale, plot=False):
         GammaProcess('a', 'b', shape=shape, scale=lambda t, y: scale),
     )
 
-    simulation = CompartmentalModelSimulation(reactions)
+    simulation = Simulation(reactions)
 
     y0 = {'a': np.array(1), 'b': np.array(0)}
     tspan = (0, 10)
     dt = 1e-3
 
-    result = simulation(tspan, y0, lambda x: x, dt=dt)
+    result = simulation(tspan, y0, dt=dt)
     t = result.t
 
     def f(t, y):

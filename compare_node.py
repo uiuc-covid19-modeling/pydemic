@@ -92,6 +92,7 @@ if __name__ == "__main__":
     end_date = (2020, 9, 1, 0, 0, 0)
 
     # create simulation object
+    # note: broken now that Simulation -> NeherModelSimulation and isn't in pydemic
     sim = Simulation(population, epidemiology, severity, age_distribution,
                      containment)
 

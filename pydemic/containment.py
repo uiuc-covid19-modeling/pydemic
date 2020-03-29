@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from pydemic import date_to_ms
 from scipy.interpolate import interp1d
 
 
@@ -7,8 +7,7 @@ _ms_per_day = 86400000
 
 
 def days_from_jan_1_2020(date):
-    ms_val = 1000 * datetime(*date, tzinfo=timezone.utc).timestamp()
-    return int(ms_val - _2020_01_01) // _ms_per_day
+    return int(date_to_ms(date) - _2020_01_01) // _ms_per_day
 
 
 class ContainmentModel:
@@ -27,17 +26,14 @@ class ContainmentModel:
             self.times = [days_from_jan_1_2020(start_time),
                           days_from_jan_1_2020(end_time)]
         else:
-            self.times = [
-                int(datetime(*start_time, tzinfo=timezone.utc).timestamp()*1000),
-                int(datetime(*end_time, tzinfo=timezone.utc).timestamp()*1000)
-            ]
+            self.times = [date_to_ms(start_time), date_to_ms(end_time)]
         self.factors = [1., 1.]
 
     def add_sharp_event(self, time, factor):
         if self._is_in_days:
             time_ts = days_from_jan_1_2020(time)
         else:
-            time_ts = int(datetime(*time, tzinfo=timezone.utc).timestamp()*1000)
+            time_ts = date_to_ms(time)
         index_before = [i for i, v in enumerate(self.times) if v < time_ts][-1]
         index_after = [i for i, v in enumerate(self.times) if v > time_ts][0]
         if self._is_in_days:
@@ -62,6 +58,7 @@ class ContainmentModel:
 
     def get_dictionary(self):
         obj = {}
+        from datetime import datetime
         dts = [datetime.utcfromtimestamp(x//1000) for x in self.times]
         obj['times'] = [[x.year, x.month, x.day, x.hour, x.minute, x.second]
                         for x in dts]

@@ -1,6 +1,6 @@
 .. currentmodule:: pydemic
 
-Reference: Simulations
-======================
+Reference: Compartmental Model Simulations
+==========================================
 
 .. automodule:: pydemic.simulation

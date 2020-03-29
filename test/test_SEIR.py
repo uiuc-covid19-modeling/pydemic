@@ -45,7 +45,7 @@ def test_SEIR(total_pop, avg_infection_rate, infectious_rate=1,
 
     tspan = (0, 10)
     dt = 1e-3
-    result = simulation(tspan, y0, lambda x: x, dt=dt)
+    result = simulation(tspan, y0, dt=dt)
     t = result.t
 
     def f(t, y):

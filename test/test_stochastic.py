@@ -40,15 +40,15 @@ def test_direct_vs_tau_leap(plot=False):
         'removed': 0
     }
     simulation = SEIRModelSimulation()
-    result = simulation(t_span, y0, lambda x: x, dt=timestep)
+    result = simulation(t_span, y0, dt=timestep)
 
     # run several stochastic simulations
     stochastic_results = []
     n_sims = 100
     for i in range(n_sims):
         print(" - running tau leap sample {0:d} of {1:d}".format(i+1, n_sims))
-        sresult = simulation(t_span, y0, lambda x: x,
-                             stochastic_method=stochastic_method, dt=timestep)
+        sresult = simulation(t_span, y0, dt=timestep,
+                             stochastic_method=stochastic_method)
         stochastic_results.append(sresult)
 
     if plot:

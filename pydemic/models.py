@@ -24,11 +24,46 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from datetime import datetime
-from pydemic import Reaction, GammaProcess, CompartmentalModelSimulation
+from pydemic import Reaction, GammaProcess, Simulation
 
 
-class NeherModelSimulation(CompartmentalModelSimulation):
+class SEIRModelSimulation(Simulation):
+    def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1):
+        self.avg_infection_rate = avg_infection_rate
+
+        reactions = (
+            Reaction("susceptible", "exposed",
+                     lambda t, y: (self.beta(t, y) * y.susceptible
+                                   * y.infectious.sum() / y.sum())),
+            Reaction("exposed", "infectious",
+                     lambda t, y: infectious_rate * y.exposed),
+            Reaction("infectious", "removed",
+                     lambda t, y: removal_rate * y.infectious),
+        )
+        super().__init__(reactions)
+
+    def beta(self, t, y):
+        return self.avg_infection_rate
+
+
+class ExtendedSimulation(Simulation):
+    def __init__(self, avg_infection_rate, *args):
+        reactions = (
+            Reaction('susceptible', 'exposed',
+                     lambda t, y: (avg_infection_rate * y.susceptible
+                                   * y.infectious / y.sum())),
+            GammaProcess('exposed', 'infectious', shape=3, scale=5),
+            Reaction('infectious', 'critical', lambda t, y: 1/5),
+            GammaProcess('infectious', 'recovered', shape=4, scale=lambda t, y: 5),
+            GammaProcess('infectious', 'dead', shape=3, scale=lambda t, y: 10),
+            Reaction('critical', 'dead',
+                     lambda t, y: y.critical/y.susceptible/y.sum()),
+            Reaction('critical', 'recovered', lambda t, y: 1/7),
+        )
+        super().__init__(reactions)
+
+
+class NeherModelSimulation(Simulation):
     """
     Each compartment has n=9 age bins (demographics)
     ["0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"]
@@ -112,43 +147,8 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
         return y0
 
-    def __call__(self, t_span, y0, sampler, dt=.01):
+    def __call__(self, t_span, y0, dt=.01):
+        from datetime import datetime
         t_start = (datetime(*t_span[0]) - datetime(2020, 1, 1)).days
         t_end = (datetime(*t_span[1]) - datetime(2020, 1, 1)).days
-        return super().__call__([t_start, t_end], y0, sampler, dt=dt)
-
-
-class ExtendedSimulation(CompartmentalModelSimulation):
-    def __init__(self, avg_infection_rate, *args):
-        reactions = (
-            Reaction('susceptible', 'exposed',
-                     lambda t, y: (avg_infection_rate * y.susceptible
-                                   * y.infectious / y.sum())),
-            GammaProcess('exposed', 'infectious', shape=3, scale=5),
-            Reaction('infectious', 'critical', lambda t, y: 1/5),
-            GammaProcess('infectious', 'recovered', shape=4, scale=lambda t, y: 5),
-            GammaProcess('infectious', 'dead', shape=3, scale=lambda t, y: 10),
-            Reaction('critical', 'dead',
-                     lambda t, y: y.critical/y.susceptible/y.sum()),
-            Reaction('critical', 'recovered', lambda t, y: 1/7),
-        )
-        super().__init__(reactions)
-
-
-class SEIRModelSimulation(CompartmentalModelSimulation):
-    def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1):
-        self.avg_infection_rate = avg_infection_rate
-
-        reactions = (
-            Reaction("susceptible", "exposed",
-                     lambda t, y: (self.beta(t, y) * y.susceptible
-                                   * y.infectious.sum() / y.sum())),
-            Reaction("exposed", "infectious",
-                     lambda t, y: infectious_rate * y.exposed),
-            Reaction("infectious", "removed",
-                     lambda t, y: removal_rate * y.infectious),
-        )
-        super().__init__(reactions)
-
-    def beta(self, t, y):
-        return self.avg_infection_rate
+        return super().__call__([t_start, t_end], y0, dt=dt)
