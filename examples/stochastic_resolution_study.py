@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 plt.rc('font', family='serif',size=12)
 import numpy as np
 import h5py
+import os
 
 
 def set_numpy_threads(nthreads=1):
@@ -30,6 +31,22 @@ def set_numpy_threads(nthreads=1):
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(nthreads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(nthreads)
 
+def generate_stochastic_data(n_sims, method, dt=0.005):
+    from pydemic.models import SEIRModelSimulation
+    t_span = [0., 10.]
+    y0 = {
+        'susceptible': 1.e3,
+        'exposed': 6.,
+        'infectious': 14.,
+        'removed': 0 
+    }
+    stochastic_results = []
+    n_sims = 100
+    for i in range(n_sims):
+        print(" - running stochastic ({0:s}) sample {1:d} of {2:d}".format(method, i+1, n_sims))
+        sresult = simulation(t_span, y0, lambda x:x, stochastic_method=stochastic_method, dt=timestep) 
+        stochastic_results.append(sresult)
+    pass
 
 
 def load_tauleap(fname, keys):
@@ -61,6 +78,12 @@ def load_direct(fname, keys, times):
     return data
 
 if __name__ == "__main__":
+
+
+    generate_stochastic_data(1000, 'direct')
+
+
+    exit()
 
     # load data from tauleap and gillespie direct methods
     keys = ["t", "susceptible", "exposed", "infectious", "removed"]
