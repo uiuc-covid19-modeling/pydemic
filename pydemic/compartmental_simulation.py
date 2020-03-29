@@ -122,7 +122,7 @@ class CompartmentalModelSimulation:
         # WARNING: need to be sure we're pulling from the right
         # reaction here! I might have solved an XY problem ...
         reactions = list(increments.keys())
-        r1, r2 = np.random.random(2)
+        r1, r2 = np.random.rand(2)
         cumulative_rates = np.cumsum([increments[k] for k in reactions])
 
         if cumulative_rates[-1] == 0.:
@@ -135,7 +135,7 @@ class CompartmentalModelSimulation:
         # the right rate distributions for processes that have two
         # different lhs <--> rhs reactions ...
 
-        lhs,rhs = reactions[reaction_index]
+        lhs, rhs = reactions[reaction_index]
         state.y[lhs] -= 1.
         state.y[rhs] += 1.
 

@@ -61,6 +61,7 @@ setup(name=package,
           "numpy",
           "scipy",
           "xlrd",
+          "matplotlib",
           ],
 
     #   author="George Wong",

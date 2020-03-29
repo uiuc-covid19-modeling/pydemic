@@ -2,6 +2,15 @@ from datetime import datetime, timezone
 from scipy.interpolate import interp1d
 
 
+_2020_01_01 = 1577836800000
+_ms_per_day = 86400000
+
+
+def days_from_jan_1_2020(date):
+    ms_val = 1000 * datetime(*date, tzinfo=timezone.utc).timestamp()
+    return int(ms_val - _2020_01_01) // _ms_per_day
+
+
 class ContainmentModel:
     """
         If is_in_days is True, then all times are measured with
@@ -9,18 +18,14 @@ class ContainmentModel:
     """
 
     _is_in_days = False
-    _2020_01_01 = 1577836800000
-    _ms_per_day = 86400000
 
     _interp = None
 
     def __init__(self, start_time, end_time, is_in_days=False):
         self._is_in_days = is_in_days
         if self._is_in_days:
-            self.times = [
-                int(datetime(*start_time, tzinfo=timezone.utc).timestamp()*1000-self._2020_01_01)//self._ms_per_day,
-                int(datetime(*end_time, tzinfo=timezone.utc).timestamp()*1000-self._2020_01_01)//self._ms_per_day
-            ]
+            self.times = [days_from_jan_1_2020(start_time),
+                          days_from_jan_1_2020(end_time)]
         else:
             self.times = [
                 int(datetime(*start_time, tzinfo=timezone.utc).timestamp()*1000),
@@ -30,13 +35,13 @@ class ContainmentModel:
 
     def add_sharp_event(self, time, factor):
         if self._is_in_days:
-            time_ts = int(datetime(*time, tzinfo=timezone.utc).timestamp()*1000-self._2020_01_01)//self._ms_per_day
+            time_ts = days_from_jan_1_2020(time)
         else:
             time_ts = int(datetime(*time, tzinfo=timezone.utc).timestamp()*1000)
         index_before = [i for i, v in enumerate(self.times) if v < time_ts][-1]
         index_after = [i for i, v in enumerate(self.times) if v > time_ts][0]
         if self._is_in_days:
-            self.times.append(time_ts-0.000347) # 30 second delta
+            self.times.append(time_ts-0.000347)  # 30 second delta
             self.times.append(time_ts+0.000347)
         else:
             self.times.append(time_ts-30000)
