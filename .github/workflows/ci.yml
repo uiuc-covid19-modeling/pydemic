@@ -21,7 +21,7 @@ jobs:
         -   name: "Main Script"
             run: |
                 pip install flake8
-                flake8 pydemic test/*.py
+                flake8 pydemic test/*.py examples/*.py
     pylint:
         name: Pylint
         runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
             run: |
                 python setup.py develop
                 pip install pylint pytest
-                pylint --rcfile=setup.cfg test/test_*.py
+                pylint --rcfile=setup.cfg test/test_*.py examples/*.py
     pytest:
         name: Pytest
         runs-on: ubuntu-latest
