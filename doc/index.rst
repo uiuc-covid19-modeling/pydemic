@@ -12,8 +12,8 @@ Please check :ref:`installation` to get started.
 .. toctree::
     :maxdepth: 2
 
-    ref_models
     ref_simulation
+    ref_models
     installation
     changes
     license

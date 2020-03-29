@@ -25,48 +25,7 @@ THE SOFTWARE.
 
 
 from pydemic.simulation import Simulation
-
-
-class Reaction:
-    """
-    .. attribute::
-    """
-
-    def __init__(self, lhs, rhs, evaluator):
-        self.lhs = lhs
-        self.rhs = rhs
-        self.evaluator = evaluator
-
-    def __repr__(self):
-        return "{0:s} --> {1:s}".format(self.lhs, self.rhs)
-
-    def get_reactions(self):
-        return tuple([self])
-
-
-class ErlangProcess(Reaction):
-    def __init__(self, lhs, rhs, shape, scale):
-        self.lhs = lhs
-        self.rhs = rhs
-        self.shape = shape
-        self.scale = scale
-
-    def get_reactions(self):
-        intermediaries = [
-            self.lhs + ":{0:s}:{1:d}".format(self.rhs, k)
-            for k in range(0, self.shape-1)
-        ]
-        stages = [self.lhs] + intermediaries + [self.rhs]
-        reactions = [
-            # hack so that lhs resolves to current value rather than final
-            # see https://stackoverflow.com/a/2295372
-            Reaction(lhs, rhs, lambda t, y, lhs=lhs: y.y[lhs] / self.scale(t, y))
-            for lhs, rhs in zip(stages[:-1], stages[1:])
-        ]
-        return tuple(reactions)
-
-
-GammaProcess = ErlangProcess
+from pydemic.reactions import Reaction, ErlangProcess, GammaProcess
 
 
 class AttrDict(dict):

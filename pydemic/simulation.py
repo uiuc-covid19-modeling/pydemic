@@ -31,10 +31,17 @@ __doc__ = """
 .. currentmodule:: pydemic
 .. autoclass:: Simulation
 .. currentmodule:: pydemic.simulation
+.. autoclass:: SimulationState
+.. autoclass:: StateLogger
 """
 
 
 class SimulationState:
+    """
+    .. automethod:: __init__
+    .. automethod:: sum
+    """
+
     def __init__(self, t, compartments, hidden_compartments):
         self.t = t
         self.y = {**compartments, **hidden_compartments}
@@ -56,6 +63,21 @@ class SimulationState:
 
 
 class StateLogger:
+    """
+    Used to log simulation results returned by
+    :meth:`Simulation.__call__`.
+
+    .. attribute:: t
+
+        A :class:`numpy.ndarray` of output times.
+
+    .. attribute:: y
+
+        A :class:`dict` whose values are :class:`numpy.ndarray`'s of the
+        timeseries for each key (each of :attr:`Simulation.compartments`).
+        The time axis is the first axis of the :class:`numpy.ndarray`'s.
+    """
+
     def __init__(self, state, chunk_length=1000):
         self.chunk_length = chunk_length
         self.t = np.zeros(shape=(chunk_length,))
@@ -91,7 +113,26 @@ class StateLogger:
 
 
 class Simulation:
+    """
+    Main driver for compartmental model simulations.
+
+    .. automethod:: __init__
+    .. automethod:: __call__
+
+    .. attribute:: compartments
+
+        The compartment names comprising the simulation state, inferred as the set of
+        all :attr:`Reaction.lhs`'s and :attr:`Reaction.rhs`'s from the input list
+        of :class:`Reaction`'s.
+    """
+
     def __init__(self, reactions):
+        """
+        :arg reactions: A :class:`list` of :class:`Reaction`'s
+            (or subclasses thereof) used to specify the dynamics of the
+            compartmental model.
+        """
+
         lhs_keys = set(x.lhs for x in reactions)
         rhs_keys = set(x.rhs for x in reactions)
         self.compartments = list(lhs_keys | rhs_keys)
@@ -187,13 +228,18 @@ class Simulation:
 
     def __call__(self, tspan, y0, dt=.01, stochastic_method=None):
         """
-        :arg tspan: A :class:`tuple` specifying the initiala and final times
-            in miliseconds from January 1st, 1970.
+        :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
         :arg y0: A :class:`dict` with the initial values
             (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
 
-        :returns: The :class:`SimulationResult`.
+        :arg dt: The (initial) timestep to use.
+
+        :arg stochastic_method: A :class:`string` specifying whether to use
+            direct Gillespie stepping (`'direct'`) or :math:`\\tau`-leaing
+            (`'tau_leap'`).
+
+        :returns: A :class:`~pydemic.simulation.StateLogger`.
         """
 
         start_time, end_time = tspan
