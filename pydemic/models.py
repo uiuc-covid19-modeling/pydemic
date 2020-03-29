@@ -147,8 +147,8 @@ class NeherModelSimulation(Simulation):
         y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
         return y0
 
-    def __call__(self, t_span, y0, dt=.01):
+    def __call__(self, t_span, y0, dt=.01, **kwargs):
         from datetime import datetime
         t_start = (datetime(*t_span[0]) - datetime(2020, 1, 1)).days
         t_end = (datetime(*t_span[1]) - datetime(2020, 1, 1)).days
-        return super().__call__([t_start, t_end], y0, dt=dt)
+        return super().__call__([t_start, t_end], y0, dt=dt, **kwargs)
