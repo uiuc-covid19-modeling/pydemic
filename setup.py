@@ -64,7 +64,7 @@ setup(name=package,
           "matplotlib",
           ],
 
-    #   author="George Wong",
+      # author="George Wong",
       license="MIT",
       packages=find_packages(),
       )
