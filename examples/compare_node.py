@@ -14,7 +14,7 @@ import os
 import sys
 cwd = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(cwd, "../test/"))
-from neher_port import NeherPortSimulation as Simulation  # noqa
+from neher_port import NeherPortSimulation as Simulation  # pylint: disable=E0401
 
 URL = "http://localhost:8081"
 
