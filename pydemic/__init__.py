@@ -24,7 +24,7 @@ THE SOFTWARE.
 """
 
 
-from pydemic.simulation import Simulation, SimulationState, StateLogger
+from pydemic.simulation import Simulation, SimulationState, StateLogger, QuantileLogger
 from pydemic.reactions import Reaction, ErlangProcess, GammaProcess
 
 
@@ -232,6 +232,7 @@ __all__ = [
     "EpidemiologyModel",
     "SeverityModel",
     "ContainmentModel",
+    "QuantileLogger",
     "CaseData",
     "date_to_ms",
 ]

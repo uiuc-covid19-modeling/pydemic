@@ -109,18 +109,19 @@ class StateLogger:
 
     def __init__(self, state, chunk_length=1000):
         self.chunk_length = chunk_length
-        self.t = np.zeros(shape=(chunk_length,))
-        self.t[0] = state.t
+        self.t = np.zeros(shape=(self.chunk_length,))
         self.slice = 0
 
+    def initialize_with_state(self, state):
+        self.t[0] = state.t
         self.y = {}
         for key in state.compartments:
             val = state.y[key]
-            ary = np.zeros(shape=(chunk_length,)+val.shape)
+            ary = np.zeros(shape=(self.chunk_length,)+val.shape)
             ary[0] = val
             self.y[key] = ary
 
-    def extend(self, state):
+    def __call__(self, state):
         self.slice += 1
         if self.slice == self.t.shape[0]:
             self.add_chunk()
@@ -135,6 +136,9 @@ class StateLogger:
             shape = (self.chunk_length,)+val.shape[1:]
             self.y[key] = np.concatenate([val, np.zeros(shape=shape)])
 
+    def cleanup(self, flatten_first_axis_if_unit=True):
+        self.trim(flatten_first_axis_if_unit=flatten_first_axis_if_unit)
+
     def trim(self, flatten_first_axis_if_unit=True):
         self.t = self.t[:self.slice]
         for key in self.y.keys():
@@ -142,6 +146,69 @@ class StateLogger:
                 self.y[key] = self.y[key][:self.slice, 0, ...]
             else:
                 self.y[key] = self.y[key][:self.slice, ...]
+
+
+class QuantileLogger:
+    """
+    Used to log simulation results returned by
+    :meth:`Simulation.__call__`.
+
+    .. attribute:: t
+
+        A :class:`numpy.ndarray` of output times.
+
+    .. attribute:: y
+
+        A :class:`dict` whose values are :class:`numpy.ndarray`'s of the
+        timeseries for each key (each of :attr:`Simulation.compartments`).
+        The time axis is the first axis of the :class:`numpy.ndarray`'s.
+    """
+
+    def __init__(self, chunk_length=1000, quantiles=[0.0455, 0.3173, 0.5, 0.6827, 0.9545]):
+        self.quantiles = quantiles.copy()
+        self.chunk_length = chunk_length
+        self.t = np.zeros(shape=(self.chunk_length,))
+        self.slice = 0
+
+    def initialize_with_state(self, state):
+        self.y_samples = {}
+        self.t[0] = state.t
+        for key in state.compartments:
+            val = state.y[key]
+            ary = np.zeros(shape=(self.chunk_length,)+val.shape)
+            ary[0] = val
+            self.y_samples[key] = ary
+
+    def __call__(self, state):
+        self.slice += 1
+        if self.slice == self.t.shape[0]:
+            self.add_chunk()
+
+        self.t[self.slice] = state.t
+        for key in state.compartments:
+            self.y_samples[key][self.slice] = state.__getattr__(key)
+
+    def cleanup(self, flatten_first_axis_if_unit=True):
+        self.trim(flatten_first_axis_if_unit=flatten_first_axis_if_unit)
+        self.quantile_data = {}
+        for key in self.y_samples:
+            # FIXME: this will not work for Gillespie direct
+            self.quantile_data[key] = np.array([ np.quantile(self.y_samples[key], quantile, axis=1)
+                            for quantile in self.quantiles ])
+
+    def add_chunk(self):
+        self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
+        for key, val in self.y_samples.items():
+            shape = (self.chunk_length,)+val.shape[1:]
+            self.y_samples[key] = np.concatenate([val, np.zeros(shape=shape)])
+
+    def trim(self, flatten_first_axis_if_unit=True):
+        self.t = self.t[:self.slice]
+        for key in self.y_samples.keys():
+            if flatten_first_axis_if_unit and self.y_samples[key].shape[1] == 1:
+                self.y_samples[key] = self.y_samples[key][:self.slice, 0, ...]
+            else:
+                self.y_samples[key] = self.y_samples[key][:self.slice, ...]
 
 
 class Simulation:
@@ -265,7 +332,7 @@ class Simulation:
         state = SimulationState(time, compartment_vals, hidden_compartment_vals)
         return state
 
-    def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None):
+    def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None, logger=None):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
@@ -296,7 +363,12 @@ class Simulation:
         start_time, end_time = tspan
         state = self.initialize_full_state(start_time, y0, samples)
 
-        result = StateLogger(state)
+        if logger is None:
+            result = StateLogger(state)
+        else:
+            result = logger
+
+        result.initialize_with_state(state)
 
         time = start_time
         while time < end_time:
@@ -306,7 +378,8 @@ class Simulation:
                 dt = self.step_gillespie_direct(time, state, dt)
             time += dt
             state.t = time
-            result.extend(state)
+            result(state)
 
-        result.trim()
+        result.cleanup()
+
         return result
