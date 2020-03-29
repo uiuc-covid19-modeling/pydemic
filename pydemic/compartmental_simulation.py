@@ -53,23 +53,33 @@ class SimulationState:
 
 
 class StateLogger:
-    def __init__(self, state, n_time_steps):
-        self.t = np.zeros(shape=(n_time_steps*10000,))
+    def __init__(self, state, chunk_length=1000):
+        self.chunk_length = chunk_length
+        self.t = np.zeros(shape=(chunk_length,))
         self.t[0] = state.t
         self.slice = 0
 
         self.y = {}
         for key in state.compartments:
             val = state.y[key]
-            ary = np.zeros(shape=(n_time_steps*10000,)+val.shape)
+            ary = np.zeros(shape=(chunk_length,)+val.shape)
             ary[0] = val
             self.y[key] = ary
 
     def extend(self, state):
         self.slice += 1
+        if self.slice == self.t.shape[0]:
+            self.add_chunk()
+
         self.t[self.slice] = state.t
         for key in state.compartments:
             self.y[key][self.slice] = state.__getattr__(key)
+
+    def add_chunk(self):
+        self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
+        for key, val in self.y.items():
+            shape = (self.chunk_length,)+val.shape[1:]
+            self.y[key] = np.concatenate([val, np.zeros(shape=shape)])
 
     def trim(self):
         self.t = self.t[:self.slice]
@@ -163,8 +173,7 @@ class CompartmentalModelSimulation:
         start_time, end_time = tspan
         state = self.initialize_full_state(start_time, y0)
 
-        n_time_steps = int(np.ceil((end_time - start_time) / dt)) + 2
-        result = StateLogger(state, n_time_steps)
+        result = StateLogger(state)
 
         time = start_time
         while time < end_time:
