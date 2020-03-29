@@ -23,7 +23,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pydemic import Reaction, GammaProcess, CompartmentalModelSimulation
+import numpy as np
+from datetime import datetime, timezone
+
+from pydemic import Reaction, GammaProcess, CompartmentalModelSimulation, date_to_ms
 
 
 class NeherModelSimulation(CompartmentalModelSimulation):
@@ -36,27 +39,28 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     and are encapsulated in the reactions definition below.
 
     FIXME TODO Currently does not implement hospital overflow.
-    TODO FIXME Currently does not implement seasonal forcing.
     TODO FIXME Currently does not implement containment.
-
-    FIXME TODO Currently does not implement hospital overflow.
-    TODO FIXME Currently does not implement seasonal forcing.
     """
 
     population = 1.e6
     avg_infection_rate = 1.
+    peak_day = 15
+    seasonal_forcing = 0. 
 
     def beta(self, t, y):
-        return self.avg_infection_rate
+        phase = 2. * np.pi * (t-self.peak_day)/365
+        print("new", phase)
+        return self.avg_infection_rate * (1. + self.seasonal_forcing * np.cos(phase))
 
     def containment(self, t, y):
         return 1.
 
     def __init__(self, epidemiology, severity, imports_per_day,
-                 population, n_age_groups):
+                 population, n_age_groups, containment):
         # TODO FIXME make sure we set population when we pass
         # a new population initial condition
         self.population = population
+        #self.containment = lambda t,y: containment(t)
 
         # translate from epidemiology/severity models into rates
         dHospital = severity.severe/100. * severity.confirmed/100.
@@ -75,19 +79,8 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         critical_dead_rate = dFatal / epidemiology.length_ICU_stay
 
         self.avg_infection_rate = epidemiology.r0 / epidemiology.infectious_period
-
-        """
-        from pydemic import date_to_ms
-        jan_2020 = date_to_ms((2020, 1, 1))
-        peak_day = 30 * self.epidemiology.peak_month + 15
-        time_offset = (time - jan_2020) / ms_per_day - peak_day
-        phase = 2 * np.pi * time_offset / 365
-        return (
-            self.avg_infection_rate *
-            (1 + self.epidemiology.seasonal_forcing  * np.cos(phase))
-        )
-        return 1.
-        """
+        self.seasonal_forcing = epidemiology.seasonal_forcing
+        self.peak_day = 30 * epidemiology.peak_month + 15
 
         reactions = (
             Reaction("susceptible", "exposed",
@@ -111,6 +104,12 @@ class NeherModelSimulation(CompartmentalModelSimulation):
                      lambda t, y: y.critical * critical_dead_rate)
         )
         super().__init__(reactions)
+
+    def __call__(self, tspan, y0, sampler, dt=.01):
+        t_start = (datetime(*tspan[0]) - datetime(2020,1,1)).days
+        t_end = (datetime(*tspan[1]) - datetime(2020,1,1)).days
+        rval = super().__call__([t_start, t_end], y0, sampler, dt=dt)
+        return rval
 
 
 

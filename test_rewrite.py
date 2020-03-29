@@ -35,7 +35,7 @@ if __name__ == "__main__":
     severity = SeverityModel(
         id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
         age_group=np.arange(0., 90., 10),
-        isolated=np.zeros(n_age_groups),
+        isolated=np.array([0., 0., 20., 10., 0., 0., 50., 90., 0.]),
         confirmed=np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]),
         severe=np.array([1., 3., 3., 3., 6., 10., 25., 35., 50.]),
         critical=np.array([5., 10., 10., 15., 20., 25., 35., 45., 55.]),
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         infectious_period=3,
         length_hospital_stay=4,
         length_ICU_stay=14,
-        seasonal_forcing=0.,
+        seasonal_forcing=0.8,
         peak_month=0,
         overflow_severity=2
     )
@@ -72,7 +72,8 @@ if __name__ == "__main__":
     # generate, run, and aggregate results for new pydemic model version
     simulation = NeherModelSimulation(
         epidemiology, severity, population.imports_per_day,
-        population.population_served, n_age_groups
+        population.population_served, n_age_groups,
+        containment
     )
     N = population.population_served
     y0 = {
@@ -88,19 +89,18 @@ if __name__ == "__main__":
     y0['susceptible'][i_middle] -= population.suspected_cases_today
     y0['exposed'][i_middle] += population.suspected_cases_today * 0.7
     y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
-    tspan = (0, (datetime(*end_date)-datetime(*start_date)).days)
     dt = 0.25
     t0_new = time.time()
-    new_result = simulation(tspan, y0, lambda x: x, dt=dt)
+    new_result = simulation([start_date, end_date], y0, lambda x: x, dt=dt)
     t1_new = time.time()
-    new_dates = [datetime(*start_date)+timedelta(x) for x in new_result.t]
+    new_dates = [datetime(2020,1,1)+timedelta(x) for x in new_result.t]
 
     print("old method elapsed:", t1_old-t0_old, "s")
     print("new method elapsed:", t1_new-t0_new, "s")
     diffs = []
     for key in dkeys[1:]:
-        diffs = (result[key][:-1,:]-new_result.y[key]).max()
-    print("max difference between data points:", diffs.max())
+        diffs.append((result[key][:-1,:]-new_result.y[key]).max())
+    print("max difference between data points: ", np.array(diffs).max())
 
     # make figure
     fig = plt.figure(figsize=(10,8))
