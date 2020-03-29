@@ -110,10 +110,13 @@ class StateLogger:
             shape = (self.chunk_length,)+val.shape[1:]
             self.y[key] = np.concatenate([val, np.zeros(shape=shape)])
 
-    def trim(self):
+    def trim(self, flatten_first_axis_if_unit=True):
         self.t = self.t[:self.slice]
         for key in self.y.keys():
-            self.y[key] = self.y[key][:self.slice, ...]
+            if flatten_first_axis_if_unit and self.y[key].shape[1] == 1:
+                self.y[key] = self.y[key][:self.slice, 0, ...]
+            else:
+                self.y[key] = self.y[key][:self.slice, ...]
 
 
 class Simulation:
@@ -221,10 +224,13 @@ class Simulation:
 
         return dt
 
-    def initialize_full_state(self, time, y0):
+    def initialize_full_state(self, time, y0, samples):
         compartment_vals = {}
         for key, ary in y0.items():
-            compartment_vals[key] = np.array(ary, dtype='float64')
+            ary = np.array(ary)
+            shape = (samples,) + ary.shape
+            compartment_vals[key] = np.empty(shape, dtype='float64')
+            compartment_vals[key][...] = ary[None, ...]
 
         hidden_compartment_vals = {}
         template = compartment_vals[self.compartments[0]]
@@ -234,7 +240,7 @@ class Simulation:
         state = SimulationState(time, compartment_vals, hidden_compartment_vals)
         return state
 
-    def __call__(self, tspan, y0, dt=.01, stochastic_method=None):
+    def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
@@ -246,12 +252,16 @@ class Simulation:
         :arg stochastic_method: A :class:`string` specifying whether to use
             direct Gillespie stepping (`'direct'`) or :math:`\\tau`-leaing
             (`'tau_leap'`).
+            Defaults to *None*, i.e., a deterministic evolution.
+
+        :arg samples: The number of stochastic samples to simulate simultaneously.
+            Defaults to ``1``.
 
         :returns: A :class:`~pydemic.simulation.StateLogger`.
         """
 
         start_time, end_time = tspan
-        state = self.initialize_full_state(start_time, y0)
+        state = self.initialize_full_state(start_time, y0, samples)
 
         result = StateLogger(state)
 
