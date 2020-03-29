@@ -99,9 +99,9 @@ class CompartmentalModelSimulation:
 
         for reaction in self._network:
             reaction_rate = reaction.evaluator(time, state)
-            dY = reaction_rate
+            dY = dt * reaction_rate
             if stochastic_method == "tau_leap":
-                dY = poisson.rvs(dY*dt)/dt
+                dY = poisson.rvs(dY)
 
             dY_min = state.y[reaction.lhs].copy()
             for (_lhs, _rhs), incr in increments.items():
@@ -119,7 +119,7 @@ class CompartmentalModelSimulation:
             # reaction here! I might have solved an XY problem ...
             reactions = list(increments.keys())
             r1, r2 = np.random.random(2)
-            cumulative_rates = np.cumsum([increments[k] for k in reactions]) 
+            cumulative_rates = np.cumsum([increments[k] for k in reactions])
             dt = - np.log(r1) / cumulative_rates[-1]
             r2 *= cumulative_rates[-1]
             reaction_index = np.searchsorted(cumulative_rates, r2)
@@ -131,8 +131,8 @@ class CompartmentalModelSimulation:
             state.y[rhs] += 1.
         else:
             for (lhs, rhs), dY in increments.items():
-                state.y[lhs] -= dY*dt
-                state.y[rhs] += dY*dt
+                state.y[lhs] -= dY
+                state.y[rhs] += dY
 
         return dt
 
