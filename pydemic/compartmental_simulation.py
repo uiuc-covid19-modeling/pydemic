@@ -51,6 +51,9 @@ class SimulationState:
     def __getattr__(self, item):
         return sum(self.y[key] for key in self.sum_compartments[item])
 
+    def sum(self):
+        return sum(val.sum() for val in self.y.values())
+
 
 class StateLogger:
     def __init__(self, state, chunk_length=1000):

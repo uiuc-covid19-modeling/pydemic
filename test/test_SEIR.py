@@ -33,7 +33,7 @@ from pydemic.models import SEIRModelSimulation
 def test_SEIR(total_pop, avg_infection_rate, infectious_rate=1,
               removal_rate=1, plot=False):
     simulation = SEIRModelSimulation(avg_infection_rate, infectious_rate,
-                                     removal_rate, population=1e6)
+                                     removal_rate)
 
     compartments = ('susceptible', 'exposed', 'infectious', 'removed')
     y0 = {

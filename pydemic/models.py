@@ -72,7 +72,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
             Reaction("susceptible", "exposed",
                      lambda t, y: ((1 - isolated_frac) * self.containment(t, y)
                                    * self.beta(t, y) * y.susceptible
-                                   * y.infectious.sum() / self.population)),
+                                   * y.infectious.sum() / y.sum())),
             Reaction("susceptible", "exposed",
                      lambda t, y: imports_per_day / n_age_groups),
             Reaction("exposed", "infectious",
@@ -113,40 +113,36 @@ class NeherModelSimulation(CompartmentalModelSimulation):
         return y0
 
     def __call__(self, t_span, y0, sampler, dt=.01):
-        self.population = sum([y0[x].sum() for x in y0])
         t_start = (datetime(*t_span[0]) - datetime(2020, 1, 1)).days
         t_end = (datetime(*t_span[1]) - datetime(2020, 1, 1)).days
-        rval = super().__call__([t_start, t_end], y0, sampler, dt=dt)
-        return rval
+        return super().__call__([t_start, t_end], y0, sampler, dt=dt)
 
 
 class ExtendedSimulation(CompartmentalModelSimulation):
-    def __init__(self, population, avg_infection_rate, *args):
+    def __init__(self, avg_infection_rate, *args):
         reactions = (
             Reaction('susceptible', 'exposed',
                      lambda t, y: (avg_infection_rate * y.susceptible
-                                   * y.infectious / population)),
+                                   * y.infectious / y.sum())),
             GammaProcess('exposed', 'infectious', shape=3, scale=5),
             Reaction('infectious', 'critical', lambda t, y: 1/5),
             GammaProcess('infectious', 'recovered', shape=4, scale=lambda t, y: 5),
             GammaProcess('infectious', 'dead', shape=3, scale=lambda t, y: 10),
             Reaction('critical', 'dead',
-                     lambda t, y: y.critical/y.susceptible/population),
+                     lambda t, y: y.critical/y.susceptible/y.sum()),
             Reaction('critical', 'recovered', lambda t, y: 1/7),
         )
         super().__init__(reactions)
 
 
 class SEIRModelSimulation(CompartmentalModelSimulation):
-    def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1,
-                 population=None):
+    def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1):
         self.avg_infection_rate = avg_infection_rate
-        self.population = population
 
         reactions = (
             Reaction("susceptible", "exposed",
                      lambda t, y: (self.beta(t, y) * y.susceptible
-                                   * y.infectious.sum() / self.population)),
+                                   * y.infectious.sum() / y.sum())),
             Reaction("exposed", "infectious",
                      lambda t, y: infectious_rate * y.exposed),
             Reaction("infectious", "removed",
@@ -156,7 +152,3 @@ class SEIRModelSimulation(CompartmentalModelSimulation):
 
     def beta(self, t, y):
         return self.avg_infection_rate
-
-    def __call__(self, t_span, y0, sampler, dt=.01, **kwargs):
-        self.population = sum(y0[x] for x in y0)
-        return super().__call__(t_span, y0, sampler, dt=dt, **kwargs)
