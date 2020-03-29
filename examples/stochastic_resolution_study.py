@@ -126,7 +126,7 @@ if __name__ == "__main__":
     quantiles = [0.0455, 0.3173, 0.5, 0.6827, 0.9545]
     tauleap_quantiles = {}
     direct_quantiles = {}
-    for key in keys:
+    for key in keys[1:]:
         tauleap_quantiles[key] = [
             np.quantile(np.array(tauleap_data[key]), quantile, axis=0)
             for quantile in quantiles
