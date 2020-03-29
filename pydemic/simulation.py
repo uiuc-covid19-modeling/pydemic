@@ -168,7 +168,8 @@ class Simulation:
         # reaction here! I might have solved an XY problem ...
         reactions = list(increments.keys())
         r1, r2 = np.random.rand(2)
-        cumulative_rates = np.cumsum([increments[k] for k in reactions])
+        flattened_array = np.hstack([increments[k].reshape(-1) for k in reactions])
+        cumulative_rates = np.cumsum(flattened_array)
 
         if cumulative_rates[-1] == 0.:
             return dt
@@ -176,17 +177,20 @@ class Simulation:
         dt = - np.log(r1) / cumulative_rates[-1]
         r2 *= cumulative_rates[-1]
         reaction_index = np.searchsorted(cumulative_rates, r2)
+        full_shape = (len(reactions),) + (increments[reactions[0]].shape)
+        full_index = np.unravel_index(reaction_index, full_shape)
+
         # WARNING: It's also not entirely clear that this produces
         # the right rate distributions for processes that have two
         # different lhs <--> rhs reactions ...
 
-        lhs, rhs = reactions[reaction_index]
-        state.y[lhs] -= 1.
-        state.y[rhs] += 1.
+        lhs, rhs = reactions[full_index[0]]
+        state.y[lhs][full_index[1:]] -= 1.
+        state.y[rhs][full_index[1:]] += 1.
 
-        if state.y[lhs] < 0:
-            state.y[lhs] += 1.
-            state.y[rhs] -= 1.
+        if state.y[lhs][full_index[1:]] < 0:
+            state.y[lhs][full_index[1:]] += 1.
+            state.y[rhs][full_index[1:]] -= 1.
 
         return dt
 
