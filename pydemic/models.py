@@ -38,8 +38,7 @@ class NeherModelSimulation(CompartmentalModelSimulation):
     [TODO FIXME src/ref] in the pdf
     and are encapsulated in the reactions definition below.
 
-    FIXME TODO Currently does not implement hospital overflow.
-    TODO FIXME Currently does not implement containment.
+    TODO Current model does not implement hospital overflow.
     """
 
     population = 1.e6
