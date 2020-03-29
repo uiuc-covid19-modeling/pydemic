@@ -42,7 +42,11 @@ class SimulationState:
     .. automethod:: sum
     """
 
-    def __init__(self, t, compartments, hidden_compartments):
+    def __init__(self, t, compartments, hidden_compartments, seed=None):
+        if seed is not None:
+            np.random.seed(seed)
+        else:
+            np.random.seed()
         self.t = t
         self.y = {**compartments, **hidden_compartments}
         self.compartments = list(compartments.keys())

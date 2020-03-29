@@ -103,9 +103,9 @@ if __name__ == "__main__":
 
     # load (or generate) data from tauleap and gillespie direct methods
     keys = ['t', 'susceptible', 'exposed', 'infectious', 'removed']
-    tauleap_data = load_tauleap("data/stochastic_runs_tauleap.h5", keys, force=True, n_sims=100)
+    tauleap_data = load_tauleap("data/stochastic_runs_tauleap.h5", keys, force=True, n_sims=1000)
     times = tauleap_data['t'][0]
-    direct_data = load_direct("data/stochastic_runs_direct.h5", keys, times, force=True, n_sims=100)
+    direct_data = load_direct("data/stochastic_runs_direct.h5", keys, times, force=True, n_sims=1000)
 
     # translate to quantiles
     quantiles = [ 0.0455, 0.3173, 0.5, 0.6827, 0.9545 ]
