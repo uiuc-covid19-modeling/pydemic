@@ -65,25 +65,27 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     dead_quantiles = result.quantile_data['dead'].sum(axis=2)
 
     # cut model appropriately
-    y_below = dead_quantiles[0,::skip]
+    y_below = dead_quantiles[1,::skip]
     y_model = dead_quantiles[2,::skip]
-    y_above = dead_quantiles[4,::skip]
+    y_above = dead_quantiles[3,::skip]
 
-    #print(model_zeroidx, data_zeroidx)
-    maxl = min(len(y_data), len(y_model))
-    y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
-    y_model = align_right(y_model, maxl)
-    y_below = align_right(y_below, maxl)
-    y_above = align_right(y_above, maxl)
+    if True:
 
-    # log data
-    y_data = np.log(y_data)
-    y_model = np.log(y_model)
-    y_diff_estimator = np.maximum(np.log(y_above/y_model), np.log(y_model/y_below))
+      maxl = min(len(y_data), len(y_model))
+      y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
+      y_model = align_right(y_model, maxl)
+      y_below = align_right(y_below, maxl)
+      y_above = align_right(y_above, maxl)
 
-    return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff_estimator, 2.))
+      # log data
+      y_data = np.log(y_data)
+      y_model = np.log(y_model)
+      y_diff_estimator = np.maximum(np.log(y_above/y_model), np.log(y_model/y_below))
+
+      return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff_estimator, 2.))
 
     if False:
+
         # we only want to compute the likelihood for the set of values in
         # which either of the y_model or y_data are non-zero
         y_model = y_model[np.argmax(y_model > 0):]
@@ -108,7 +110,7 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
         y_model = np.log(y_model)
         y_below_diff = y_model - np.log(y_below) + 0.01   # FIXME: do this better
         y_above_diff = np.log(y_above) - y_model + 0.01   # FIXME: do this better
-        y_std = np.maximum(y_above_diff,y_below_diff) / 2.
+        y_std = np.maximum(y_above_diff,y_below_diff) 
 
         # compute and return likelihood
         diff_sq = np.power(y_data - y_model, 2.)
@@ -154,8 +156,8 @@ def get_default_parameters():
     )
     epidemiology = EpidemiologyModel(
         r0=3.7,
-        incubation_time=5,
-        infectious_period=3,
+        incubation_time=5,  # was 5
+        infectious_period=3,  # was 3
         length_hospital_stay=4,
         length_ICU_stay=14,
         seasonal_forcing=0.2,

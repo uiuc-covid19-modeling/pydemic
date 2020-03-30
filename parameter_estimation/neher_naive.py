@@ -1,6 +1,7 @@
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
+plt.rc('font', family='serif',size=12)
 from datetime import date, datetime, timedelta
 from multiprocessing import Pool, cpu_count
 
@@ -66,7 +67,7 @@ if __name__ == "__main__":
                 'start_day': int(p2),
                 'end_day': (date(*cases.last_date)-date(2020,1,1)).days,
             }
-            data_params.append((model_params, cases.deaths[2:]))
+            data_params.append((model_params, cases.deaths[4:]))
             
     # run in parallel
     p = Pool(int(cpu_count()*0.9375))
@@ -117,6 +118,8 @@ if __name__ == "__main__":
     plot_quantiles(ax1, quantiles_result)
     plot_data(ax1, cases.dates, cases.deaths, target_date)
     format_axis(fig, ax1)
-    plt.suptitle("likelihood={0:.2g} {1:s}".format(best_likelihood, params_string))
+    plt.suptitle("fit for incubation ~ 5 & infectious ~ 3: R0 ~ {0:.1f}".format(best_params['r0']))
+    plt.ylabel("count (persons)")
+    plt.xlabel("time")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/neher_naive_best.png')
