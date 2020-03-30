@@ -2,13 +2,44 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 from datetime import date, datetime, timedelta
-import numpy as np
+from multiprocessing import Pool, cpu_count
 
 import models.neher as neher
 from pydemic.load import get_case_data
 from pydemic.plot import plot_quantiles, plot_deterministic
 from plutil import plot_model, plot_data, format_axis
 
+
+def set_numpy_threads(nthreads=1):
+    # see also https://codereview.stackexchange.com/questions/206736/better-way-to-set-number-of-threads-used-by-numpy  # noqa
+    import os
+    try:
+        import mkl
+        mkl.set_num_threads(nthreads)
+        return 0
+    except:  # noqa=E722
+        pass
+    for name in ["libmkl_rt.so", "libmkl_rt.dylib", "mkl_Rt.dll"]:
+        try:
+            import ctypes
+            mkl_rt = ctypes.CDLL(name)
+            mkl_rt.mkl_set_num_threads(ctypes.byref(ctypes.c_int(1)))
+            return 0
+        except:  # noqa=E722
+            pass
+    os.environ["OMP_NUM_THREADS"] = str(nthreads)
+    os.environ["OPENBLAS_NUM_THREADS"] = str(nthreads)
+    os.environ["MKL_NUM_THREADS"] = str(nthreads)
+    os.environ["VECLIB_MAXIMUM_THREADS"] = str(nthreads)
+    os.environ["NUMEXPR_NUM_THREADS"] = str(nthreads)
+
+set_numpy_threads()
+import numpy as np
+
+def wrapper(args):
+    model_params, y_data = args
+    print( model_params )
+    return neher.calculate_likelihood_for_model(model_params, y_data)
 
 if __name__ == "__main__":
 
@@ -17,14 +48,15 @@ if __name__ == "__main__":
     target_date = date(*cases.last_date)
 
     # define parameter space
-    R0s = np.linspace(2.5,5.5,11)
-    start_days = np.linspace(50,70,11)
+    n1 = 11
+    n2 = 11
+    R0s = np.linspace(2.5,5.5,n1)
+    start_days = np.linspace(50,70,n2)
     params_1, params_2 = np.meshgrid(R0s, start_days)
 
-    # run over the grid
-    best_params = None
-    best_likelihood = -np.inf
+    # generate params
     likelihoods = np.zeros(params_1.shape)
+    data_params = []
     for i in range(params_1.shape[0]):
         for j in range(params_1.shape[1]):
             p1 = params_1[i,j]
@@ -34,12 +66,24 @@ if __name__ == "__main__":
                 'start_day': int(p2),
                 'end_day': (date(*cases.last_date)-date(2020,1,1)).days,
             }
-            likelihood = neher.calculate_likelihood_for_model(model_params, cases.deaths[2:])
-            if likelihood > best_likelihood:
-                best_likelihood = likelihood
-                best_params = model_params
-            print(p1, p2, likelihood)
-            likelihoods[i, j] = likelihood 
+            data_params.append((model_params, cases.deaths[2:]))
+            
+    # run in parallel
+    p = Pool(int(cpu_count()*0.9375))
+    likelihoods = np.array(p.map(wrapper, data_params)).reshape(n1,n2)
+
+    best_likelihood = -np.inf
+    for i in range(params_1.shape[0]):
+        for j in range(params_1.shape[1]):
+            if likelihoods[j,i] > best_likelihood:
+                best_likelihood = likelihoods[j,i]
+                p1 = params_1[j,i]
+                p2 = params_2[j,i]
+                best_params = { 
+                    'r0': p1,
+                    'start_day': int(p2),
+                    'end_day': (date(*cases.last_date)-date(2020,1,1)).days,
+                }
 
     print("best parameters with likelihood", best_likelihood)
     print(best_params)
