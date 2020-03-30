@@ -65,24 +65,38 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     dead_quantiles = result.quantile_data['dead'].sum(axis=2)
 
     # cut model appropriately
-    y_below = dead_quantiles[1,::skip]
+    y_below = dead_quantiles[0,::skip]
     y_model = dead_quantiles[2,::skip]
-    y_above = dead_quantiles[3,::skip]
+    y_above = dead_quantiles[4,::skip]
+
+    if False:
+
+        maxl = len(y_data)
+        y_data = np.array(ydata, dtype=np.float64)
+        y_model = align_right(y_model, maxl)
+        y_above = align_right(y_above, maxl)
+        y_below = align_right(y_below, maxl)
+
+        return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff, 2.)), (y_data, y_model, y_below, y_above)
 
     if True:
 
-      maxl = min(len(y_data), len(y_model))
-      y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
-      y_model = align_right(y_model, maxl)
-      y_below = align_right(y_below, maxl)
-      y_above = align_right(y_above, maxl)
+        maxl = min(len(y_data), len(y_model))
+        y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
+        y_model = align_right(y_model, maxl)
+        y_below = align_right(y_below, maxl)
+        y_above = align_right(y_above, maxl)
 
-      # log data
-      y_data = np.log(y_data)
-      y_model = np.log(y_model)
-      y_diff_estimator = np.maximum(np.log(y_above/y_model), np.log(y_model/y_below))
+        # log data
+        y_data = np.log(y_data)
+        y_model = np.log(y_model)
+        y_diff_estimator = np.maximum(np.log((y_above+1)/(y_model+1)), np.log((y_model+1)/(y_below+1)))
+        y_diff_estimator = np.mean(np.array([np.log((y_above+1)/(y_model+1)), np.log((y_model+1)/(y_below+1))]), axis=0)
+        y_diff_estimator += 0.2 # heuristic
 
-      return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff_estimator, 2.))
+        print(y_diff_estimator)
+
+        return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff_estimator, 2.)), (np.exp(y_data), np.exp(y_model), y_below, y_above)
 
     if False:
 
