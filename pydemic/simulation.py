@@ -295,11 +295,11 @@ class Simulation:
         increments = {}
 
         for reaction in self._network:
-            reaction_rate = reaction.evaluator(time, state)
-            dY = dt * reaction_rate
+            dY = np.empty_like(state.y[reaction.lhs])
+            dY[...] = dt * reaction.evaluator(time, state)
 
             if stochastic_method == "tau_leap":
-                dY = poisson.rvs(dY)
+                dY[...] = poisson.rvs(dY)
 
             dY_max = state.y[reaction.lhs].copy()
             for (_lhs, _rhs), incr in increments.items():
