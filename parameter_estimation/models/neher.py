@@ -84,6 +84,20 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     y_model = dead_quantiles[2,::skip]
     y_above = dead_quantiles[3,::skip]
 
+
+    if True:
+        
+        maxl = len(y_data)
+        y_data = np.array(y_data, dtype=np.float64)
+        y_model = align_right(y_model, maxl)
+        y_above = align_right(y_above, maxl)
+        y_below = align_right(y_below, maxl)
+
+        y_top = np.power(y_model - y_data, 2.)
+        y_bot = np.power(y_above - y_below, 2.) * np.power(0.8, 2.)
+
+        return - 0.5 * np.sum(y_top/y_bot)
+
     if False:
 
         maxl = len(y_data)

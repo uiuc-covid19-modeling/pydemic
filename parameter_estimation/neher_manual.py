@@ -28,8 +28,8 @@ if __name__ == "__main__":
       # depth of testing?
     }
 
-    model_params['r0'] = 5.2
-    model_params['start_day'] = 62
+    model_params['r0'] = 3.1
+    model_params['start_day'] = 56
 
     likelihood = neher.calculate_likelihood_for_model(model_params, cases.deaths)
 

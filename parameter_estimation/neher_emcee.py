@@ -70,7 +70,7 @@ if __name__ == "__main__":
     end_day = (date(*cases.last_date)-date(2020,1,1)).days
 
     # define sampler parameters
-    n_walkers = 32
+    n_walkers = 36 
     n_steps = 200
     
     # get pool for multi-processing
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     inital_position = np.array(centered_guesses) + \
         np.random.randn(n_walkers, n_dims)*np.array(guess_uncertainties)
     sampler = emcee.EnsembleSampler(n_walkers, n_dims, log_probability, 
-        args=([cases.deaths[4:]]), pool=pool)
+        args=([cases.deaths[2:]]), pool=pool)
 
     # run sampler
     sampler.run_mcmc(inital_position, n_steps, progress=True)
