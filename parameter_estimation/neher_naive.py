@@ -41,6 +41,10 @@ if __name__ == "__main__":
             print(p1, p2, likelihood)
             likelihoods[i, j] = likelihood 
 
+    print("best parameters with likelihood", best_likelihood)
+    print(best_params)
+    params_string = " ".join(["{0:s}={1:g}".format(x,best_params[x]) for x in best_params])
+
     # save likelihood data
     import h5py
     hfp = h5py.File('neher_naive.h5','w')
@@ -69,6 +73,6 @@ if __name__ == "__main__":
     plot_quantiles(ax1, quantiles_result)
     plot_data(ax1, cases.dates, cases.deaths, target_date)
     format_axis(fig, ax1)
-    plt.suptitle("likelihood = {0:.2g}".format(best_likelihood))
+    plt.suptitle("likelihood={0:.2g} {1:s}".format(best_likelihood, params_string))
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/neher_naive_best.png')

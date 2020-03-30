@@ -5,7 +5,7 @@ from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, QuantileLogger)
 
 
-def get_model_result(model_parameters, dt):
+def get_model_result(model_parameters, dt, n_samples=100):
 
     # set start date and end date based on offset (for single parameter)
     start_date = datetime(2020,1,1) + timedelta(model_parameters['start_day'])
@@ -37,7 +37,7 @@ def get_model_result(model_parameters, dt):
 
     # run simulation
     logger = QuantileLogger()
-    return simulation([start_date, end_date], y0, dt, samples=100, stochastic_method='tau_leap', logger=logger)
+    return simulation([start_date, end_date], y0, dt, samples=n_samples, stochastic_method='tau_leap', logger=logger)
 
 def align_pad_left(a1, a2):
     l1 = len(a1)
@@ -54,13 +54,13 @@ def align_right(arr, length):
     return np.pad(arr, (length-mylen,0), 'constant')
 
 
-def calculate_likelihood_for_model(model_parameters, y_data):
+def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     # needed for resolution
     dt = 0.05
     skip = int(1./dt)
 
     # run model and get result
-    result = get_model_result(model_parameters, dt)
+    result = get_model_result(model_parameters, dt, n_samples=n_samples)
     dead_quantiles = result.quantile_data['dead'].sum(axis=2)
 
     # cut model appropriately
