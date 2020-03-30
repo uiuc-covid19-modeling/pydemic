@@ -19,6 +19,7 @@ def get_model_result(model_parameters, dt, n_samples=100):
     containment_factor = 1.0
     containment = ContainmentModel(start_date, end_date, is_in_days=True)
     containment.add_sharp_event(containment_date, containment_factor)
+    #containment.add_sharp_event(containment_date, containment_factor)
 
     # set parameters
     epidemiology, severity, population, age_distribution = get_default_parameters()
@@ -68,43 +69,52 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     y_model = dead_quantiles[2,::skip]
     y_above = dead_quantiles[4,::skip]
 
-    # we only want to compute the likelihood for the set of values in
-    # which either of the y_model or y_data are non-zero
-    y_model = y_model[np.argmax(y_model > 0):]
-    y_data = y_data[np.argmax(y_data > 0):]
-
     #print(model_zeroidx, data_zeroidx)
-    maxl = max(len(y_data), len(y_model))
+    maxl = min(len(y_data), len(y_model))
     y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
     y_model = align_right(y_model, maxl)
     y_below = align_right(y_below, maxl)
     y_above = align_right(y_above, maxl)
 
-    # deal with zeros and compute "standard deviation"
-    LOG_ZERO_VALUE = 0.1
-    y_data[y_data < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
-    y_below[y_below < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
-    y_model[y_model < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
-    y_above[y_above < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
-
-    # make log scale for Gaussian probability?
+    # log data
     y_data = np.log(y_data)
     y_model = np.log(y_model)
-    y_below_diff = y_model - np.log(y_below) + 0.01   # FIXME: do this better
-    y_above_diff = np.log(y_above) - y_model + 0.01   # FIXME: do this better
-    y_std = np.maximum(y_above_diff,y_below_diff) / 2.
+    y_diff_estimator = np.maximum(np.log(y_above/y_model), np.log(y_model/y_below))
 
-    # compute and return likelihood
-    diff_sq = np.power(y_data - y_model, 2.)
-    ratios = diff_sq / np.power(y_std, 2.)
+    return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff_estimator, 2.))
 
-    # print(y_data)
-    # print(y_model)
-    # print(y_std)
-    # print(diff_sq)
-    # print(ratios)
+    if False:
+        # we only want to compute the likelihood for the set of values in
+        # which either of the y_model or y_data are non-zero
+        y_model = y_model[np.argmax(y_model > 0):]
+        y_data = y_data[np.argmax(y_data > 0):]
 
-    return -0.5 * np.sum(ratios)
+        #print(model_zeroidx, data_zeroidx)
+        maxl = max(len(y_data), len(y_model))
+        y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
+        y_model = align_right(y_model, maxl)
+        y_below = align_right(y_below, maxl)
+        y_above = align_right(y_above, maxl)
+
+        # deal with zeros and compute "standard deviation"
+        LOG_ZERO_VALUE = 0.1
+        y_data[y_data < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
+        y_below[y_below < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
+        y_model[y_model < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
+        y_above[y_above < LOG_ZERO_VALUE] = LOG_ZERO_VALUE
+
+        # make log scale for Gaussian probability?
+        y_data = np.log(y_data)
+        y_model = np.log(y_model)
+        y_below_diff = y_model - np.log(y_below) + 0.01   # FIXME: do this better
+        y_above_diff = np.log(y_above) - y_model + 0.01   # FIXME: do this better
+        y_std = np.maximum(y_above_diff,y_below_diff) / 2.
+
+        # compute and return likelihood
+        diff_sq = np.power(y_data - y_model, 2.)
+        ratios = diff_sq / np.power(y_std, 2.)
+
+        return -0.5 * np.sum(ratios)
 
 
 def get_default_parameters():
