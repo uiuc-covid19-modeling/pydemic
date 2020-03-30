@@ -39,8 +39,9 @@ import numpy as np
 
 def wrapper(args):
     model_params, y_data = args
-    print( model_params )
-    return neher.calculate_likelihood_for_model(model_params, y_data)
+    likelihood = neher.calculate_likelihood_for_model(model_params, y_data, n_samples=200)
+    print(model_params, likelihood)
+    return likelihood
 
 if __name__ == "__main__":
 
@@ -49,8 +50,8 @@ if __name__ == "__main__":
     target_date = date(*cases.last_date)
 
     # define parameter space
-    n1 = 11
-    n2 = 11
+    n1 = 21
+    n2 = 21
     R0s = np.linspace(2.5,5.5,n1)
     start_days = np.linspace(50,70,n2)
     params_1, params_2 = np.meshgrid(R0s, start_days)
@@ -118,7 +119,8 @@ if __name__ == "__main__":
     plot_quantiles(ax1, quantiles_result)
     plot_data(ax1, cases.dates, cases.deaths, target_date)
     format_axis(fig, ax1)
-    plt.suptitle("fit for incubation ~ 5 & infectious ~ 3: R0 ~ {0:.1f}".format(best_params['r0']))
+    #plt.suptitle("fit for incubation ~ 5 & infectious ~ 3: R0 ~ {0:.1f}".format(best_params['r0']))
+    plt.suptitle(" ".join(["{0:s}={1:.1f}".format(x,best_params[x]) for x in best_params]))
     plt.ylabel("count (persons)")
     plt.xlabel("time")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])

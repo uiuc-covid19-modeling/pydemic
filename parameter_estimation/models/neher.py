@@ -65,9 +65,9 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     dead_quantiles = result.quantile_data['dead'].sum(axis=2)
 
     # cut model appropriately
-    y_below = dead_quantiles[0,::skip]
+    y_below = dead_quantiles[1,::skip]
     y_model = dead_quantiles[2,::skip]
-    y_above = dead_quantiles[4,::skip]
+    y_above = dead_quantiles[3,::skip]
 
     if False:
 
@@ -79,7 +79,7 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
 
         return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff, 2.)), (y_data, y_model, y_below, y_above)
 
-    if True:
+    if False:
 
         maxl = min(len(y_data), len(y_model))
         y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
@@ -98,15 +98,16 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
 
         return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff_estimator, 2.)), (np.exp(y_data), np.exp(y_model), y_below, y_above)
 
-    if False:
+    if True:
 
         # we only want to compute the likelihood for the set of values in
         # which either of the y_model or y_data are non-zero
-        y_model = y_model[np.argmax(y_model > 0):]
-        y_data = y_data[np.argmax(y_data > 0):]
+        #y_model = y_model[np.argmax(y_model > 0):]
+        #y_data = y_data[np.argmax(y_data > 0):]
 
         #print(model_zeroidx, data_zeroidx)
-        maxl = max(len(y_data), len(y_model))
+        #maxl = max(len(y_data), len(y_model))
+        maxl = len(y_data)
         y_data = np.array(align_right(y_data, maxl), dtype=np.float64)
         y_model = align_right(y_model, maxl)
         y_below = align_right(y_below, maxl)
