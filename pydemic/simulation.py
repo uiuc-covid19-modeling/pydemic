@@ -111,6 +111,7 @@ class StateLogger:
         self.chunk_length = chunk_length
         self.t = np.zeros(shape=(self.chunk_length,))
         self.slice = 0
+        self.quantile_data = None
 
     def initialize_with_state(self, state):
         self.t[0] = state.t

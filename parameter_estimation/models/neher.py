@@ -5,7 +5,7 @@ from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, QuantileLogger)
 
 
-def get_model_result(model_parameters, dt, n_samples=100):
+def get_model_result(model_parameters, dt, n_samples=100, run_stochastic=False):
 
     # set start date and end date based on offset (for single parameter)
     start_date = datetime(2020,1,1) + timedelta(model_parameters['start_day'])
@@ -36,9 +36,22 @@ def get_model_result(model_parameters, dt, n_samples=100):
     )
     y0 = simulation.get_initial_population(population, age_distribution)
 
-    # run simulation
-    logger = QuantileLogger()
-    return simulation([start_date, end_date], y0, dt, samples=n_samples, stochastic_method='tau_leap', logger=logger)
+    if False or run_stochastic:
+        # run simulation
+      logger = QuantileLogger()
+      return simulation([start_date, end_date], y0, dt, samples=n_samples, stochastic_method='tau_leap', logger=logger)
+
+    if True:
+        # deterministic
+        deterministic = simulation([start_date, end_date], y0, dt)
+        quantile_data = np.zeros((5, deterministic.t.shape[0]))
+        mean = deterministic.y['dead'].sum(axis=1)
+        std_dev = np.sqrt(mean)
+        quantile_data[1,:] = mean - std_dev
+        quantile_data[2,:] = mean
+        quantile_data[3,:] = mean + std_dev
+        deterministic.quantile_data = quantile_data
+        return deterministic
 
 def align_pad_left(a1, a2):
     l1 = len(a1)
@@ -61,8 +74,10 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     skip = int(1./dt)
 
     # run model and get result
-    result = get_model_result(model_parameters, dt, n_samples=n_samples)
-    dead_quantiles = result.quantile_data['dead'].sum(axis=2)
+    #result = get_model_result(model_parameters, dt, n_samples=n_samples)
+    #dead_quantiles = result.quantile_data['dead'].sum(axis=2)
+    deterministic = get_model_result(model_parameters, dt, n_samples=n_samples)
+    dead_quantiles = deterministic.quantile_data
 
     # cut model appropriately
     y_below = dead_quantiles[1,::skip]
@@ -150,10 +165,10 @@ def get_default_parameters():
         country='United States of America',
         cases='USA-Illinois',
         population_served=12659682,
-        suspected_cases_today=215,
+        suspected_cases_today=10,  # original 215
         ICU_beds=1e10,  # originally 1055
         hospital_beds=1e10,  # originally 31649
-        imports_per_day=np.ones(n_age_groups)*5.0,
+        imports_per_day=1.1   # originally 5.0
     )
     age_distribution = AgeDistribution(
         bin_edges=np.arange(0, 90, 10),
@@ -171,8 +186,8 @@ def get_default_parameters():
     )
     epidemiology = EpidemiologyModel(
         r0=3.7,
-        incubation_time=5,  # was 5
-        infectious_period=3,  # was 3
+        incubation_time=1,  # was 5
+        infectious_period=4,  # was 3
         length_hospital_stay=4,
         length_ICU_stay=14,
         seasonal_forcing=0.2,

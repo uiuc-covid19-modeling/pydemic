@@ -52,8 +52,8 @@ if __name__ == "__main__":
     # define parameter space
     n1 = 21
     n2 = 21
-    R0s = np.linspace(2.5,5.5,n1)
-    start_days = np.linspace(50,70,n2)
+    R0s = np.linspace(2.,4.,n1)
+    start_days = np.linspace(40,60,n2)
     params_1, params_2 = np.meshgrid(R0s, start_days)
 
     # generate params
@@ -108,6 +108,8 @@ if __name__ == "__main__":
     R0s = np.linspace(R0s[0]-d1,R0s[-1]+d1,len(R0s)+1)
     start_days = np.linspace(start_days[0]-d2,start_days[-1]+d2,len(start_days)+1)
     ax1.pcolormesh(R0s, start_days, np.exp(likelihoods))
+    ax1.set_xlabel('r0')
+    ax1.set_ylabel('start day')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/neher_naive_likelihoods.png')
   
@@ -115,8 +117,14 @@ if __name__ == "__main__":
     plt.close('all')
     fig = plt.figure(figsize=(10,8))
     ax1 = plt.subplot(1,1,1)
-    quantiles_result = neher.get_model_result(best_params, 0.05)
-    plot_quantiles(ax1, quantiles_result)
+    if False:
+      quantiles_result = neher.get_model_result(best_params, 0.05, run_stochastic=True)
+      plot_quantiles(ax1, quantiles_result)
+    else:
+      quantiles_result = neher.get_model_result(best_params, 0.05)
+      dates = [datetime(2020, 1, 1)+timedelta(x) for x in quantiles_result.t]
+      ax1.plot(dates, quantiles_result.quantile_data[2,:])
+      ax1.fill_between(dates, quantiles_result.quantile_data[1,:], quantiles_result.quantile_data[3,:])
     plot_data(ax1, cases.dates, cases.deaths, target_date)
     format_axis(fig, ax1)
     #plt.suptitle("fit for incubation ~ 5 & infectious ~ 3: R0 ~ {0:.1f}".format(best_params['r0']))
