@@ -335,7 +335,8 @@ class Simulation:
         state = SimulationState(time, compartment_vals, hidden_compartment_vals)
         return state
 
-    def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None, logger=None):
+    def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None,
+                 logger=None):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
@@ -384,5 +385,51 @@ class Simulation:
             result(state)
 
         result.cleanup()
+
+        return result
+
+
+class DeterministicSimulation(Simulation):
+    def step(self, t, y):
+        dy = np.zeros_like(y)
+        state = self.array_to_state(t, y)
+        dy_state = self.array_to_state(t, dy)
+
+        for reaction in self._network:
+            rate = reaction.evaluator(t, state)
+            dy_state.y[reaction.rhs] += rate
+            dy_state.y[reaction.lhs] -= rate
+
+        return self.state_to_array(dy_state)
+
+    def array_to_state(self, time, array):
+        array = array.reshape(len(self.compartments), *self.compartment_shape)
+        y = {comp: array[i] for i, comp in enumerate(self.compartments)}
+        return SimulationState(time, y, {})
+
+    def state_to_array(self, state):
+        array = np.empty((len(self.compartments),)+self.compartment_shape)
+        for i, comp in enumerate(self.compartments):
+            array[i] = state.y[comp]
+
+        return array.reshape(-1)
+
+    def __call__(self, tspan, y0, rtol=1e-8):
+        """
+        :arg tspan: A :class:`tuple` specifying the initiala and final times.
+
+        :arg y0: A :class:`dict` with the initial values
+            (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
+        """
+
+        template = y0[self.compartments[0]]
+        self.compartment_shape = template.shape
+
+        state = SimulationState(tspan[0], y0, {})
+        y0_array = self.state_to_array(state)
+
+        from scipy.integrate import solve_ivp
+        result = solve_ivp(self.step, tspan, y0_array, dense_output=True,
+                           rtol=rtol, method='DOP853')
 
         return result
