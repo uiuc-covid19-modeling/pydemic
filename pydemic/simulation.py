@@ -114,6 +114,7 @@ class StateLogger:
 
     def initialize_with_state(self, state):
         self.t[0] = state.t
+        self.compartments = state.compartments.copy()
         self.y = {}
         for key in state.compartments:
             val = state.y[key]
@@ -173,7 +174,8 @@ class QuantileLogger:
     def initialize_with_state(self, state):
         self.y_samples = {}
         self.t[0] = state.t
-        for key in state.compartments:
+        self.compartments = state.compartments.copy()
+        for key in self.compartments:
             val = state.y[key]
             ary = np.zeros(shape=(self.chunk_length,)+val.shape)
             ary[0] = val
@@ -185,7 +187,7 @@ class QuantileLogger:
             self.add_chunk()
 
         self.t[self.slice] = state.t
-        for key in state.compartments:
+        for key in self.compartments:
             self.y_samples[key][self.slice] = state.__getattr__(key)
 
     def cleanup(self, flatten_first_axis_if_unit=True):

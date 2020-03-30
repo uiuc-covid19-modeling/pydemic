@@ -7,29 +7,6 @@ from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
 from pydemic.models import NeherModelSimulation
 from pydemic.plot import plot_quantiles, plot_deterministic
 
-def set_numpy_threads(nthreads=1):
-    # see also https://codereview.stackexchange.com/questions/206736/better-way-to-set-number-of-threads-used-by-numpy  # noqa
-    import os
-    try:
-        import mkl
-        mkl.set_num_threads(nthreads)
-        return 0
-    except:  # noqa=E722
-        pass
-    for name in ["libmkl_rt.so", "libmkl_rt.dylib", "mkl_Rt.dll"]:
-        try:
-            import ctypes
-            mkl_rt = ctypes.CDLL(name)
-            mkl_rt.mkl_set_num_threads(ctypes.byref(ctypes.c_int(1)))
-            return 0
-        except:  # noqa=E722
-            pass
-    os.environ["OMP_NUM_THREADS"] = str(nthreads)
-    os.environ["OPENBLAS_NUM_THREADS"] = str(nthreads)
-    os.environ["MKL_NUM_THREADS"] = str(nthreads)
-    os.environ["VECLIB_MAXIMUM_THREADS"] = str(nthreads)
-    os.environ["NUMEXPR_NUM_THREADS"] = str(nthreads)
-
 if __name__ == "__main__":
 
     # define containment event
@@ -84,22 +61,25 @@ if __name__ == "__main__":
     )
     y0 = simulation.get_initial_population(population, age_distribution)
 
-    # run simulation
-    logger = QuantileLogger()
-    result = simulation([start_date, end_date], y0, 0.05, samples=1000, stochastic_method='tau_leap', logger=logger)
-    deterministic = simulation([start_date, end_date], y0, 0.05)
 
     fig = plt.figure(figsize=(10,8))
     ax1 = plt.subplot(1,1,1)
 
-    plot_quantiles(ax1, result, legend=True)
-    plot_deterministic(ax1, deterministic, force_color='k')
+    has_been_labeled = False
+    dts = [ 1.0, 0.5, 0.25, 0.1, 0.05, 0.01, 0.005 ]
+    for dt in [0.1, 0.05]:
+        deterministic = simulation([start_date, end_date], y0, dt)
+        if has_been_labeled:
+            plot_deterministic(ax1, deterministic)
+        else:
+            plot_deterministic(ax1, deterministic, legend=True)
+            has_been_labeled = True
 
     ax1.legend()
     ax1.set_xlabel('time')
     ax1.set_ylabel('count (persons)')
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig('imgs/stochastic_neher_model.png')
+    plt.savefig('imgs/timestep_neher_model.png')
 
 
