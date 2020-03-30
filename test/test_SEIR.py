@@ -147,7 +147,7 @@ def test_deterministic(total_pop, avg_infection_rate, infectious_rate=1,
         test = np.logical_and(non_zero, t > 1)
         relerr = np.abs(1 - scipy_sol[name][test] / determ_sol[name][test])
         print('max err for', name, 'is', np.max(relerr))
-        assert np.max(relerr) < .05
+        assert np.max(relerr) < 1.e-6
 
     total_people = sum(determ_sol[name] for name in compartments)
     total_err = np.max(np.abs(1 - total_people / total_pop))
