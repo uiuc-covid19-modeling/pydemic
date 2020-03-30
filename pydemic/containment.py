@@ -28,6 +28,8 @@ class ContainmentModel:
         else:
             self.times = [date_to_ms(start_time), date_to_ms(end_time)]
         self.factors = [1., 1.]
+        self.sort_times()
+        self._regenerate()
 
     def add_sharp_event(self, time, factor):
         if self._is_in_days:

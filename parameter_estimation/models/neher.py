@@ -126,7 +126,7 @@ def get_default_parameters():
         suspected_cases_today=215,
         ICU_beds=1e10,  # originally 1055
         hospital_beds=1e10,  # originally 31649
-        imports_per_day=5.0,
+        imports_per_day=np.ones(n_age_groups)*5.0,
     )
     age_distribution = AgeDistribution(
         bin_edges=np.arange(0, 90, 10),
