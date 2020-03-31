@@ -26,3 +26,4 @@ def plot_model(ax, data_mean, data_abv, data_bel, target_date, c='k'):
   ax.plot(dates, data_mean, '-', lw=2, c=c)
   if data_abv is not None and data_bel is not None:
     ax.fill_between(dates, data_abv, data_bel, color=c, alpha=0.2)
+

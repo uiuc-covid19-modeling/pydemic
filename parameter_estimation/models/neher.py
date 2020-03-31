@@ -83,7 +83,6 @@ def align_right(arr, length):
         return arr[-length:]
     return np.pad(arr, (length-mylen,0), 'constant')
 
-
 def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     # needed for resolution
     dt = 0.05
@@ -100,7 +99,45 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     y_below = dead_quantiles[1,sidx::skip]
     y_model = dead_quantiles[2,sidx::skip]
     y_above = dead_quantiles[3,sidx::skip]
+    
+    if True:
+     
+        maxl = len(y_data)
+        y_data = np.array(y_data, dtype=np.float64)
+        y_model = align_right(y_model, maxl)
+        y_above = align_right(y_above, maxl)
+        y_below = align_right(y_below, maxl)
 
+        arr = np.power(np.log(y_data) - np.log(y_model), 2.)
+
+        return - 0.5 * np.sum(arr)
+
+
+    if True:
+
+        maxl = len(y_data)
+        y_data = np.array(y_data, dtype=np.float64)
+        y_model = align_right(y_model, maxl)
+        y_above = align_right(y_above, maxl)
+        y_below = align_right(y_below, maxl)
+        LOG_ZERO_VALUE = -2
+
+        y_data = np.log(y_data)
+        y_model = np.log(y_model)
+        y_std = np.log(y_above/y_model)
+
+        y_data[~np.isfinite(y_data)] = LOG_ZERO_VALUE
+        y_model[~np.isfinite(y_model)] = LOG_ZERO_VALUE
+        y_std[~np.isfinite(y_std)] = LOG_ZERO_VALUE
+
+        if False:
+          print(y_data)
+          print(y_model)
+          print(y_std)
+
+        ratio = np.power(y_model-y_data, 2.)/np.power(y_std, 2.)
+
+        return - 0.5 * np.sum(ratio)
 
     if True:
 
@@ -113,6 +150,12 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
         y_top = np.power(y_model - y_data, 2.)
         y_bot = np.power(y_above - y_model, 2.) 
         ratio = y_top/y_bot
+
+        print(y_data)
+        print(y_model)
+        print(y_above)
+        print(y_top)
+        print(y_bot)
 
         return - 0.5 * np.sum(ratio)
 

@@ -47,13 +47,18 @@ if __name__ == "__main__":
 
     # load reported data
     cases = get_case_data("USA-Illinois")
+    cases = get_case_data("Italy")
     target_date = date(*cases.last_date)
+
+    y_data = cases.deaths
+    y_data = y_data[np.argmax(y_data>0)+2:] 
+    y_data = y_data[:-16]
 
     # define parameter space
     n1 = 51
     n2 = 51
-    R0s = np.linspace(2.5,4.,n1)
-    start_days = np.linspace(50,60,n2)
+    R0s = np.linspace(2.,4.,n1)
+    start_days = np.linspace(20,40,n2)
     params_1, params_2 = np.meshgrid(R0s, start_days)
 
     # generate params
@@ -68,7 +73,7 @@ if __name__ == "__main__":
                 'start_day': p2,
                 'end_day': (date(*cases.last_date)-date(2020,1,1)).days,
             }
-            data_params.append((model_params, cases.deaths[4:]))
+            data_params.append((model_params, y_data))
             
     # run in parallel
     p = Pool(int(cpu_count()*0.9375))
@@ -107,15 +112,15 @@ if __name__ == "__main__":
     d2 = start_days[1] - start_days[0]
     R0s = np.linspace(R0s[0]-d1,R0s[-1]+d1,len(R0s)+1)
     start_days = np.linspace(start_days[0]-d2,start_days[-1]+d2,len(start_days)+1)
-    #ax1.pcolormesh(R0s, start_days, np.exp(likelihoods))
-    ax1.pcolormesh(R0s, start_days, likelihoods, vmin=-10)
+    ax1.pcolormesh(R0s, start_days, np.exp(likelihoods))
+    #ax1.pcolormesh(R0s, start_days, likelihoods, vmin=-10)
     ax1.set_xlabel('r0')
     ax1.set_ylabel('start day')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/neher_naive_likelihoods.png')
  
-    best_params['r0'] = 3.15
-    best_params['start_day'] = 55
+    # best_params['r0'] = 3.15
+    # best_params['start_day'] = 55
 
     # plot best-fit model
     plt.close('all')
@@ -126,7 +131,7 @@ if __name__ == "__main__":
       plot_quantiles(ax1, quantiles_result)
     else:
       quantiles_result = neher.get_model_result(best_params, 0.05)
-      dates = [datetime(2020, 1, 1)+timedelta(x) for x in quantiles_result.t]
+      dates = [datetime(2020, 1, 2, 0)+timedelta(x) for x in quantiles_result.t]
       ax1.fill_between(dates, quantiles_result.quantile_data[1,:], quantiles_result.quantile_data[3,:])
       ax1.plot(dates, quantiles_result.quantile_data[2,:], '-k')
     plot_data(ax1, cases.dates, cases.deaths, target_date)
@@ -137,3 +142,5 @@ if __name__ == "__main__":
     plt.xlabel("time")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/neher_naive_best.png')
+
+
