@@ -129,14 +129,12 @@ if __name__ == "__main__":
     plt.close('all')
     fig = plt.figure(figsize=(10,8))
     ax1 = plt.subplot(1,1,1)
-    if False:
-      quantiles_result = neher.get_model_result(best_params, 0.05, run_stochastic=True)
-      plot_quantiles(ax1, quantiles_result)
-    else:
-      quantiles_result = neher.get_model_result(best_params, 0.05)
-      dates = [datetime(2020, 1, 1)+timedelta(x) for x in quantiles_result.t]
-      ax1.fill_between(dates, quantiles_result.quantile_data[1,:], quantiles_result.quantile_data[3,:])
-      ax1.plot(dates, quantiles_result.quantile_data[2,:], '-k')
+    deterministic = neher.get_model_result(best_params)
+    model_dates = deterministic.t
+    model_deaths = deterministic.quantile_data[2,:]
+    dates = [datetime(2020, 1, 1)+timedelta(x) for x in deterministic.t]
+    ax1.fill_between(dates, deterministic.quantile_data[1,:], deterministic.quantile_data[3,:])
+    ax1.plot(dates, model_deaths, '-k')
     plot_data(ax1, cases.dates, cases.deaths, target_date)
     format_axis(fig, ax1)
     #plt.suptitle("fit for incubation ~ 5 & infectious ~ 3: R0 ~ {0:.1f}".format(best_params['r0']))
@@ -145,8 +143,6 @@ if __name__ == "__main__":
     plt.xlabel("time")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/neher_emcee_best.png')
-
-
 
 
 
