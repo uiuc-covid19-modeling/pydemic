@@ -3,6 +3,8 @@ mpl.use('agg')
 import matplotlib.pyplot as plt
 plt.rc('font', family='serif', size=12)
 from datetime import date, datetime, timedelta
+import matplotlib.gridspec as gridspec
+
 import emcee
 from multiprocessing import Pool, cpu_count
 
@@ -41,9 +43,9 @@ import numpy as np
 
 # define posterior parameters
 parameter_names = ['r0', 'start_day', 'mitigation', 'mitigation_day', 'mitigation_width']
-centered_guesses = [3., 30, 0.9, 60, 3]
+centered_guesses = [3., 30, 0.9, 60, 10]
 guess_uncertainties = [0.2, 2, 0.1, 2, 2]
-parameter_priors = [[1., 5.], [20, 40], [0.05, 1.0], [30,88], [0.05, 10]]
+parameter_priors = [[1., 5.], [20, 40], [0.05, 1.0], [30,88], [0.05, 20]]
 
 
 def not_within(x, xrng):
@@ -61,6 +63,7 @@ def log_probability(theta, cases):
         'start_day': theta[1],
         'mitigation': theta[2],
         'mitigation_day': max(theta[3], theta[1]+1),
+        'mitigation_width': theta[4],
         'end_day': 88
     }
     likelihood = neher.calculate_likelihood_for_model(
@@ -134,7 +137,9 @@ if __name__ == "__main__":
 
     plt.close('all')
     fig = plt.figure(figsize=(10, 8))
-    ax1 = plt.subplot(1, 1, 1)
+    gspec = gridspec.GridSpec(ncols=1, nrows=3, figure=fig)
+    ax1 = fig.add_subplot(gspec[:2,0])
+    ax2 = fig.add_subplot(gspec[2,0])
     deterministic = neher.get_model_result(best_params)
     model_dates = deterministic.t
     model_deaths = deterministic.quantile_data[2, :]
@@ -144,15 +149,14 @@ if __name__ == "__main__":
     ax1.plot(dates, model_deaths, '-k')
     plot_data(ax1, cases.dates, cases.deaths, target_date)
     format_axis(fig, ax1)
-    # plt.suptitle(
-    #     "fit for incubation ~ 5 & infectious ~ 3: R0 ~ {0:.1f}".format(
-    #         best_params['r0']
-    #     )
-    # )
+    containment = neher.get_containment_for_model(best_params)
+    ax2.grid()
+    ax2.plot(dates, containment(deterministic.t), '-b')
+    ax2.set_xlabel('time')
+    ax1.set_ylabel('count (persons)')
+    ax2.set_ylabel('mitigation factor')
     plt.suptitle(" ".join(["{0:s}={1:.1f}".format(
         x, best_params[x]) for x in best_params]))
-    plt.ylabel("count (persons)")
-    plt.xlabel("time")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/italy_lombardia_neher_emcee_best.png')
 

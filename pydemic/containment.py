@@ -45,9 +45,9 @@ class ContainmentModel:
                 factors.append(c_factor)
             elif event[0] == "end":
                 times.append(event[1])
-                factors.append(c_factor)
+                factors.append(factors[-1])
             elif event[0] == "sharp":
-                times.append(event[1]-event[2])
+                times.append(event[1]-event[3])
                 factors.append(factors[-1])
                 times.append(event[1])
                 factors.append(event[2])

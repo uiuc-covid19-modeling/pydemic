@@ -7,15 +7,8 @@ from pydemic.load import get_age_distribution_model, get_country_population_mode
 from scipy.interpolate import interp1d
 
 
-def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=False):
-    # set start date and end date based on offset (for single parameter)
-    start_date = datetime(2020, 1, 1) + timedelta(model_parameters['start_day'])
-    end_date = datetime(2020, 1, 1) + timedelta(model_parameters['end_day'])
-    start_date = (2020, start_date.month, start_date.day,
-                  start_date.hour, start_date.minute, start_date.second)
-    end_date = (2020, end_date.month, end_date.day,
-                end_date.hour, end_date.minute, end_date.second)
-
+def get_containment_for_model(model_parameters):
+    
     # define containment event
     containment = ContainmentModel((2019,1,1), (2020,12,1), is_in_days=True)
     cdate = datetime(2020,1,1) + timedelta(days=model_parameters['mitigation_day'])
@@ -27,6 +20,21 @@ def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=Fal
     if 'mitigation_width' in model_parameters:
         containment_width = model_parameters['mitigation_width']
     containment.add_sharp_event(containment_date, containment_factor, dt_days=containment_width)
+
+    return containment
+
+
+def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=False):
+    # set start date and end date based on offset (for single parameter)
+    start_date = datetime(2020, 1, 1) + timedelta(model_parameters['start_day'])
+    end_date = datetime(2020, 1, 1) + timedelta(model_parameters['end_day'])
+    start_date = (2020, start_date.month, start_date.day,
+                  start_date.hour, start_date.minute, start_date.second)
+    end_date = (2020, end_date.month, end_date.day,
+                end_date.hour, end_date.minute, end_date.second)
+
+    # define containment event
+    containment = get_containment_for_model(model_parameters)
 
     # set parameters
     country = "Italy"
@@ -100,18 +108,30 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
 
     model_dates = deterministic.t
     model_deaths = deterministic.quantile_data[2, :]
+    model_uncert = deterministic.quantile_data[3, :]
 
     # interpolate dates to exact times
-    ifunc = interp1d(model_dates, model_deaths,
-                      bounds_error=False, fill_value=(0, 0))
-    model_deaths = ifunc(dates)
+    ifunc_d = interp1d(model_dates, model_deaths,
+                       bounds_error=False, fill_value=(0, 0))
+    ifunc_u = interp1d(model_dates, model_uncert,
+                       bounds_error=False, fill_value=(0, 0))
+    model_deaths = ifunc_d(dates)
+    model_uncert = ifunc_u(dates)
 
     # cut off deaths < 2
     i_to_cut = np.argmax(deaths > 1)
     deaths = deaths[i_to_cut:]
     model_deaths = model_deaths[i_to_cut:]
+    model_uncert = model_uncert[i_to_cut:]
 
-    return - 0.5 * np.sum(np.power(np.log(deaths)-np.log(model_deaths), 2.))
+    model_deaths[model_deaths < 1] = 1.e-1
+    sig = np.log(model_uncert/model_deaths)
+    sig += 0.05
+
+    top = np.power(np.log(deaths)-np.log(model_deaths), 2.)
+    bot = np.power(sig, 2.)
+
+    return - 0.5 * np.sum(top / bot)
 
 
 def get_default_parameters(population_name='USA-Illinois',
