@@ -10,7 +10,7 @@ from scipy.interpolate import interp1d
 def get_containment_for_model(model_parameters):
     
     # define containment event
-    containment = ContainmentModel((2019,1,1), (2020,12,1), is_in_days=True)
+    containment = ContainmentModel((2019,1,1), (2020,12,1))
     cdate = datetime(2020,1,1) + timedelta(days=model_parameters['mitigation_day'])
     containment_date = (cdate.year, cdate.month, cdate.day)
     containment_factor = 1.0
