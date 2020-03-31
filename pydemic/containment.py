@@ -16,43 +16,43 @@ class ContainmentModel:
         respect to 2020-01-01.
     """
 
-    _is_in_days = False
-
+    times = []
+    _events = []
     _interp = None
 
     def __init__(self, start_time, end_time, is_in_days=False):
-        self._is_in_days = is_in_days
-        if self._is_in_days:
-            self.times = [days_from_jan_1_2020(start_time),
-                          days_from_jan_1_2020(end_time)]
-        else:
-            self.times = [date_to_ms(start_time), date_to_ms(end_time)]
-        self.factors = [1., 1.]
+        if is_in_days is False:
+            print("! please rewrite your containment to be in date tuples")
+        self._events.append(['start', days_from_jan_1_2020(start_time), 1]) 
+        self._events.append(['end', days_from_jan_1_2020(end_time)]) 
         self.sort_times()
         self._regenerate()
 
-    def add_sharp_event(self, time, factor):
-        if self._is_in_days:
-            time_ts = days_from_jan_1_2020(time)
-        else:
-            time_ts = date_to_ms(time)
-        index_before = [i for i, v in enumerate(self.times) if v < time_ts][-1]
-        index_after = [i for i, v in enumerate(self.times) if v > time_ts][0]
-        if self._is_in_days:
-            self.times.append(time_ts-0.000347)  # 30 second delta
-            self.times.append(time_ts+0.000347)
-        else:
-            self.times.append(time_ts-30000)
-            self.times.append(time_ts+30000)
-        self.factors.append(self.factors[index_before])
-        self.factors.append(factor)
-        self.factors[index_after] = factor
+    def add_sharp_event(self, time, factor, dt_days=0.05):
+        self._events.append(['sharp', days_from_jan_1_2020(time), factor, dt_days])
+        # regenerate list
         self.sort_times()
         self._regenerate()
 
     def sort_times(self):
+        self._events = sorted(self._events, key=lambda x: x[1])
+        c_factor = 1.
+        times = []
+        factors = []
+        for event in self._events:
+            if event[0] == "start":
+                times.append(event[1])
+                factors.append(c_factor)
+            elif event[0] == "end":
+                times.append(event[1])
+                factors.append(c_factor)
+            elif event[0] == "sharp":
+                times.append(event[1]-event[2])
+                factors.append(factors[-1])
+                times.append(event[1])
+                factors.append(event[2])
         self.times, self.factors = (
-            list(l) for l in zip(*sorted(zip(self.times, self.factors)))
+            list(l) for l in zip(*sorted(zip(times, factors)))
         )
 
     def _regenerate(self):
@@ -69,3 +69,4 @@ class ContainmentModel:
 
     def __call__(self, time):
         return self._interp(time)
+
