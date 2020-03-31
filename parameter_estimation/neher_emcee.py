@@ -40,10 +40,10 @@ set_numpy_threads(1)
 import numpy as np
 
 # define posterior parameters
-parameter_names = ['r0', 'start_day']
-centered_guesses = [3., 50]
-guess_uncertainties = [0.2, 2]
-parameter_priors = [[2., 4.], [40, 60]]
+parameter_names = ['r0', 'start_day', 'mitigation']
+centered_guesses = [3., 50, 0.9]
+guess_uncertainties = [0.2, 2, 0.05]
+parameter_priors = [[2., 4.], [40, 60], [0.1, 1.0]]
 
 
 def not_within(x, xrng):
@@ -59,6 +59,7 @@ def log_probability(theta, cases):
     model_params = {
         'r0': theta[0],
         'start_day': theta[1],
+        'mitigation': theta[2],
         'end_day': 88
     }
     likelihood = neher.calculate_likelihood_for_model(
@@ -84,7 +85,7 @@ if __name__ == "__main__":
 
     # define sampler parameters
     n_walkers = 72
-    n_steps = 1000
+    n_steps = 2000
 
     # get pool for multi-processing
     num_workers = cpu_count() // 1
@@ -112,7 +113,7 @@ if __name__ == "__main__":
     import corner
     plt.close('all')
     fig = corner.corner(flat_samples, labels=parameter_names)
-    #fig.savefig('imgs/neher_emcee_samples.png')
+    fig.savefig('imgs/neher_emcee_samples.png')
 
     for i in range(n_dims):
         mcmc = np.percentile(flat_samples[:, i], [16, 50, 84])
@@ -122,10 +123,13 @@ if __name__ == "__main__":
             r0_best = mcmc[1]
         elif i == 1:
             start_day_best = mcmc[1]
+        elif i == 2:
+            mitigation_best = mcmc[2]
 
     best_params = {
         'r0': r0_best,
         'start_day': start_day_best,
+        'mitigation': mitigation_best,
         'end_day': 88
     }
     print(best_params)

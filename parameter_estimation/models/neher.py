@@ -19,6 +19,8 @@ def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=Fal
     # define containment event
     containment_date = (2020, 3, 20)
     containment_factor = 1.0
+    if 'mitigation' in model_parameters:
+        containment_factor = model_parameters['mitigation']
     containment = ContainmentModel(start_date, end_date, is_in_days=True)
     containment.add_sharp_event(containment_date, containment_factor)
 
