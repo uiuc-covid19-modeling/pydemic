@@ -5,7 +5,7 @@ from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, QuantileLogger, StateLogger)
 from scipy.interpolate import interp1d
 
-def get_model_result(model_parameters, dt=0.01, n_samples=100, run_stochastic=False):
+def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=False):
 
     # set start date and end date based on offset (for single parameter)
     start_date = datetime(2020,1,1) + timedelta(model_parameters['start_day'])
@@ -89,8 +89,15 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
     model_dates = deterministic.t
     model_deaths = deterministic.quantile_data[2,:]
 
+    ## method 1
     i_func = interp1d(model_dates, model_deaths, bounds_error=False, fill_value=(0,0))
     model_deaths = i_func(dates)
+    ## method 2
+    # model_deaths = np.interp(dates, model_dates, model_deaths)
+    ## method 3
+    # skip = 100
+    # model_deaths = model_deaths[len(model_deaths)%skip-1::skip]
+    # model_deaths = align_right(model_deaths, len(deaths))
 
     # cut off deaths < 2
     i_to_cut = np.argmax(deaths>1)

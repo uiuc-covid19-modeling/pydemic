@@ -35,7 +35,7 @@ def set_numpy_threads(nthreads=1):
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(nthreads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(nthreads)
 
-set_numpy_threads(2)
+set_numpy_threads(1)
 import numpy as np
 
 # define posterior parameters
@@ -58,8 +58,8 @@ def log_probability(theta, cases):
         'start_day': theta[1],
         'end_day': 88
     }
-    likelihood = neher.calculate_likelihood_for_model(model_params, cases.dates, cases.deaths, n_samples=200)
-    print(model_params, likelihood)
+    likelihood = neher.calculate_likelihood_for_model(model_params, cases.dates, cases.deaths)
+    #print(model_params, likelihood)
     return likelihood
 
 if __name__ == "__main__":
@@ -69,18 +69,18 @@ if __name__ == "__main__":
     target_date = date(*cases.last_date)
     
     # tests
-    """
-    theta = [ 2.9596679309359946, 54.348166086957605 ]
-    print( theta, log_probability(theta, y_data) )
-    theta = [ 3.12, 54. ]
-    print( theta, log_probability(theta, y_data) )
-    theta = [ 3.15, 55. ]
-    print( theta, log_probability(theta, y_data) )
-    """
+    if False:
+        theta = [ 2.9596679309359946, 54.348166086957605 ]
+        print( theta, log_probability(theta, cases) )
+        theta = [ 3.12, 54. ]
+        print( theta, log_probability(theta, cases) )
+        theta = [ 3.15, 55. ]
+        print( theta, log_probability(theta, cases) )
+        exit()
 
     # define sampler parameters
-    n_walkers = 36
-    n_steps = 500
+    n_walkers = 72
+    n_steps = 1000
     
     # get pool for multi-processing
     num_workers = cpu_count() // 1
