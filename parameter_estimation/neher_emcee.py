@@ -108,7 +108,7 @@ if __name__ == "__main__":
     import corner
     plt.close('all')
     fig = corner.corner( flat_samples, labels=parameter_names )
-    fig.savefig('imgs/neher_emcee_samples.png')
+    #fig.savefig('imgs/neher_emcee_samples.png')
 
     for i in range(n_dims):
         mcmc = np.percentile(flat_samples[:, i], [16, 50, 84])
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         if i==0:
             r0_best = mcmc[1]
         elif i==1:
-            start_day_best = mcmc[2]
+            start_day_best = mcmc[1]
 
     best_params = {
         'r0': r0_best,
