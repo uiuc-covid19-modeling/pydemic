@@ -153,13 +153,11 @@ class NeherModelSimulation(Simulation):
         return t_diff.total_seconds() / timedelta(days=1).total_seconds()
 
     def __call__(self, t_span, y0, dt=.01, **kwargs):
-        from datetime import datetime
         t_start = self.get_days_float(t_span[0])
         t_end = self.get_days_float(t_span[1])
         return super().__call__([t_start, t_end], y0, dt=dt, **kwargs)
 
     def solve_deterministic(self, t_span, y0, **kwargs):
-        from datetime import datetime
         t_start = self.get_days_float(t_span[0])
         t_end = self.get_days_float(t_span[1])
         return super().solve_deterministic([t_start, t_end], y0, **kwargs)

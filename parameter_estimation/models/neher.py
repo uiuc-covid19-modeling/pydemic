@@ -1,19 +1,21 @@
 import numpy as np
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 from pydemic.models import NeherModelSimulation
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, QuantileLogger, StateLogger)
 from scipy.interpolate import interp1d
 
+
 def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=False):
-
     # set start date and end date based on offset (for single parameter)
-    start_date = datetime(2020,1,1) + timedelta(model_parameters['start_day'])
-    end_date = datetime(2020,1,1) + timedelta(model_parameters['end_day'])
-    start_date = (2020, start_date.month, start_date.day, start_date.hour, start_date.minute, start_date.second)
-    end_date = (2020, end_date.month, end_date.day, end_date.hour, end_date.minute, end_date.second)
+    start_date = datetime(2020, 1, 1) + timedelta(model_parameters['start_day'])
+    end_date = datetime(2020, 1, 1) + timedelta(model_parameters['end_day'])
+    start_date = (2020, start_date.month, start_date.day,
+                  start_date.hour, start_date.minute, start_date.second)
+    end_date = (2020, end_date.month, end_date.day,
+                end_date.hour, end_date.minute, end_date.second)
 
-    ## TODO
+    # TODO
     # define containment event
     containment_date = (2020, 3, 20)
     containment_factor = 1.0
@@ -37,8 +39,8 @@ def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=Fal
 
     if False or run_stochastic:
         # run simulation
-      logger = QuantileLogger()
-      return simulation([start_date, end_date], y0, dt, samples=n_samples, stochastic_method='tau_leap', logger=logger)
+        logger = QuantileLogger()
+        return simulation([start_date, end_date], y0, dt, samples=n_samples, stochastic_method='tau_leap', logger=logger)
 
     if True:
         # deterministic
@@ -46,9 +48,9 @@ def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=Fal
         quantile_data = np.zeros((5, deterministic.t.shape[0]))
         mean = deterministic.y['dead'].sum(axis=1)
         std_dev = np.sqrt(mean)
-        quantile_data[1,:] = mean - std_dev
-        quantile_data[2,:] = mean
-        quantile_data[3,:] = mean + std_dev
+        quantile_data[1, :] = mean - std_dev
+        quantile_data[2, :] = mean
+        quantile_data[3, :] = mean + std_dev
         deterministic.quantile_data = quantile_data
         return deterministic
 
@@ -56,56 +58,59 @@ def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=Fal
         # DeterministicSimulation class
         result = simulation([start_date, end_date], y0, dt)
         t = result.t
-        times = np.arange(t.min(),t.max()+0.1,step=0.25)
-        determ_sol = {comp: result.sol(times)[i] for i, comp in enumerate(simulation.compartments)}
+        times = np.arange(t.min(), t.max()+0.1, step=0.25)
+        determ_sol = {comp: result.sol(
+            times)[i] for i, comp in enumerate(simulation.compartments)}
         quantile_data = np.zeros((5, times.shape[0]))
         mean = determ_sol['dead']
         std_dev = np.sqrt(mean)
-        quantile_data[1,:] = mean - std_dev
-        quantile_data[2,:] = mean
-        quantile_data[3,:] = mean + std_dev
+        quantile_data[1, :] = mean - std_dev
+        quantile_data[2, :] = mean
+        quantile_data[3, :] = mean + std_dev
         logger = StateLogger()
         logger.quantile_data = quantile_data
         return logger
+
 
 def align_pad_left(a1, a2):
     l1 = len(a1)
     l2 = len(a2)
     if l1 < l2:
-        return np.pad(a1, (l2-l1,0), 'constant'), a2
+        return np.pad(a1, (l2-l1, 0), 'constant'), a2
     else:
-        return a1, np.pad(a2, (l1-l2,0), 'constant')
+        return a1, np.pad(a2, (l1-l2, 0), 'constant')
+
 
 def align_right(arr, length):
     mylen = len(arr)
     if mylen > length:
         return arr[-length:]
-    return np.pad(arr, (length-mylen,0), 'constant')
+    return np.pad(arr, (length-mylen, 0), 'constant')
+
 
 def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=100):
-
     deterministic = get_model_result(model_parameters)
 
     model_dates = deterministic.t
-    model_deaths = deterministic.quantile_data[2,:]
+    model_deaths = deterministic.quantile_data[2, :]
 
-    ## method 1
-    i_func = interp1d(model_dates, model_deaths, bounds_error=False, fill_value=(0,0))
+    # method 1
+    i_func = interp1d(model_dates, model_deaths,
+                      bounds_error=False, fill_value=(0, 0))
     model_deaths = i_func(dates)
-    ## method 2
+    # method 2
     # model_deaths = np.interp(dates, model_dates, model_deaths)
-    ## method 3
+    # method 3
     # skip = 100
     # model_deaths = model_deaths[len(model_deaths)%skip-1::skip]
     # model_deaths = align_right(model_deaths, len(deaths))
 
     # cut off deaths < 2
-    i_to_cut = np.argmax(deaths>1)
+    i_to_cut = np.argmax(deaths > 1)
     deaths = deaths[i_to_cut:]
     model_deaths = model_deaths[i_to_cut:]
 
     return - 0.5 * np.sum(np.power(np.log(deaths)-np.log(model_deaths), 2.))
-
 
     # needed for resolution
     dt = 0.05
@@ -118,13 +123,13 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
     dead_quantiles = deterministic.quantile_data
 
     # cut model appropriately
-    sidx = dead_quantiles.shape[1]%skip
-    y_below = dead_quantiles[1,sidx::skip]
-    y_model = dead_quantiles[2,sidx::skip]
-    y_above = dead_quantiles[3,sidx::skip]
-    
+    sidx = dead_quantiles.shape[1] % skip
+    y_below = dead_quantiles[1, sidx::skip]
+    y_model = dead_quantiles[2, sidx::skip]
+    y_above = dead_quantiles[3, sidx::skip]
+
     if True:
-     
+
         maxl = len(y_data)
         y_data = np.array(y_data, dtype=np.float64)
         y_model = align_right(y_model, maxl)
@@ -134,7 +139,6 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
         arr = np.power(np.log(y_data) - np.log(y_model), 2.)
 
         return - 0.5 * np.sum(arr)
-
 
     if True:
 
@@ -154,9 +158,9 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
         y_std[~np.isfinite(y_std)] = LOG_ZERO_VALUE
 
         if False:
-          print(y_data)
-          print(y_model)
-          print(y_std)
+            print(y_data)
+            print(y_model)
+            print(y_std)
 
         ratio = np.power(y_model-y_data, 2.)/np.power(y_std, 2.)
 
@@ -171,7 +175,7 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
         y_below = align_right(y_below, maxl)
 
         y_top = np.power(y_model - y_data, 2.)
-        y_bot = np.power(y_above - y_model, 2.) 
+        y_bot = np.power(y_above - y_model, 2.)
         ratio = y_top/y_bot
 
         print(y_data)
@@ -205,9 +209,11 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
         # log data
         y_data = np.log(y_data)
         y_model = np.log(y_model)
-        y_diff_estimator = np.maximum(np.log((y_above+1)/(y_model+1)), np.log((y_model+1)/(y_below+1)))
-        y_diff_estimator = np.mean(np.array([np.log((y_above+1)/(y_model+1)), np.log((y_model+1)/(y_below+1))]), axis=0)
-        y_diff_estimator += 0.2 # heuristic
+        y_diff_estimator = np.maximum(
+            np.log((y_above+1)/(y_model+1)), np.log((y_model+1)/(y_below+1)))
+        y_diff_estimator = np.mean(
+            np.array([np.log((y_above+1)/(y_model+1)), np.log((y_model+1)/(y_below+1))]), axis=0)
+        y_diff_estimator += 0.2  # heuristic
 
         print(y_diff_estimator)
 
@@ -240,7 +246,7 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
         y_model = np.log(y_model)
         y_below_diff = y_model - np.log(y_below) + 0.01   # FIXME: do this better
         y_above_diff = np.log(y_above) - y_model + 0.01   # FIXME: do this better
-        y_std = np.maximum(y_above_diff,y_below_diff) 
+        y_std = np.maximum(y_above_diff, y_below_diff)
 
         # compute and return likelihood
         diff_sq = np.power(y_data - y_model, 2.)
@@ -250,7 +256,6 @@ def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=10
 
 
 def get_default_parameters():
-
     """
     # set some base model stats for the neher model
     POPULATION_NAME = "USA-Illinois"
@@ -259,7 +264,8 @@ def get_default_parameters():
     age_distribution = get_age_distribution_model(self.AGE_DATA_NAME)
     """
 
-    compartments = ["susceptible", "exposed", "infectious", "recovered", "hospitalized", "critical", "dead"]
+    compartments = ["susceptible", "exposed", "infectious",
+        "recovered", "hospitalized", "critical", "dead"]
     n_age_groups = 9
     population = PopulationModel(
         country='United States of America',

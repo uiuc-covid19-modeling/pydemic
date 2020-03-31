@@ -1,20 +1,21 @@
 import numpy as np
-import matplotlib as mpl ; mpl.use('agg')
+import matplotlib as mpl
+mpl.use('agg')
 import matplotlib.pyplot as plt
 
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel, ContainmentModel, QuantileLogger)
+                     EpidemiologyModel, ContainmentModel)
 from pydemic.models import NeherModelSimulation
-from pydemic.plot import plot_quantiles, plot_deterministic
+from pydemic.plot import plot_deterministic
 
 if __name__ == "__main__":
-
     # define containment event
     containment_date = (2020, 3, 20)
     containment_factor = 1.0
 
     # set some base model stats for the neher model
-    compartments = ["susceptible", "exposed", "infectious", "recovered", "hospitalized", "critical", "dead"]
+    compartments = ["susceptible", "exposed", "infectious",
+                    "recovered", "hospitalized", "critical", "dead"]
     n_age_groups = 9
     start_date = (2020, 3, 1, 0, 0, 0)
     end_date = (2020, 5, 1, 0, 0, 0)
@@ -61,12 +62,11 @@ if __name__ == "__main__":
     )
     y0 = simulation.get_initial_population(population, age_distribution)
 
-
-    fig = plt.figure(figsize=(10,8))
-    ax1 = plt.subplot(1,1,1)
+    fig = plt.figure(figsize=(10, 8))
+    ax1 = plt.subplot(1, 1, 1)
 
     has_been_labeled = False
-    dts = [ 1.0, 0.5, 0.25, 0.1, 0.05, 0.01, 0.005 ]
+    dts = [1.0, 0.5, 0.25, 0.1, 0.05, 0.01, 0.005]
     for dt in [0.1, 0.05]:
         deterministic = simulation([start_date, end_date], y0, dt)
         if has_been_labeled:
@@ -81,5 +81,3 @@ if __name__ == "__main__":
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/timestep_neher_model.png')
-
-

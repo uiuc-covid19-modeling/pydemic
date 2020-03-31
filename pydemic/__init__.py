@@ -24,7 +24,8 @@ THE SOFTWARE.
 """
 
 
-from pydemic.simulation import Simulation, SimulationState, StateLogger, QuantileLogger
+from pydemic.simulation import (Simulation, SimulationState, StateLogger,
+                                QuantileLogger)
 from pydemic.reactions import Reaction, ErlangProcess, GammaProcess
 
 

@@ -28,29 +28,37 @@ from datetime import datetime, timedelta
 
 def plot_quantiles(ax, quantile_logger, log=True, legend=False):
 
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
               'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 
     compartments = quantile_logger.compartments
     dates = [datetime(2020, 1, 1)+timedelta(x) for x in quantile_logger.t]
 
-    maxpop = sum([quantile_logger.quantile_data[x][-1,0,:].sum() for x in quantile_logger.quantile_data])
+    maxpop = sum([quantile_logger.quantile_data[x][-1, 0, :].sum()
+                  for x in quantile_logger.quantile_data])
 
     for i in range(len(compartments)):
         color = colors[i]
         compartment = compartments[i]
-        ax.plot(dates, quantile_logger.quantile_data[compartment][2, ...].sum(axis=-1), 
+        ax.plot(dates,
+                quantile_logger.quantile_data[compartment][2, ...].sum(axis=-1),
                 color=color, label=compartment, lw=2)
-        ax.fill_between(dates, quantile_logger.quantile_data[compartment][1, ...].sum(axis=-1), 
-                        quantile_logger.quantile_data[compartment][3, ...].sum(axis=-1), 
-                        color=colors[i], alpha=0.5)
-        ax.fill_between(dates, quantile_logger.quantile_data[compartment][0, ...].sum(axis=-1), 
-                        quantile_logger.quantile_data[compartment][4, ...].sum(axis=-1), 
-                        color=colors[i], alpha=0.2)
+        ax.fill_between(
+            dates,
+            quantile_logger.quantile_data[compartment][1, ...].sum(axis=-1),
+            quantile_logger.quantile_data[compartment][3, ...].sum(axis=-1),
+            color=colors[i], alpha=0.5
+        )
+        ax.fill_between(
+            dates,
+            quantile_logger.quantile_data[compartment][0, ...].sum(axis=-1),
+            quantile_logger.quantile_data[compartment][4, ...].sum(axis=-1),
+            color=colors[i], alpha=0.2
+        )
 
     if legend:
         ax.legend(loc='upper right')
-    
+
     if log:
         ax.set_ylim(ymin=0.8, ymax=2.*maxpop)
         ax.set_yscale('log')
@@ -58,13 +66,13 @@ def plot_quantiles(ax, quantile_logger, log=True, legend=False):
 
 def plot_deterministic(ax, state_logger, log=True, legend=False, force_color=None):
 
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
               'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 
     compartments = state_logger.compartments
     dates = [datetime(2020, 1, 1)+timedelta(x) for x in state_logger.t]
 
-    maxpop = sum([state_logger.y[x][0,:].sum() for x in state_logger.y])
+    maxpop = sum([state_logger.y[x][0, :].sum() for x in state_logger.y])
 
     for i in range(len(compartments)):
         if force_color is None:
@@ -73,17 +81,15 @@ def plot_deterministic(ax, state_logger, log=True, legend=False, force_color=Non
             color = force_color
         compartment = compartments[i]
         if legend:
-            ax.plot(dates, state_logger.y[compartment].sum(axis=-1), 
+            ax.plot(dates, state_logger.y[compartment].sum(axis=-1),
                     color=color, label=compartment)
         else:
-            ax.plot(dates, state_logger.y[compartment].sum(axis=-1), 
+            ax.plot(dates, state_logger.y[compartment].sum(axis=-1),
                     color=color)
 
     if legend:
         ax.legend(loc='upper right')
-    
+
     if log:
         ax.set_ylim(ymin=0.8, ymax=2.*maxpop)
         ax.set_yscale('log')
-
-

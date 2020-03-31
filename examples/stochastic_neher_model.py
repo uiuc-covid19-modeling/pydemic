@@ -1,11 +1,13 @@
 import numpy as np
-import matplotlib as mpl ; mpl.use('agg')
+import matplotlib as mpl
+mpl.use('agg')
 import matplotlib.pyplot as plt
 
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, QuantileLogger)
 from pydemic.models import NeherModelSimulation
 from pydemic.plot import plot_quantiles, plot_deterministic
+
 
 def set_numpy_threads(nthreads=1):
     # see also https://codereview.stackexchange.com/questions/206736/better-way-to-set-number-of-threads-used-by-numpy  # noqa
@@ -30,6 +32,7 @@ def set_numpy_threads(nthreads=1):
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(nthreads)
     os.environ["NUMEXPR_NUM_THREADS"] = str(nthreads)
 
+
 if __name__ == "__main__":
 
     # define containment event
@@ -37,7 +40,8 @@ if __name__ == "__main__":
     containment_factor = 1.0
 
     # set some base model stats for the neher model
-    compartments = ["susceptible", "exposed", "infectious", "recovered", "hospitalized", "critical", "dead"]
+    compartments = ["susceptible", "exposed", "infectious",
+                    "recovered", "hospitalized", "critical", "dead"]
     n_age_groups = 9
     start_date = (2020, 3, 1, 0, 0, 0)
     end_date = (2020, 5, 1, 0, 0, 0)
@@ -86,11 +90,12 @@ if __name__ == "__main__":
 
     # run simulation
     logger = QuantileLogger()
-    result = simulation([start_date, end_date], y0, 0.05, samples=1000, stochastic_method='tau_leap', logger=logger)
+    result = simulation([start_date, end_date], y0, 0.05,
+                        samples=1000, stochastic_method='tau_leap', logger=logger)
     deterministic = simulation([start_date, end_date], y0, 0.05)
 
-    fig = plt.figure(figsize=(10,8))
-    ax1 = plt.subplot(1,1,1)
+    fig = plt.figure(figsize=(10, 8))
+    ax1 = plt.subplot(1, 1, 1)
 
     plot_quantiles(ax1, result, legend=True)
     plot_deterministic(ax1, deterministic, force_color='k')
@@ -101,5 +106,3 @@ if __name__ == "__main__":
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig('imgs/stochastic_neher_model.png')
-
-

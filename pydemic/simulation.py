@@ -154,6 +154,9 @@ class StateLogger:
                 self.y[key] = self.y[key][:self.slice]
 
 
+_default_quantiles = (0.0455, 0.3173, 0.5, 0.6827, 0.9545)
+
+
 class QuantileLogger:
     """
     Used to log simulation results returned by
@@ -170,7 +173,7 @@ class QuantileLogger:
         The time axis is the first axis of the :class:`numpy.ndarray`'s.
     """
 
-    def __init__(self, chunk_length=1000, quantiles=[0.0455, 0.3173, 0.5, 0.6827, 0.9545]):
+    def __init__(self, chunk_length=1000, quantiles=_default_quantiles):
         self.quantiles = quantiles.copy()
         self.chunk_length = chunk_length
         self.t = np.zeros(shape=(self.chunk_length,))
@@ -200,8 +203,10 @@ class QuantileLogger:
         self.quantile_data = {}
         for key in self.y_samples:
             # FIXME: this will not work for Gillespie direct
-            self.quantile_data[key] = np.array([ np.quantile(self.y_samples[key], quantile, axis=1)
-                            for quantile in self.quantiles ])
+            self.quantile_data[key] = np.array(
+                [np.quantile(self.y_samples[key], quantile, axis=1)
+                 for quantile in self.quantiles]
+            )
 
     def add_chunk(self):
         self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
