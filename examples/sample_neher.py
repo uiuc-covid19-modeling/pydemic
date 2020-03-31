@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(1, 1)
 
-    best_parameters = {**fit_guesses, **estimator.fixed_parameters}
+    best_parameters = {**best_fit, **estimator.fixed_parameters}
 
     tt = np.linspace(best_parameters['start_day'], best_parameters['end_day'], 1000)
 
