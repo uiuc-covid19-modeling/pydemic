@@ -122,15 +122,16 @@ class StateLogger:
             ary = np.zeros(shape=(self.chunk_length,)+val.shape)
             ary[0] = val
             self.y[key] = ary
+        self.slice = 1
 
     def __call__(self, state):
-        self.slice += 1
         if self.slice == self.t.shape[0]:
             self.add_chunk()
 
         self.t[self.slice] = state.t
         for key in state.compartments:
             self.y[key][self.slice] = state.__getattr__(key)
+        self.slice += 1
 
     def add_chunk(self):
         self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
@@ -144,10 +145,13 @@ class StateLogger:
     def trim(self, flatten_first_axis_if_unit=True):
         self.t = self.t[:self.slice]
         for key in self.y.keys():
-            if flatten_first_axis_if_unit and self.y[key].shape[1] == 1:
-                self.y[key] = self.y[key][:self.slice, 0, ...]
+            if self.y[key].ndim > 1:
+                if flatten_first_axis_if_unit and self.y[key].shape[1] == 1:
+                    self.y[key] = self.y[key][:self.slice, 0, ...]
+                else:
+                    self.y[key] = self.y[key][:self.slice, ...]
             else:
-                self.y[key] = self.y[key][:self.slice, ...]
+                self.y[key] = self.y[key][:self.slice]
 
 
 class QuantileLogger:
@@ -388,9 +392,7 @@ class Simulation:
 
         return result
 
-
-class DeterministicSimulation(Simulation):
-    def step(self, t, y):
+    def step_deterministic(self, t, y):
         dy = np.zeros_like(y)
         state = self.array_to_state(t, y)
         dy_state = self.array_to_state(t, dy)
@@ -414,7 +416,7 @@ class DeterministicSimulation(Simulation):
 
         return array.reshape(-1)
 
-    def __call__(self, tspan, y0, rtol=1e-8):
+    def solve_deterministic(self, t_span, y0, rtol=1e-8):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
@@ -425,11 +427,28 @@ class DeterministicSimulation(Simulation):
         template = y0[self.compartments[0]]
         self.compartment_shape = template.shape
 
-        state = SimulationState(tspan[0], y0, {})
+        state = SimulationState(t_span[0], y0, {})
         y0_array = self.state_to_array(state)
 
         from scipy.integrate import solve_ivp
-        result = solve_ivp(self.step, tspan, y0_array, dense_output=True,
-                           rtol=rtol, method='DOP853')
+        result = solve_ivp(self.step_deterministic, t_span, y0_array,
+                           dense_output=True, rtol=rtol, method='DOP853')
 
         return result
+
+    def dense_to_logger(self, solve_ivp_result, times):
+        logger = StateLogger()
+        shape = (len(self.compartments),)+self.compartment_shape
+
+        def get_state_at_t(t):
+            array = solve_ivp_result.sol(t).reshape(*shape)
+            comps = {comp: array[i] for i, comp in enumerate(self.compartments)}
+            return SimulationState(t, comps, {})
+
+        logger.initialize_with_state(get_state_at_t(times[0]))
+
+        for t in times[1:]:
+            logger(get_state_at_t(t))
+
+        logger.cleanup()
+        return logger

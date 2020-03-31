@@ -26,7 +26,6 @@ THE SOFTWARE.
 from datetime import datetime, timedelta
 import numpy as np
 from pydemic import Reaction, GammaProcess, Simulation
-from pydemic.simulation import DeterministicSimulation
 
 
 class SEIRModelSimulation(Simulation):
@@ -158,5 +157,9 @@ class NeherModelSimulation(Simulation):
         t_start = self.get_days_float(t_span[0])
         t_end = self.get_days_float(t_span[1])
         return super().__call__([t_start, t_end], y0, dt=dt, **kwargs)
-        #return super().__call__([t_start, t_end], y0)
 
+    def solve_deterministic(self, t_span, y0, **kwargs):
+        from datetime import datetime
+        t_start = self.get_days_float(t_span[0])
+        t_end = self.get_days_float(t_span[1])
+        return super().solve_deterministic([t_start, t_end], y0, **kwargs)

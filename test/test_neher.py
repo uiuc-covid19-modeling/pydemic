@@ -71,43 +71,57 @@ def test_neher(plot=False):
         peak_month=0,
         overflow_severity=2
     )
-
-    # generate, run, and aggregate results for new pydemic model version
     containment = ContainmentModel(start_date, end_date, is_in_days=True)
     containment.add_sharp_event(containment_date, containment_factor)
-    simulation = NeherModelSimulation(
+
+    sim = NeherModelSimulation(
         epidemiology, severity, population.imports_per_day,
         n_age_groups, containment
     )
-    compartments = simulation.compartments
+    compartments = sim.compartments
 
     containment = ContainmentModel(start_date, end_date)
     containment.add_sharp_event(containment_date, containment_factor)
-
-    # generate, run, and aggregate results for old pydemic model version
-    sim = NeherPortSimulation(population, epidemiology, severity, age_distribution,
-                              containment)
+    port = NeherPortSimulation(population, epidemiology, severity, age_distribution,
+                               containment)
     start_time = date_to_ms(start_date)
     end_time = date_to_ms(end_date)
-    result = sim(start_time, end_time, lambda x: x)
+    port_result = port(start_time, end_time, lambda x: x)
 
-    og_data = {key: np.sum(result.y[key], axis=-1) for key in compartments}
-    dates = [datetime.utcfromtimestamp(x//1000) for x in result.t]
+    port_dates = [datetime.utcfromtimestamp(x//1000) for x in port_result.t]
 
-    y0 = simulation.get_initial_population(population, age_distribution)
-    new_result = simulation([start_date, end_date], y0, dt=0.25)
-    new_dates = [datetime(2020, 1, 1)+timedelta(x) for x in new_result.t]
+    y0 = sim.get_initial_population(population, age_distribution)
+
+    new_result = sim((start_date, end_date), y0, dt=.25)
+    for key, val in new_result.y.items():
+        new_result.y[key] = val[:-1, ...]
+    new_result.t = new_result.t[:-1]
 
     for name in compartments:
-        test = np.logical_and(result.y[name] > 0, new_result.y[name] > 0)
-        relerr = np.abs(1 - result.y[name][test] / new_result.y[name][test])
+        test = np.logical_and(port_result.y[name] > 0, new_result.y[name] > 0)
+        relerr = np.abs(1 - port_result.y[name][test] / new_result.y[name][test])
         print('max err for', name, 'is', np.max(relerr))
         assert np.max(relerr) < .05
 
-    total_people = sum(np.sum(new_result.y[name], axis=-1) for name in compartments)
+    # compare to scipy with a (much) smaller timestep
+    new_result = sim((start_date, end_date), y0, dt=.025)
+
+    scipy_res = sim.solve_deterministic((start_date, end_date), y0)
+    scipy_res = sim.dense_to_logger(scipy_res, new_result.t)
+
+    new_dates = [datetime(2020, 1, 1)+timedelta(x) for x in scipy_res.t]
+
+    for name in compartments:
+        test = np.logical_and(new_result.y[name] > 0, scipy_res.y[name] > 0)
+        relerr = np.abs(1 - new_result.y[name][test] / scipy_res.y[name][test])
+        avg_digits = np.average(np.log(relerr[relerr > 0]))
+        print('avg number of digits of agreement for', name, 'is', avg_digits)
+        assert avg_digits < -2
+
+    total_people = sum(np.sum(scipy_res.y[name], axis=-1) for name in compartments)
     total_pop = total_people[0]
     total_err = np.max(np.abs(1 - total_people / total_pop))
-    print('total error is', np.max(total_err))
+    print('total error is', np.average(total_err))
     assert np.max(total_err) < 1.e-13
 
     if plot:
@@ -120,7 +134,7 @@ def test_neher(plot=False):
         ax1 = plt.subplot(1, 1, 1)
 
         for key in compartments:
-            ax1.plot(dates, og_data[key], label=key)
+            ax1.plot(port_dates, port_result.y[key].sum(axis=-1), label=key)
             ax1.plot(new_dates, new_result.y[key].sum(axis=1), '--')
 
         # plot on y log scale
