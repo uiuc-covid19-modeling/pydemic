@@ -50,10 +50,10 @@ if __name__ == "__main__":
     target_date = date(*cases.last_date)
 
     # define parameter space
-    n1 = 21
-    n2 = 21
-    R0s = np.linspace(2.,4.,n1)
-    start_days = np.linspace(40,60,n2)
+    n1 = 51
+    n2 = 51
+    R0s = np.linspace(2.5,4.,n1)
+    start_days = np.linspace(50,60,n2)
     params_1, params_2 = np.meshgrid(R0s, start_days)
 
     # generate params
@@ -65,7 +65,7 @@ if __name__ == "__main__":
             p2 = params_2[i,j]
             model_params = {
                 'r0': p1,
-                'start_day': int(p2),
+                'start_day': p2,
                 'end_day': (date(*cases.last_date)-date(2020,1,1)).days,
             }
             data_params.append((model_params, cases.deaths[4:]))
@@ -83,7 +83,7 @@ if __name__ == "__main__":
                 p2 = params_2[j,i]
                 best_params = { 
                     'r0': p1,
-                    'start_day': int(p2),
+                    'start_day': p2,
                     'end_day': (date(*cases.last_date)-date(2020,1,1)).days,
                 }
 
@@ -107,7 +107,8 @@ if __name__ == "__main__":
     d2 = start_days[1] - start_days[0]
     R0s = np.linspace(R0s[0]-d1,R0s[-1]+d1,len(R0s)+1)
     start_days = np.linspace(start_days[0]-d2,start_days[-1]+d2,len(start_days)+1)
-    ax1.pcolormesh(R0s, start_days, np.exp(likelihoods))
+    #ax1.pcolormesh(R0s, start_days, np.exp(likelihoods))
+    ax1.pcolormesh(R0s, start_days, likelihoods, vmin=-10)
     ax1.set_xlabel('r0')
     ax1.set_ylabel('start day')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])

@@ -23,8 +23,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from datetime import datetime, timedelta
 import numpy as np
 from pydemic import Reaction, GammaProcess, Simulation
+from pydemic.simulation import DeterministicSimulation
 
 
 class SEIRModelSimulation(Simulation):
@@ -147,8 +149,14 @@ class NeherModelSimulation(Simulation):
         y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
         return y0
 
+    def get_days_float(self, time_tuple):
+        t_diff = datetime(*time_tuple) - datetime(2020, 1, 1)
+        return t_diff.total_seconds() / timedelta(days=1).total_seconds()
+
     def __call__(self, t_span, y0, dt=.01, **kwargs):
         from datetime import datetime
-        t_start = (datetime(*t_span[0]) - datetime(2020, 1, 1)).days
-        t_end = (datetime(*t_span[1]) - datetime(2020, 1, 1)).days
+        t_start = self.get_days_float(t_span[0])
+        t_end = self.get_days_float(t_span[1])
         return super().__call__([t_start, t_end], y0, dt=dt, **kwargs)
+        #return super().__call__([t_start, t_end], y0)
+

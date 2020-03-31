@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime, timedelta 
 from pydemic.models import NeherModelSimulation
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel, ContainmentModel, QuantileLogger)
+                     EpidemiologyModel, ContainmentModel, QuantileLogger, StateLogger)
 
 
 def get_model_result(model_parameters, dt, n_samples=100, run_stochastic=False):
@@ -10,8 +10,8 @@ def get_model_result(model_parameters, dt, n_samples=100, run_stochastic=False):
     # set start date and end date based on offset (for single parameter)
     start_date = datetime(2020,1,1) + timedelta(model_parameters['start_day'])
     end_date = datetime(2020,1,1) + timedelta(model_parameters['end_day'])
-    start_date = (2020, start_date.month, start_date.day, 0, 0, 0)
-    end_date = (2020, end_date.month, end_date.day, 0, 0, 0)
+    start_date = (2020, start_date.month, start_date.day, start_date.hour, start_date.minute, start_date.second)
+    end_date = (2020, end_date.month, end_date.day, end_date.hour, end_date.minute, end_date.second)
 
     ## TODO
     # define containment event
@@ -53,6 +53,22 @@ def get_model_result(model_parameters, dt, n_samples=100, run_stochastic=False):
         deterministic.quantile_data = quantile_data
         return deterministic
 
+    if False:
+        # DeterministicSimulation class
+        result = simulation([start_date, end_date], y0, dt)
+        t = result.t
+        times = np.arange(t.min(),t.max()+0.1,step=0.25)
+        determ_sol = {comp: result.sol(times)[i] for i, comp in enumerate(simulation.compartments)}
+        quantile_data = np.zeros((5, times.shape[0]))
+        mean = determ_sol['dead']
+        std_dev = np.sqrt(mean)
+        quantile_data[1,:] = mean - std_dev
+        quantile_data[2,:] = mean
+        quantile_data[3,:] = mean + std_dev
+        logger = StateLogger()
+        logger.quantile_data = quantile_data
+        return logger
+
 def align_pad_left(a1, a2):
     l1 = len(a1)
     l2 = len(a2)
@@ -80,13 +96,14 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
     dead_quantiles = deterministic.quantile_data
 
     # cut model appropriately
-    y_below = dead_quantiles[1,::skip]
-    y_model = dead_quantiles[2,::skip]
-    y_above = dead_quantiles[3,::skip]
+    sidx = dead_quantiles.shape[1]%skip
+    y_below = dead_quantiles[1,sidx::skip]
+    y_model = dead_quantiles[2,sidx::skip]
+    y_above = dead_quantiles[3,sidx::skip]
 
 
     if True:
-        
+
         maxl = len(y_data)
         y_data = np.array(y_data, dtype=np.float64)
         y_model = align_right(y_model, maxl)
@@ -94,9 +111,10 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
         y_below = align_right(y_below, maxl)
 
         y_top = np.power(y_model - y_data, 2.)
-        y_bot = np.power(y_above - y_below, 2.) * np.power(0.8, 2.)
+        y_bot = np.power(y_above - y_model, 2.) 
+        ratio = y_top/y_bot
 
-        return - 0.5 * np.sum(y_top/y_bot)
+        return - 0.5 * np.sum(ratio)
 
     if False:
 
@@ -105,6 +123,8 @@ def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
         y_model = align_right(y_model, maxl)
         y_above = align_right(y_above, maxl)
         y_below = align_right(y_below, maxl)
+
+        print(y_data)
 
         return -0.5 * np.sum(np.power(y_data-y_model, 2.)/np.power(y_diff, 2.)), (y_data, y_model, y_below, y_above)
 
