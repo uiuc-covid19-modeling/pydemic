@@ -40,16 +40,16 @@ import numpy as np
 
 # define posterior parameters
 parameter_names = ['r0', 'start_day']
-centered_guesses = [3.2, 50]
+centered_guesses = [3., 50]
 guess_uncertainties = [0.2, 2]
-parameter_priors = [ [2.5, 4.], [45,60] ]
+parameter_priors = [ [2., 4.], [40,60] ]
 
 
 def not_within(x, xrng):
     if x < xrng[0] or x > xrng[1]: return True
     return False
 
-def log_probability(theta, y_data):
+def log_probability(theta, cases):
     for i in range(len(theta)):
         if not_within(theta[i], parameter_priors[i]): 
             return -np.inf
@@ -58,8 +58,8 @@ def log_probability(theta, y_data):
         'start_day': theta[1],
         'end_day': 88
     }
-    likelihood = neher.calculate_likelihood_for_model(model_params, y_data, n_samples=100)
-    #print(model_params, likelihood)
+    likelihood = neher.calculate_likelihood_for_model(model_params, cases.dates, cases.deaths, n_samples=200)
+    print(model_params, likelihood)
     return likelihood
 
 if __name__ == "__main__":
@@ -67,19 +67,16 @@ if __name__ == "__main__":
     # load reported data
     cases = get_case_data("USA-Illinois")
     target_date = date(*cases.last_date)
-    end_day = (date(*cases.last_date)-date(2020,1,1)).days
-
-    y_data = cases.deaths
-    i_arg_max = np.argmax(y_data>0)
-    y_data = y_data[i_arg_max:]
-
+    
     # tests
+    """
     theta = [ 2.9596679309359946, 54.348166086957605 ]
     print( theta, log_probability(theta, y_data) )
     theta = [ 3.12, 54. ]
     print( theta, log_probability(theta, y_data) )
     theta = [ 3.15, 55. ]
     print( theta, log_probability(theta, y_data) )
+    """
 
     # define sampler parameters
     n_walkers = 36
@@ -95,7 +92,7 @@ if __name__ == "__main__":
     inital_position = np.array(centered_guesses) + \
         np.random.randn(n_walkers, n_dims)*np.array(guess_uncertainties)
     sampler = emcee.EnsembleSampler(n_walkers, n_dims, log_probability, 
-        args=([y_data]), pool=pool)
+        args=([cases]), pool=pool)
 
     # run sampler
     sampler.run_mcmc(inital_position, n_steps, progress=True)
