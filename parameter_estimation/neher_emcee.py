@@ -98,6 +98,7 @@ if __name__ == "__main__":
         np.random.randn(n_walkers, n_dims)*np.array(guess_uncertainties)
     sampler = emcee.EnsembleSampler(
         n_walkers, n_dims, log_probability, args=([cases]), pool=pool)
+    pool.terminate()
 
     # run sampler
     sampler.run_mcmc(inital_position, n_steps, progress=True)

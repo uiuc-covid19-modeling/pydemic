@@ -78,6 +78,7 @@ if __name__ == "__main__":
     # run in parallel
     p = Pool(int(cpu_count()*0.9375))
     likelihoods = np.array(p.map(wrapper, data_params)).reshape(n1, n2)
+    p.terminate()
 
     # find best likelihood
     best_likelihood = -np.inf
