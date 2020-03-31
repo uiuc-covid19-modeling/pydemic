@@ -25,43 +25,7 @@ THE SOFTWARE.
 
 from datetime import datetime, timedelta
 import numpy as np
-from pydemic import Reaction, GammaProcess, Simulation
-
-
-class SEIRModelSimulation(Simulation):
-    def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1):
-        self.avg_infection_rate = avg_infection_rate
-
-        reactions = (
-            Reaction("susceptible", "exposed",
-                     lambda t, y: (self.beta(t, y) * y.susceptible
-                                   * y.infectious.sum() / y.sum())),
-            Reaction("exposed", "infectious",
-                     lambda t, y: infectious_rate * y.exposed),
-            Reaction("infectious", "removed",
-                     lambda t, y: removal_rate * y.infectious),
-        )
-        super().__init__(reactions)
-
-    def beta(self, t, y):
-        return self.avg_infection_rate
-
-
-class ExtendedSimulation(Simulation):
-    def __init__(self, avg_infection_rate, *args):
-        reactions = (
-            Reaction('susceptible', 'exposed',
-                     lambda t, y: (avg_infection_rate * y.susceptible
-                                   * y.infectious / y.sum())),
-            GammaProcess('exposed', 'infectious', shape=3, scale=5),
-            Reaction('infectious', 'critical', lambda t, y: 1/5),
-            GammaProcess('infectious', 'recovered', shape=4, scale=lambda t, y: 5),
-            GammaProcess('infectious', 'dead', shape=3, scale=lambda t, y: 10),
-            Reaction('critical', 'dead',
-                     lambda t, y: y.critical/y.susceptible/y.sum()),
-            Reaction('critical', 'recovered', lambda t, y: 1/7),
-        )
-        super().__init__(reactions)
+from pydemic import Reaction, Simulation
 
 
 class NeherModelSimulation(Simulation):
