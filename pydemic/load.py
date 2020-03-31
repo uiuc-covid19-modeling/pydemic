@@ -26,6 +26,7 @@ THE SOFTWARE.
 import json
 import os
 import numpy as np
+from datetime import datetime, timedelta
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
@@ -100,7 +101,11 @@ def get_case_data(subregion):
     times = np.array(list(map(date_to_ms, date_tuples)))
     ms_per_day = 24 * 60 * 60 * 1000
 
-    data_dict['dates'] = [int(x) for x in (times - times[-1]) // ms_per_day]
+    def get_days_since_jan2020(x):
+        return (x-datetime(2020,1,1)).total_seconds()/timedelta(days=1).total_seconds()
+
+    dates = [datetime(*x) for x in date_tuples]
+    data_dict['dates'] = [ get_days_since_jan2020(x) for x in dates ]
     data_dict['last_date'] = date_tuples[-1]
 
     return CaseData(**data_dict)

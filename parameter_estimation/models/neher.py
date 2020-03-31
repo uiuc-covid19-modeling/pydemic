@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 from pydemic.models import NeherModelSimulation
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, QuantileLogger, StateLogger)
+from scipy.interpolate import interp1d
 
-
-def get_model_result(model_parameters, dt, n_samples=100, run_stochastic=False):
+def get_model_result(model_parameters, dt=0.01, n_samples=100, run_stochastic=False):
 
     # set start date and end date based on offset (for single parameter)
     start_date = datetime(2020,1,1) + timedelta(model_parameters['start_day'])
@@ -19,7 +19,6 @@ def get_model_result(model_parameters, dt, n_samples=100, run_stochastic=False):
     containment_factor = 1.0
     containment = ContainmentModel(start_date, end_date, is_in_days=True)
     containment.add_sharp_event(containment_date, containment_factor)
-    #containment.add_sharp_event(containment_date, containment_factor)
 
     # set parameters
     epidemiology, severity, population, age_distribution = get_default_parameters()
@@ -83,7 +82,24 @@ def align_right(arr, length):
         return arr[-length:]
     return np.pad(arr, (length-mylen,0), 'constant')
 
-def calculate_likelihood_for_model(model_parameters, y_data, n_samples=100):
+def calculate_likelihood_for_model(model_parameters, dates, deaths, n_samples=100):
+
+    deterministic = get_model_result(model_parameters)
+
+    model_dates = deterministic.t
+    model_deaths = deterministic.quantile_data[2,:]
+
+    i_func = interp1d(model_dates, model_deaths, bounds_error=False, fill_value=(0,0))
+    model_deaths = i_func(dates)
+
+    # cut off deaths < 2
+    i_to_cut = np.argmax(deaths>1)
+    deaths = deaths[i_to_cut:]
+    model_deaths = model_deaths[i_to_cut:]
+
+    return - 0.5 * np.sum(np.power(np.log(deaths)-np.log(model_deaths), 2.))
+
+
     # needed for resolution
     dt = 0.05
     skip = int(1./dt)
