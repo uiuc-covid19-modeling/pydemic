@@ -28,6 +28,19 @@ import numpy as np
 from pydemic import AttrDict
 
 
+_2020_01_01 = 1577836800000
+_ms_per_day = 86400000
+
+
+from pydemic.containment import ContainmentModel
+
+
+class NeherContainmentModel(ContainmentModel):
+    def __call__(self, time):
+        days = (time - _2020_01_01) / _ms_per_day
+        return self._interp(days)
+
+
 class SimulationState(AttrDict):
     """
     .. attribute:: infectious

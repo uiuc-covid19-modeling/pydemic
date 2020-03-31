@@ -26,7 +26,7 @@ THE SOFTWARE.
 import numpy as np
 from datetime import datetime, timedelta
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel, ContainmentModel, date_to_ms)
+                     EpidemiologyModel, date_to_ms)
 from neher_port import NeherPortSimulation
 from pydemic.models import NeherModelSimulation
 
@@ -71,7 +71,8 @@ def test_neher(plot=False):
         peak_month=0,
         overflow_severity=2
     )
-    containment = ContainmentModel(start_date, end_date, is_in_days=True)
+    from pydemic import ContainmentModel
+    containment = ContainmentModel(start_date, end_date)
     containment.add_sharp_event(containment_date, containment_factor)
 
     sim = NeherModelSimulation(
@@ -80,7 +81,8 @@ def test_neher(plot=False):
     )
     compartments = sim.compartments
 
-    containment = ContainmentModel(start_date, end_date)
+    from neher_port import NeherContainmentModel
+    containment = NeherContainmentModel(start_date, end_date)
     containment.add_sharp_event(containment_date, containment_factor)
     port = NeherPortSimulation(population, epidemiology, severity, age_distribution,
                                containment)

@@ -11,20 +11,11 @@ def days_from_jan_1_2020(date):
 
 
 class ContainmentModel:
-    """
-        If is_in_days is True, then all times are measured with
-        respect to 2020-01-01.
-    """
-
-    times = []
-    _events = []
-    _interp = None
-
-    def __init__(self, start_time, end_time, is_in_days=False):
-        if is_in_days is False:
-            print("! please rewrite your containment to be in date tuples")
-        self._events.append(['start', days_from_jan_1_2020(start_time), 1]) 
-        self._events.append(['end', days_from_jan_1_2020(end_time)]) 
+    def __init__(self, start_time, end_time):
+        self._events = [
+            ['start', days_from_jan_1_2020(start_time), 1],
+            ['end', days_from_jan_1_2020(end_time)]
+        ]
         self.sort_times()
         self._regenerate()
 
@@ -69,4 +60,3 @@ class ContainmentModel:
 
     def __call__(self, time):
         return self._interp(time)
-

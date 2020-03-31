@@ -52,7 +52,7 @@ if __name__ == "__main__":
         peak_month=0,
         overflow_severity=2
     )
-    containment = ContainmentModel(start_date, end_date, is_in_days=True)
+    containment = ContainmentModel(start_date, end_date)
     containment.add_sharp_event(containment_date, containment_factor)
 
     # generate neher model simulation

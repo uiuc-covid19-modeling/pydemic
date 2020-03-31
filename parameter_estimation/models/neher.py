@@ -17,7 +17,7 @@ def get_model_result(model_parameters, dt=0.1, n_samples=100, run_stochastic=Fal
                 end_date.hour, end_date.minute, end_date.second)
 
     # define containment event
-    containment = ContainmentModel((2019,1,1), (2020,12,1), is_in_days=True)
+    containment = ContainmentModel((2019,1,1), (2020,12,1))
     cdate = datetime(2020,1,1) + timedelta(days=model_parameters['mitigation_day'])
     containment_date = (cdate.year, cdate.month, cdate.day)
     containment_factor = 1.0
