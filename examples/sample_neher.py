@@ -64,7 +64,10 @@ if __name__ == "__main__":
     from pydemic.load import get_case_data
     cases = get_case_data("USA-Illinois")
     target_date = date(*cases.last_date)
-    data = {'t': np.array(cases.dates), 'deaths': np.array(cases.deaths)}
+    death_counts = np.array(cases.deaths)
+    data_deaths_gtr_1 = (death_counts > 1)
+    death_counts = death_counts[data_deaths_gtr_1]
+    data = {'t': np.array(cases.dates)[data_deaths_gtr_1], 'dead': death_counts}
 
     from pydemic.models.neher import NeherModelEstimator
     estimator = NeherModelEstimator(fit_priors, fixed_parameters, data)
@@ -104,11 +107,13 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(1, 1)
 
-    deterministic = estimator.get_model_result(
-        **best_fit, **estimator.fixed_parameters
-    )
-    model_dates = deterministic.t
-    model_deaths = deterministic.quantile_data[2, :]
+    best_parameters = {**fit_guesses, **estimator.fixed_parameters}
+
+    tt = np.linspace(best_parameters['start_day'], best_parameters['end_day'], 1000)
+
+    result = estimator.get_model_data(tt, **best_parameters)
+    model_dates = result.t
+    model_deaths = result.y['dead'].sum(axis=-1)
 
     def days_to_dates(days):
         return [datetime(2020, 1, 1) + timedelta(x) for x in days]
@@ -117,8 +122,9 @@ if __name__ == "__main__":
                 '-', color='k', label='deterministic')
     ax.fill_between(
         days_to_dates(model_dates),
-        deterministic.quantile_data[1, :],
-        deterministic.quantile_data[3, :], alpha=.5
+        model_deaths + np.sqrt(model_deaths),
+        model_deaths - np.sqrt(model_deaths),
+        alpha=.5
     )
     ax.semilogy(days_to_dates(cases.dates), cases.deaths,
                 'x', c='k', ms=4, markeredgewidth=2,

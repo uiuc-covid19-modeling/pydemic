@@ -128,116 +128,6 @@ class NeherModelSimulation(Simulation):
         return super().solve_deterministic([t_start, t_end], y0, **kwargs)
 
 
-class LikelihoodEstimator:
-    def __init__(self, fit_priors, fixed_parameters, data):
-        self.fit_priors = fit_priors
-        self.fixed_parameters = fixed_parameters
-        self.data = data
-
-    def __call__(self, theta):
-        fit_values = dict(zip(self.fit_priors.keys(), theta))
-        for name, value in fit_values.items():
-            prior = self.fit_priors[name]
-            if not prior[0] < value < prior[1]:
-                return -np.inf
-
-        result = self.get_model_result(**fit_values, **self.fixed_parameters)
-
-        data_deaths = self.data['deaths']
-        data_deaths_gtr_1 = (data_deaths > 1)
-        data_deaths = data_deaths[data_deaths_gtr_1]
-        data_t = self.data['t'][data_deaths_gtr_1]
-
-        model_t = result.t
-        model_deaths = result.quantile_data[2, :]
-
-        from scipy.interpolate import interp1d
-        i_func = interp1d(model_t, model_deaths,
-                          bounds_error=False, fill_value=(0, 0))
-        model_deaths = i_func(data_t)
-
-        likelihood = -1/2 * self.norm(data_deaths, model_deaths)
-        return likelihood
-
-    def norm(self, a, b):
-        return np.sum(np.power(np.log(a)-np.log(b), 2.))
-
-    def get_model_result(self, **kwargs):
-        start_date = datetime(2020, 1, 1) + timedelta(kwargs.pop('start_day'))
-        end_date = datetime(2020, 1, 1) + timedelta(kwargs.pop('end_day'))
-        start_date = (2020, start_date.month, start_date.day,
-                      start_date.hour, start_date.minute, start_date.second)
-        end_date = (2020, end_date.month, end_date.day,
-                    end_date.hour, end_date.minute, end_date.second)
-
-        from pydemic.load import (get_country_population_model,
-                                  get_age_distribution_model)
-        country = kwargs.get('country')
-        subregion = kwargs.get('subregion', country)
-        population = get_country_population_model(country)
-        from pydemic import PopulationModel
-        population = PopulationModel(
-            country='United States of America',
-            cases='USA-Illinois',
-            population_served=12659682,
-            suspected_cases_today=10,  # original 215
-            ICU_beds=1e10,  # originally 1055
-            hospital_beds=1e10,  # originally 31649
-            imports_per_day=1.1   # originally 5.0
-        )
-        age_distribution = get_age_distribution_model(subregion)
-        n_age_groups = len(age_distribution.counts)
-
-        from pydemic import SeverityModel, EpidemiologyModel, ContainmentModel
-        severity = SeverityModel(
-            id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
-            age_group=np.arange(0., 90., 10),
-            isolated=np.array([0., 0., 0., 0., 0., 0., 0., 0., 0.]),
-            confirmed=np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]),
-            severe=np.array([1., 3., 3., 3., 6., 10., 25., 35., 50.]),
-            critical=np.array([5., 10., 10., 15., 20., 25., 35., 45., 55.]),
-            fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
-        )
-        epidemiology = EpidemiologyModel(
-            r0=kwargs.get('r0'),
-            incubation_time=1,
-            infectious_period=5,
-            length_hospital_stay=7,
-            length_ICU_stay=7,
-            seasonal_forcing=0.2,
-            peak_month=0,
-            overflow_severity=2
-        )
-
-        mitigation_day = kwargs.pop('mitigation_day')
-        cdate = datetime(2020, 1, 1) + timedelta(days=mitigation_day)
-        mitigation_date = (cdate.year, cdate.month, cdate.day)
-        mitigation_factor = kwargs.pop('mitigation_factor')
-        mitigation_width = kwargs.pop('mitigation_width')
-
-        containment = ContainmentModel((2019, 1, 1), (2020, 12, 1))
-        containment.add_sharp_event(mitigation_date, mitigation_factor,
-                                    dt_days=mitigation_width)
-
-        from pydemic.models import NeherModelSimulation
-        simulation = NeherModelSimulation(
-            epidemiology, severity, population.imports_per_day,
-            n_age_groups, containment
-        )
-        y0 = simulation.get_initial_population(population, age_distribution)
-
-        # deterministic
-        deterministic = simulation([start_date, end_date], y0, .05)
-        quantile_data = np.zeros((5, deterministic.t.shape[0]))
-        mean = deterministic.y['dead'].sum(axis=1)
-        std_dev = np.sqrt(mean)
-        quantile_data[1, :] = mean - std_dev
-        quantile_data[2, :] = mean
-        quantile_data[3, :] = mean + std_dev
-        deterministic.quantile_data = quantile_data
-        return deterministic
-
-
 class NeherModelEstimator(LikelihoodEstimatorBase):
     def __call__(self, theta):
         fit_values = dict(zip(self.fit_priors.keys(), theta))
@@ -246,25 +136,15 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
             if not prior[0] < value < prior[1]:
                 return -np.inf
 
-        result = self.get_model_result(**fit_values, **self.fixed_parameters)
+        model_data = self.get_model_data(
+            self.data['t'], **fit_values, **self.fixed_parameters
+        )
 
-        data_deaths = self.data['deaths']
-        data_deaths_gtr_1 = (data_deaths > 1)
-        data_deaths = data_deaths[data_deaths_gtr_1]
-        data_t = self.data['t'][data_deaths_gtr_1]
-
-        model_t = result.t
-        model_deaths = result.quantile_data[2, :]
-
-        from scipy.interpolate import interp1d
-        i_func = interp1d(model_t, model_deaths,
-                          bounds_error=False, fill_value=(0, 0))
-        model_deaths = i_func(data_t)
-
-        likelihood = -1/2 * self.norm(data_deaths, model_deaths)
+        likelihood = -1/2 * self.norm(model_data.y['dead'].sum(axis=-1),
+                                      self.data['dead'])
         return likelihood
 
-    def get_model_result(self, **kwargs):
+    def get_model_data(self, t, **kwargs):
         start_date = datetime(2020, 1, 1) + timedelta(kwargs.pop('start_day'))
         end_date = datetime(2020, 1, 1) + timedelta(kwargs.pop('end_day'))
         start_date = (2020, start_date.month, start_date.day,
@@ -322,19 +202,11 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
                                     dt_days=mitigation_width)
 
         from pydemic.models import NeherModelSimulation
-        simulation = NeherModelSimulation(
+        sim = NeherModelSimulation(
             epidemiology, severity, population.imports_per_day,
             n_age_groups, containment
         )
-        y0 = simulation.get_initial_population(population, age_distribution)
+        y0 = sim.get_initial_population(population, age_distribution)
 
-        # deterministic
-        deterministic = simulation([start_date, end_date], y0, .05)
-        quantile_data = np.zeros((5, deterministic.t.shape[0]))
-        mean = deterministic.y['dead'].sum(axis=1)
-        std_dev = np.sqrt(mean)
-        quantile_data[1, :] = mean - std_dev
-        quantile_data[2, :] = mean
-        quantile_data[3, :] = mean + std_dev
-        deterministic.quantile_data = quantile_data
-        return deterministic
+        result = sim.solve_deterministic((start_date, end_date), y0)
+        return sim.dense_to_logger(result, t)

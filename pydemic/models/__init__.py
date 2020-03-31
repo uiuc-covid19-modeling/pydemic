@@ -44,7 +44,7 @@ class LikelihoodEstimatorBase:
     def __call__(self, theta):
         raise NotImplementedError
 
-    def get_model_result(self, **kwargs):
+    def get_model_data(self, **kwargs):
         raise NotImplementedError
 
 
