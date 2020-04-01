@@ -44,7 +44,7 @@ with open(_popdata_filename, 'r') as f:
     _populations = json.load(f)
     for el in _populations:
         el["data"]["population_served"] = el["data"].pop("populationServed")
-        el["data"]["suspected_cases_today"] = el["data"].pop("suspectedCasesToday")
+        el["data"]["initial_cases"] = el["data"].pop("suspectedCasesToday")
         el["data"]["ICU_beds"] = el["data"].pop("ICUBeds")
         el["data"]["hospital_beds"] = el["data"].pop("hospitalBeds")
         el["data"]["imports_per_day"] = el["data"].pop("importsPerDay")
@@ -69,13 +69,8 @@ def get_valid_cases():
     return _case_data.keys()
 
 
-def get_population_model(name, initial_cases=10., imports_per_day=1.1,
-                         ICU_beds=1.e10, hospital_beds=1.e10):
+def get_population_model(name):
     data = _population_dict[name]
-    data['suspected_cases_today'] = initial_cases
-    data['imports_per_day'] = imports_per_day
-    data['ICU_beds'] = ICU_beds
-    data['hospital_beds'] = hospital_beds
     from pydemic import PopulationModel
     return PopulationModel(**data)
 

@@ -1,6 +1,6 @@
 import numpy as np
 from pydemic import PopulationModel, AgeDistribution, SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
-from pydemic.load import get_country_population_model, get_age_distribution_model
+from pydemic.load import get_population_model, get_age_distribution_model
 from pydemic import Simulation
 from datetime import date, timedelta
 
@@ -10,9 +10,9 @@ class PydemicModel:
         # load population from remote data
         self.POPULATION_NAME = "USA-Illinois"
         self.AGE_DATA_NAME = "United States of America"
-        self.population = get_country_population_model(self.POPULATION_NAME)
+        self.population = get_population_model(self.POPULATION_NAME)
         self.age_distribution = get_age_distribution_model(self.AGE_DATA_NAME)
-        self.population.suspected_cases_today = 65
+        self.population.initial_cases = 65
         self.population.imports_per_day = 5
         self.population.population_served = 12659682
         # define simulation parameters

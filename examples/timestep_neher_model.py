@@ -23,7 +23,7 @@ if __name__ == "__main__":
         country='United States of America',
         cases='USA-Illinois',
         population_served=12659682,
-        suspected_cases_today=215,
+        initial_cases=215,
         ICU_beds=1e10,  # originally 1055
         hospital_beds=1e10,  # originally 31649
         imports_per_day=5.0,

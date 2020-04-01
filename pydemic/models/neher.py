@@ -107,9 +107,9 @@ class NeherModelSimulation(Simulation):
             'dead': np.zeros(n_age_groups)
         }
         i_middle = round(n_age_groups / 2) + 1
-        y0['susceptible'][i_middle] -= population.suspected_cases_today
-        y0['exposed'][i_middle] += population.suspected_cases_today * 0.7
-        y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
+        y0['susceptible'][i_middle] -= population.initial_cases
+        y0['exposed'][i_middle] += population.initial_cases * 0.7
+        y0['infectious'][i_middle] += population.initial_cases * 0.3
         return y0
 
     def __call__(self, t_span, y0, dt=.01, **kwargs):
@@ -150,7 +150,7 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
             country='United States of America',
             cases='USA-Illinois',
             population_served=12659682,
-            suspected_cases_today=10,  # original 215
+            initial_cases=10,  # original 215
             ICU_beds=1e10,  # originally 1055
             hospital_beds=1e10,  # originally 31649
             imports_per_day=1.1   # originally 5.0

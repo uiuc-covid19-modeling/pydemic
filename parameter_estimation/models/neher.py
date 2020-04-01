@@ -3,12 +3,12 @@ from datetime import datetime, timedelta
 from pydemic.models import NeherModelSimulation
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, ContainmentModel, QuantileLogger, StateLogger)
-from pydemic.load import get_age_distribution_model, get_country_population_model
+from pydemic.load import get_age_distribution_model, get_population_model
 from scipy.interpolate import interp1d
 
 
 def get_containment_for_model(model_parameters):
-    
+
     # define containment event
     containment = ContainmentModel((2019,1,1), (2020,12,1))
     cdate = datetime(2020,1,1) + timedelta(days=model_parameters['mitigation_day'])
@@ -138,8 +138,8 @@ def get_default_parameters(population_name='USA-Illinois',
                            age_distribution_name='United States of America'):
 
     population_name = "ITA-Lombardia"
-    population = get_country_population_model(population_name)
-    population['suspected_cases_today'] = 10
+    population = get_population_model(population_name)
+    population['initial_cases'] = 10
     population['imports_per_day'] = 1.1
     population['ICU_beds'] = 1.e10
     population['hospital_beds'] = 1.e10

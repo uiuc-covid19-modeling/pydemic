@@ -140,7 +140,7 @@ class PopulationModel(AttrDict):
 
     .. attribute:: ICU_beds
 
-    .. attribute:: suspected_cases_today
+    .. attribute:: initial_cases
 
     .. attribute:: imports_per_day
     """
@@ -151,7 +151,7 @@ class PopulationModel(AttrDict):
         'population_served',
         'hospital_beds',
         'ICU_beds',
-        'suspected_cases_today',
+        'initial_cases',
         'imports_per_day'
     }
 
