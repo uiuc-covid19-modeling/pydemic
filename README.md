@@ -20,7 +20,7 @@ def save_data(result, filename):
     fp = open(filename, 'w')
     fp.write("time\t")
     for compartment in result.compartments:
-        compartments[compartment] = result.y[compartment] 
+        compartments[compartment] = result.y[compartment].sum(axis=-1)
         fp.write(compartment + "\t")
     fp.write("\n")
     for i in range(len(dates)):
