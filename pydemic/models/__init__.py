@@ -31,9 +31,10 @@ def l2_log_norm(a, b):
 
 
 class LikelihoodEstimatorBase:
-    def __init__(self, fit_priors, fixed_parameters, data, norm=None):
-        self.fit_priors = fit_priors
-        self.fixed_parameters = fixed_parameters
+    def __init__(self, fit_parameters, fixed_values, data, norm=None):
+        self.fit_parameters = fit_parameters
+        self.fit_names = tuple(par.name for par in fit_parameters)
+        self.fixed_values = fixed_values
         self.data = data
 
         if norm is None:
@@ -41,11 +42,35 @@ class LikelihoodEstimatorBase:
         else:
             self.norm = norm
 
+    def check_within_bounds(self, theta):
+        for par, value in zip(self.fit_parameters, theta):
+            bounds = par.bounds
+            if not bounds[0] < value < bounds[1]:
+                return False
+        return True
+
     def __call__(self, theta):
+        if not self.check_within_bounds(theta):
+            return -np.inf
+        else:
+            parameters = dict(zip(self.fit_names, theta))
+            return self.get_log_likelihood(parameters)
+
+    def get_log_likelihood(self, parameters):
         raise NotImplementedError
 
-    def get_model_data(self, **kwargs):
-        raise NotImplementedError
+    def get_initial_positions(self, n_walkers):
+        init = np.array([par.guess + np.random.randn(n_walkers) * par.uncertainty
+                         for par in self.fit_parameters])
+        return init.T
+
+
+class SampleParameter:
+    def __init__(self, name, bounds, guess, uncertainty):
+        self.name = name
+        self.bounds = bounds
+        self.guess = guess
+        self.uncertainty = uncertainty
 
 
 from pydemic.models.seir import SEIRModelSimulation

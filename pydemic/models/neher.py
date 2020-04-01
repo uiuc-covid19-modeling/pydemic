@@ -129,15 +129,12 @@ class NeherModelSimulation(Simulation):
 
 
 class NeherModelEstimator(LikelihoodEstimatorBase):
-    def __call__(self, theta):
-        fit_values = dict(zip(self.fit_priors.keys(), theta))
-        for name, value in fit_values.items():
-            prior = self.fit_priors[name]
-            if not prior[0] < value < prior[1]:
-                return -np.inf
+    def get_log_likelihood(self, parameters):
+        if not self.check_within_bounds(list(parameters.values())):
+            return -np.inf
 
         model_data = self.get_model_data(
-            self.data['t'], **fit_values, **self.fixed_parameters
+            self.data['t'], **parameters, **self.fixed_values
         )
 
         likelihood = -1/2 * self.norm(model_data.y['dead'].sum(axis=-1),
