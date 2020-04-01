@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from pydemic import SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
-from pydemic.load import get_country_population_model, get_age_distribution_model
+from pydemic.load import get_population_model, get_age_distribution_model
 
 import os
 import sys
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     # load population from remote data
     POPULATION_NAME = "USA-Illinois"
     AGE_DATA_NAME = "United States of America"
-    population = get_country_population_model(POPULATION_NAME)
+    population = get_population_model(POPULATION_NAME)
     age_distribution = get_age_distribution_model(AGE_DATA_NAME)
 
     # set severity model

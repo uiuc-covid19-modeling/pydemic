@@ -69,16 +69,15 @@ def get_valid_cases():
     return _case_data.keys()
 
 
-def get_country_population_model(country, initial_cases=10., imports_per_day=1.1,
-                                 ICU_beds=1.e10, hospital_beds=1.e10):
-    country_data = _population_dict[country]
+def get_population_model(name, initial_cases=10., imports_per_day=1.1,
+                         ICU_beds=1.e10, hospital_beds=1.e10):
+    data = _population_dict[name]
+    data['suspected_cases_today'] = initial_cases
+    data['imports_per_day'] = imports_per_day
+    data['ICU_beds'] = ICU_beds
+    data['hospital_beds'] = hospital_beds
     from pydemic import PopulationModel
-    population = PopulationModel(**country_data)
-    population['suspected_cases_today'] = initial_cases
-    population['imports_per_day'] = imports_per_day
-    population['ICU_beds'] = ICU_beds
-    population['hospital_beds'] = hospital_beds
-    return PopulationModel(**country_data)
+    return PopulationModel(**data)
 
 
 def get_age_distribution_model(subregion):
@@ -120,7 +119,7 @@ if __name__ == "__main__":
     print(get_valid_cases())
 
     print("\n\n")
-    popdata = get_country_population_model("USA-Illinois")
+    popdata = get_population_model("USA-Illinois")
     for key, val in popdata.__dict__.items():
         print(key, val)
     print(get_case_data('USA-Illinois'))

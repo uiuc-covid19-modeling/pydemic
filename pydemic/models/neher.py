@@ -140,11 +140,11 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         start_time = kwargs.pop('start_day')
         end_time = kwargs.pop('end_day')
 
-        from pydemic.load import (get_country_population_model,
+        from pydemic.load import (get_population_model,
                                   get_age_distribution_model)
         country = kwargs.get('country')
         subregion = kwargs.get('subregion', country)
-        population = get_country_population_model(country)
+        population = get_population_model(country)
         from pydemic import PopulationModel
         population = PopulationModel(
             country='United States of America',
