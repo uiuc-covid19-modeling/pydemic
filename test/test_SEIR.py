@@ -73,6 +73,7 @@ def test_SEIR(total_pop, avg_infection_rate, infectious_rate=1,
     print('total error is', np.max(total_err))
     assert np.max(total_err) < 1.e-13
 
+    tspan = (0, 10.1)
     scipy_res = sim.solve_deterministic(tspan, y0)
     scipy_res = sim.dense_to_logger(scipy_res, t)
 

@@ -24,7 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, date_to_ms)
 from neher_port import NeherPortSimulation
@@ -72,7 +72,7 @@ def test_neher(plot=False):
         overflow_severity=2
     )
     from pydemic import ContainmentModel
-    containment = ContainmentModel(start_date, end_date)
+    containment = ContainmentModel(start_date, (2021, 1, 1))
     containment.add_sharp_event(containment_date, containment_factor)
 
     sim = NeherModelSimulation(
@@ -108,11 +108,13 @@ def test_neher(plot=False):
     # compare to scipy with a (much) smaller timestep
     new_result = sim((start_date, end_date), y0, dt=.025)
 
-    scipy_res = sim.solve_deterministic((start_date, end_date), y0)
+    scipy_res = sim.solve_deterministic((start_date, (2020, 9, 2)), y0)
     scipy_res = sim.dense_to_logger(scipy_res, new_result.t)
 
-    from pydemic import date_from
-    new_dates = [date_from(x) for x in scipy_res.t]
+    def days_to_dates(days):
+        from datetime import datetime
+        from pydemic import date_from
+        return [datetime(*date_from(x)) for x in days]
 
     for name in compartments:
         test = np.logical_and(new_result.y[name] > 0, scipy_res.y[name] > 0)
@@ -138,7 +140,7 @@ def test_neher(plot=False):
 
         for key in compartments:
             ax1.plot(port_dates, port_result.y[key].sum(axis=-1), label=key)
-            ax1.plot(new_dates, new_result.y[key].sum(axis=1), '--')
+            ax1.plot(days_to_dates(scipy_res.t), new_result.y[key].sum(axis=1), '--')
 
         # plot on y log scale
         ax1.set_yscale('log')

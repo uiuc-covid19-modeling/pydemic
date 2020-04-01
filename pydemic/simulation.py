@@ -442,6 +442,13 @@ class Simulation:
         return result
 
     def dense_to_logger(self, solve_ivp_result, times):
+        all_within_t = all(solve_ivp_result.t[0] <= t <= solve_ivp_result.t[-1]
+                           for t in times)
+        if not all_within_t:
+            raise ValueError(
+                'Extrapolation outside of simulation timespan not allowed.'
+            )
+
         logger = StateLogger()
         shape = (len(self.compartments),)+self.compartment_shape
 
