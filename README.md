@@ -29,5 +29,4 @@ def save_data(result, filename):
             fp.write("{0:g}\t".format(compartments[compartment][i]))
         fp.write("\n")
     fp.close()
-    print(compartments)
 ```
