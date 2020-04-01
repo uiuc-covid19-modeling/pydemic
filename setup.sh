@@ -1,4 +1,6 @@
 #/bin/bash
 
 python setup.py develop
-python data/parse_all.py --fetch --output-population assets --output-cases assets
+cd data
+python generate_data.py --fetch --output-population ../assets/population.json --output-cases ../assets/case_counts.json
+
