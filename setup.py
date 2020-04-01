@@ -62,6 +62,8 @@ setup(name=package,
           "scipy",
           "xlrd",
           "matplotlib",
+          "emcee",
+          "corner",
           ],
 
       # author="George Wong",
