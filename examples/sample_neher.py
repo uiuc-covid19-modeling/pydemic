@@ -32,7 +32,6 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 plt.rc('font', family='serif', size=12)
-from datetime import date, datetime, timedelta
 import emcee
 from multiprocessing import Pool, cpu_count
 
@@ -41,7 +40,6 @@ if __name__ == "__main__":
     # load reported data
     from pydemic.load import get_case_data
     cases = get_case_data("USA-Illinois")
-    target_date = date(*cases.last_date)
     death_counts = np.array(cases.deaths)
     data_deaths_gtr_1 = (death_counts > 1)
     death_counts = death_counts[data_deaths_gtr_1]
@@ -63,7 +61,7 @@ if __name__ == "__main__":
     }
 
     fixed_values = dict(
-        end_day=88,
+        end_day=np.max(data['t']) + 2,
         country='USA-Illinois',
         subregion="United States of America",
         mitigation_factor=1,
@@ -113,7 +111,9 @@ if __name__ == "__main__":
     model_deaths = result.y['dead'].sum(axis=-1)
 
     def days_to_dates(days):
-        return [datetime(2020, 1, 1) + timedelta(x) for x in days]
+        from datetime import datetime
+        from pydemic import date_from
+        return [datetime(*date_from(x)) for x in days]
 
     ax.semilogy(days_to_dates(cases.dates), cases.deaths,
                 'x', c='r', ms=4, markeredgewidth=1,

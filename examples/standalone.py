@@ -2,7 +2,7 @@
 
 import numpy as np
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel, date_to_ms)
+                     EpidemiologyModel)
 from pydemic.models import NeherModelSimulation
 import matplotlib as mpl
 mpl.use('agg')
@@ -11,7 +11,6 @@ import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
 from pydemic import ContainmentModel
 from pydemic.load import get_case_data
-from datetime import datetime, timedelta
 
 
 def sim_from_containment_model(contain):
@@ -31,8 +30,9 @@ def sim_from_containment_model(contain):
     times = np.arange(result.t[0], result.t[-1])
     return sim.dense_to_logger(result, times)
 
-start_date = (2020, 2, 23, 0, 0, 0)
-end_date = (2020, 5, 1, 0, 0, 0)
+
+start_date = (2020, 2, 23)
+end_date = (2020, 5, 1)
 
 # use get_* data methods
 population = PopulationModel(
@@ -81,21 +81,25 @@ fig = plt.figure(figsize=(14, 8))
 
 
 gspec = gridspec.GridSpec(ncols=1, nrows=3, figure=fig)
-ax = [fig.add_subplot(gspec[:2,0]), fig.add_subplot(gspec[2,0])]
+ax = [fig.add_subplot(gspec[:2, 0]), fig.add_subplot(gspec[2, 0])]
+
 
 def days_to_dates(days):
-    return [datetime(2020, 1, 1) + timedelta(x) for x in days]
+    from datetime import datetime
+    from pydemic import date_from
+    return [datetime(*date_from(x)) for x in days]
+
 
 ax[0].semilogy(days_to_dates(cases.dates), cases.deaths,
-            'x', c='r', ms=6, markeredgewidth=2,
-            label='reported deaths')
+               'x', c='r', ms=6, markeredgewidth=2,
+               label='reported deaths')
 
 for label, (result, contain) in results.items():
     ax[0].semilogy(days_to_dates(result.t), result.y['dead'].sum(axis=-1),
-                '-', linewidth=1.5, label=label)
-    
+                   '-', linewidth=1.5, label=label)
+
     ax[1].plot(days_to_dates(result.t), 2.7 * contain(result.t),
-                '-', linewidth=1.5, label=label)
+               '-', linewidth=1.5, label=label)
 
 ax[0].set_ylabel("count (persons)")
 ax[1].set_ylabel(r'$R_0$')

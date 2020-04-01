@@ -2,22 +2,13 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from datetime import date, timedelta
+from datetime import date
 from models.pydemic import PydemicModel
 from plutil import plot_model, plot_data, format_axis
 from pydemic.load import get_case_data
 # from pydemic import CaseData
 
 LOG_ZERO_VALUE = -2.
-
-# aux functions
-
-
-def get_date_before(target_date, x):
-    # useful for plotting purposes
-    return target_date + timedelta(x)
-
-# naive likelihood evaluation and functions
 
 
 def get_log_likelihood(data, model_mean, model_std):
@@ -34,8 +25,6 @@ def calculate_likelihood_for_model(model_params, data_y, zero_value=LOG_ZERO_VAL
     logdata_y = np.log(data_y)
     logdata_y[logdata_y < zero_value] = zero_value  # also see in get_model_data
     return get_log_likelihood(logdata_y, model_y, model_std)
-
-# for death statistics, generate pseudo-distribution of variance
 
 
 def get_model_data(model_params, zero_value=LOG_ZERO_VALUE):

@@ -52,6 +52,50 @@ def date_to_ms(date):
     return int(datetime(*date, tzinfo=timezone.utc).timestamp() * 1000)
 
 
+_ms_per_day = 86400000
+
+
+def days_from(date, relative_to=(2020, 1, 1)):
+    """
+    Converts a date into a number of days.
+
+    :arg date: A :class:`tuple` specifying a date as ``(year, month, day)``.
+
+    :arg relative_to: A :class:`tuple` specifying the date to which ``date``
+        will be compared when computing the number of days.
+        Defaults to ``(2020, 1, 1)``.
+
+    :returns: A :class:`float`.
+    """
+
+    return int(date_to_ms(date) - date_to_ms(relative_to)) // _ms_per_day
+
+
+def date_from(days, relative_to=(2020, 1, 1)):
+    """
+    Converts a date into a number of days.
+
+    :arg days: A :class:`float` the number of days since ``relative_to``.
+
+    :arg relative_to: A :class:`tuple` specifying the date to which ``date``
+        will be compared when computing the number of days.
+        Defaults to ``(2020, 1, 1)``.
+
+    :returns: A :class:`tuple` ``(year, month, day)``
+    """
+
+    from datetime import datetime, timedelta
+    full_date = datetime(*relative_to) + timedelta(days)
+    return tuple([full_date.year, full_date.month, full_date.day])
+
+
+def map_to_days_if_needed(time):
+    if isinstance(time, (tuple, list)):
+        return days_from(time)
+    else:
+        return time
+
+
 from pydemic.containment import ContainmentModel
 
 

@@ -33,8 +33,8 @@ from pydemic.models import NeherModelSimulation
 
 def test_neher(plot=False):
     n_age_groups = 9
-    start_date = (2020, 3, 1, 0, 0, 0)
-    end_date = (2020, 9, 1, 0, 0, 0)
+    start_date = (2020, 3, 1)
+    end_date = (2020, 9, 1)
     containment_date = (2020, 3, 20)
     containment_factor = 0.6
 
@@ -111,7 +111,8 @@ def test_neher(plot=False):
     scipy_res = sim.solve_deterministic((start_date, end_date), y0)
     scipy_res = sim.dense_to_logger(scipy_res, new_result.t)
 
-    new_dates = [datetime(2020, 1, 1)+timedelta(x) for x in scipy_res.t]
+    from pydemic import date_from
+    new_dates = [date_from(x) for x in scipy_res.t]
 
     for name in compartments:
         test = np.logical_and(new_result.y[name] > 0, scipy_res.y[name] > 0)

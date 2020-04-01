@@ -174,7 +174,7 @@ class QuantileLogger:
     """
 
     def __init__(self, chunk_length=1000, quantiles=_default_quantiles):
-        self.quantiles = quantiles.copy()
+        self.quantiles = quantiles
         self.chunk_length = chunk_length
         self.t = np.zeros(shape=(self.chunk_length,))
         self.slice = 0

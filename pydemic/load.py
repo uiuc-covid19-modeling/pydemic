@@ -26,7 +26,7 @@ THE SOFTWARE.
 import json
 import os
 import numpy as np
-from datetime import datetime, timedelta
+from pydemic import days_from
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
@@ -103,16 +103,9 @@ def get_case_data(subregion):
         return tuple(map(int, date.split('-')))
 
     date_tuples = [to_tuple(d['time']) for d in data_series]
-    # from pydemic import date_to_ms
-    # times = np.array(list(map(date_to_ms, date_tuples)))
-    # ms_per_day = 24 * 60 * 60 * 1000
 
-    def get_days_since_jan2020(x):
-        diff = x - datetime(2020, 1, 1)
-        return diff.total_seconds() / timedelta(days=1).total_seconds()
-
-    dates = [datetime(*x) for x in date_tuples]
-    data_dict['dates'] = [get_days_since_jan2020(x) for x in dates]
+    dates = [days_from(x) for x in date_tuples]
+    data_dict['dates'] = dates
     data_dict['last_date'] = date_tuples[-1]
 
     return CaseData(**data_dict)

@@ -23,9 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from datetime import datetime, timedelta
 import numpy as np
-from pydemic import Reaction, Simulation
+from pydemic import Reaction, Simulation, map_to_days_if_needed
 from pydemic.models import LikelihoodEstimatorBase
 
 
@@ -113,19 +112,15 @@ class NeherModelSimulation(Simulation):
         y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
         return y0
 
-    def get_days_float(self, time_tuple):
-        t_diff = datetime(*time_tuple) - datetime(2020, 1, 1)
-        return t_diff.total_seconds() / timedelta(days=1).total_seconds()
-
     def __call__(self, t_span, y0, dt=.01, **kwargs):
-        t_start = self.get_days_float(t_span[0])
-        t_end = self.get_days_float(t_span[1])
-        return super().__call__([t_start, t_end], y0, dt=dt, **kwargs)
+        t_start = map_to_days_if_needed(t_span[0])
+        t_end = map_to_days_if_needed(t_span[1])
+        return super().__call__((t_start, t_end), y0, dt=dt, **kwargs)
 
     def solve_deterministic(self, t_span, y0, **kwargs):
-        t_start = self.get_days_float(t_span[0])
-        t_end = self.get_days_float(t_span[1])
-        return super().solve_deterministic([t_start, t_end], y0, **kwargs)
+        t_start = map_to_days_if_needed(t_span[0])
+        t_end = map_to_days_if_needed(t_span[1])
+        return super().solve_deterministic((t_start, t_end), y0, **kwargs)
 
 
 class NeherModelEstimator(LikelihoodEstimatorBase):
@@ -142,12 +137,8 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         return likelihood
 
     def get_model_data(self, t, **kwargs):
-        start_date = datetime(2020, 1, 1) + timedelta(kwargs.pop('start_day'))
-        end_date = datetime(2020, 1, 1) + timedelta(kwargs.pop('end_day'))
-        start_date = (2020, start_date.month, start_date.day,
-                      start_date.hour, start_date.minute, start_date.second)
-        end_date = (2020, end_date.month, end_date.day,
-                    end_date.hour, end_date.minute, end_date.second)
+        start_time = kwargs.pop('start_day')
+        end_time = kwargs.pop('end_day')
 
         from pydemic.load import (get_country_population_model,
                                   get_age_distribution_model)
@@ -189,13 +180,11 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         )
 
         mitigation_day = kwargs.pop('mitigation_day')
-        cdate = datetime(2020, 1, 1) + timedelta(days=mitigation_day)
-        mitigation_date = (cdate.year, cdate.month, cdate.day)
         mitigation_factor = kwargs.pop('mitigation_factor')
         mitigation_width = kwargs.pop('mitigation_width')
 
-        containment = ContainmentModel((2019, 1, 1), (2020, 12, 1))
-        containment.add_sharp_event(mitigation_date, mitigation_factor,
+        containment = ContainmentModel((2019, 1, 1), (2022, 1, 1))
+        containment.add_sharp_event(mitigation_day, mitigation_factor,
                                     dt_days=mitigation_width)
 
         from pydemic.models import NeherModelSimulation
@@ -205,5 +194,5 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         )
         y0 = sim.get_initial_population(population, age_distribution)
 
-        result = sim.solve_deterministic((start_date, end_date), y0)
+        result = sim.solve_deterministic((start_time, end_time), y0)
         return sim.dense_to_logger(result, t)

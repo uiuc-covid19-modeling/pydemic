@@ -17,8 +17,8 @@ if __name__ == "__main__":
     compartments = ["susceptible", "exposed", "infectious",
                     "recovered", "hospitalized", "critical", "dead"]
     n_age_groups = 9
-    start_date = (2020, 3, 1, 0, 0, 0)
-    end_date = (2020, 5, 1, 0, 0, 0)
+    start_date = (2020, 3, 1)
+    end_date = (2020, 5, 1)
     population = PopulationModel(
         country='United States of America',
         cases='USA-Illinois',

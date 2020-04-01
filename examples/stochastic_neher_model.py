@@ -9,32 +9,7 @@ from pydemic.models import NeherModelSimulation
 from pydemic.plot import plot_quantiles, plot_deterministic
 
 
-def set_numpy_threads(nthreads=1):
-    # see also https://codereview.stackexchange.com/questions/206736/better-way-to-set-number-of-threads-used-by-numpy  # noqa
-    import os
-    try:
-        import mkl
-        mkl.set_num_threads(nthreads)
-        return 0
-    except:  # noqa=E722
-        pass
-    for name in ["libmkl_rt.so", "libmkl_rt.dylib", "mkl_Rt.dll"]:
-        try:
-            import ctypes
-            mkl_rt = ctypes.CDLL(name)
-            mkl_rt.mkl_set_num_threads(ctypes.byref(ctypes.c_int(1)))
-            return 0
-        except:  # noqa=E722
-            pass
-    os.environ["OMP_NUM_THREADS"] = str(nthreads)
-    os.environ["OPENBLAS_NUM_THREADS"] = str(nthreads)
-    os.environ["MKL_NUM_THREADS"] = str(nthreads)
-    os.environ["VECLIB_MAXIMUM_THREADS"] = str(nthreads)
-    os.environ["NUMEXPR_NUM_THREADS"] = str(nthreads)
-
-
 if __name__ == "__main__":
-
     # define containment event
     containment_date = (2020, 3, 20)
     containment_factor = 1.0
@@ -43,8 +18,8 @@ if __name__ == "__main__":
     compartments = ["susceptible", "exposed", "infectious",
                     "recovered", "hospitalized", "critical", "dead"]
     n_age_groups = 9
-    start_date = (2020, 3, 1, 0, 0, 0)
-    end_date = (2020, 5, 1, 0, 0, 0)
+    start_date = (2020, 3, 1)
+    end_date = (2020, 5, 1)
     population = PopulationModel(
         country='United States of America',
         cases='USA-Illinois',
