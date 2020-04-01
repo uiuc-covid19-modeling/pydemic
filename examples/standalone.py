@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, date_to_ms)
