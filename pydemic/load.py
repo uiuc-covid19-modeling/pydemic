@@ -69,9 +69,15 @@ def get_valid_cases():
     return _case_data.keys()
 
 
-def get_country_population_model(country):
+def get_country_population_model(country, initial_cases=10., imports_per_day=1.1,
+                                 ICU_beds=1.e10, hospital_beds=1.e10):
     country_data = _population_dict[country]
     from pydemic import PopulationModel
+    population = PopulationModel(**country_data)
+    population['suspected_cases_today'] = initial_cases
+    population['imports_per_day'] = imports_per_day
+    population['ICU_beds'] = ICU_beds
+    population['hospital_beds'] = hospital_beds
     return PopulationModel(**country_data)
 
 
