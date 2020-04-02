@@ -45,7 +45,7 @@ class LikelihoodEstimatorBase:
     def check_within_bounds(self, theta):
         for par, value in zip(self.fit_parameters, theta):
             bounds = par.bounds
-            if not bounds[0] < value < bounds[1]:
+            if not bounds[0] <= value <= bounds[1]:
                 return False
         return True
 
@@ -63,6 +63,26 @@ class LikelihoodEstimatorBase:
         init = np.array([par.guess + np.random.randn(n_walkers) * par.uncertainty
                          for par in self.fit_parameters])
         return init.T
+
+    def sample_uniform(self, num_points, pool=None):
+        if not isinstance(num_points, dict):
+            num_points = {par.name: num_points for par in self.fit_parameters}
+
+        samples = {
+            par.name: list(np.linspace(*par.bounds, num_points[par.name]))
+            for par in self.fit_parameters
+        }
+
+        from itertools import product
+        all_value_sets = product(*[sample for sample in samples.values()])
+        values = [values for values in all_value_sets]
+
+        if pool is not None:
+            likelihoods = pool.map(self.__call__, values)
+        else:
+            likelihoods = [self.__call__(value) for value in values]
+
+        return np.array(values), np.array(likelihoods)
 
 
 class SampleParameter:

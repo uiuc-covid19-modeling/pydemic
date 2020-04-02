@@ -79,14 +79,34 @@ if __name__ == "__main__":
     from pydemic.models.neher import NeherModelEstimator
     estimator = NeherModelEstimator(fit_parameters, fixed_values, data)
 
+    num_workers = cpu_count()
+    pool = Pool(num_workers)
+
+    # run uniform sampling
+    nsamples = 25
+    uniform_values, uniform_likelihoods = estimator.sample_uniform(nsamples, pool)
+
+    uniform_likelihoods = uniform_likelihoods.reshape(nsamples, nsamples)
+    r0_vals = uniform_values[:, 0].reshape(nsamples, nsamples)
+    start_day_vals = uniform_values[:, 1].reshape(nsamples, nsamples)
+
+    max_loc = np.where(uniform_likelihoods == uniform_likelihoods.max())
+    uniform_best_fit = dict(zip(estimator.fit_names,
+                                [r0_vals[max_loc][0], start_day_vals[max_loc][0]]))
+    print('uniform best fit:', uniform_best_fit)
+
+    fig, ax = plt.subplots()
+    ax.pcolormesh(r0_vals, start_day_vals, np.exp(uniform_likelihoods))
+    ax.set_xlabel('r0')
+    ax.set_ylabel('start day')
+    fig.savefig('neher_uniform_samples.png')
+
+    # run MCMC
     n_walkers = 32
     n_steps = 100
 
     initial_positions = estimator.get_initial_positions(n_walkers)
     n_dims = initial_positions.shape[-1]
-
-    num_workers = cpu_count()
-    pool = Pool(num_workers)
 
     sampler = emcee.EnsembleSampler(n_walkers, n_dims, estimator, pool=pool)
     sampler.run_mcmc(initial_positions, n_steps, progress=True)
