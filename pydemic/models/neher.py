@@ -127,8 +127,9 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
     def get_log_likelihood(self, parameters):
         if not self.check_within_bounds(list(parameters.values())):
             return -np.inf
-        if parameters['mitigation_day'] < parameters['start_day']:
-            return -np.inf
+        if 'mitigation_day' in parameters and 'mitigation_day' in parameters:
+            if parameters['mitigation_day'] < parameters['start_day']:
+                return -np.inf
 
         model_data = self.get_model_data(
             self.data['t'], **parameters, **self.fixed_values
