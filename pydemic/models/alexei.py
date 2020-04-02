@@ -46,7 +46,15 @@ class AlexeiModelSimulation(Simulation):
     #def __init__(self, epidemiology, severity, imports_per_day,
     #             n_age_groups, containment):
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        """
+        :arg serial_mu: Mean of the (gamma distribution) serial interval.
+
+        :arg serial_std: Standard deviation of the (gamma distribution) serial interval.
+
+        :arg R0: Conventional R0 parameter for infectivity.
+      
+        """
 
         """
           Suppose we are told we want a Gamma(mu,sig).
@@ -59,22 +67,28 @@ class AlexeiModelSimulation(Simulation):
         """
 
         # translate serial parameters into coefficient
-        serial_mu = 10.
-        serial_std = 3.
+        serial_mu = kwargs.pop('serial_mu', 5.)
+        serial_std = kwargs.pop('serial_std', 3.)
         serial_k = int(serial_mu*serial_mu/serial_std/serial_std)
         serial_mubar = serial_mu / serial_k
-        R0 = 2.7
+        r0 = kwargs.pop('r0', 2.7)
 
         # get coefficients for basic S-E-I-R loop. these are inverse
         # rates (i.e., directly multiply them). we solve for the 
         # final coefficient by recalling R0 ~ S2E / I2R
         S2E = 1. / serial_mubar 
         E2I = S2E
-        I2R = S2E / R0
+        I2R = S2E / r0
+
+        # translate incubation time into coefficients
+        incubation_mu = 6.
+        incubation_std = 3.
+        incubation_k = int(incubation_mu*incubation_mu/incubation_std/incubation_std)
+        incubation_mubar = incubation_mu / incubation_k
 
         # now model confirmed cases according to P_c and t_c parameters
-        P_c = 0.8
-        t_c = 7.5
+        P_c = kwargs.pop('P_c', 0.8)  # what percentage of cases are ever confirmed
+        t_c = kwargs.pop('t_c', 7.5)  # what is the timescale for confirmed cases
 
         # and also model hospitalized persons
         P_h = 0.2     # of people who are infected, how many go to the hospital ()
@@ -84,26 +98,36 @@ class AlexeiModelSimulation(Simulation):
         t_h = 1.      # could not find on Alexei's blog post
         t_r = 1.      # could not find on Alexei's blog post
 
-        # FIXME: set total_population in the run method(s)
-        self.total_population = 10001
-
         reactions = (
             Reaction("susceptible", "exposed", 
                      lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
             Reaction("exposed", "infectious",
                      lambda t, y: y.exposed * E2I),
-            Reaction("infectious", "recovered",
+            Reaction("infectious", "removed",
                      lambda t, y: y.infectious * I2R),
 
-            Reaction(None, "confirmation_cases_base",  ## should be gamma with k = 3+
+            Reaction(None, "confirmation_cases_base_1",  ## should be gamma with k = 3+
                      lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
+            Reaction("confirmation_cases_base_1", "confirmation_cases_base_2",
+                     lambda t, y: y.confirmation_cases_base_1 / incubation_mubar),
+            Reaction("confirmation_cases_base_2", "confirmation_cases_base_3",
+                     lambda t, y: y.confirmation_cases_base_2 / incubation_mubar),
+            Reaction("confirmation_cases_base_3", "confirmation_cases_base",
+                     lambda t, y: y.confirmation_cases_base_3 / incubation_mubar),
+
             Reaction("confirmation_cases_base", "confirmed_yes",
                      lambda t, y: P_c * y.confirmation_cases_base / t_c),
             Reaction("confirmation_cases_base", "confirmed_no",
                      lambda t, y: (1. - P_c) * y.confirmation_cases_base / t_c),
 
-            Reaction(None, "hospitalized_cases_base",  ## should be gamma with k = 3+
+            Reaction(None, "hospitalized_cases_base_1",  ## should be gamma with k = 3+
                      lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
+            Reaction("hospitalized_cases_base_1", "hospitalized_cases_base_2",
+                     lambda t, y: y.confirmation_cases_base_1 / incubation_mubar),
+            Reaction("hospitalized_cases_base_2", "hospitalized_cases_base_3",
+                     lambda t, y: y.confirmation_cases_base_2 / incubation_mubar),
+            Reaction("hospitalized_cases_base_3", "hospitalized_cases_base",
+                     lambda t, y: y.confirmation_cases_base_3 / incubation_mubar),
             
             Reaction("hospitalized_cases_base", "hospitalized_icu_will_dead",
                      lambda t, y: P_d * y.hospitalized_cases_base / t_icu),
@@ -119,11 +143,24 @@ class AlexeiModelSimulation(Simulation):
 
         super().__init__(reactions)
 
-    def get_initial_population(self, population, age_distribution):
+    def get_initial_population(self, total=1.e4):
+
+
+
+        # FIXME: set total_population in the run method(s)
+        self.total_population = total
+
+
+        """
         # FIXME: remove this method?
         N = population.population_served
         n_age_groups = len(age_distribution.counts)
         age_counts = age_distribution.counts
+        """
+        y0 = { }
+        for compartment in self.compartments:
+            y0[compartment] = np.array([0.])
+        """
         y0 = {
             'susceptible': np.round(np.array(age_counts) * N / np.sum(age_counts)),
             'exposed': np.zeros(n_age_groups),
@@ -133,10 +170,10 @@ class AlexeiModelSimulation(Simulation):
             'critical': np.zeros(n_age_groups),
             'dead': np.zeros(n_age_groups)
         }
-        i_middle = round(n_age_groups / 2) + 1
-        y0['susceptible'][i_middle] -= population.suspected_cases_today
-        y0['exposed'][i_middle] += population.suspected_cases_today * 0.7
-        y0['infectious'][i_middle] += population.suspected_cases_today * 0.3
+        """
+        y0['susceptible'] = self.total_population
+        y0['exposed'] = 10.
+
         return y0
 
     def get_days_float(self, time_tuple):

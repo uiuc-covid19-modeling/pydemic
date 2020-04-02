@@ -1,6 +1,8 @@
 import matplotlib as mpl 
 mpl.use('agg')
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from datetime import datetime, timedelta
 
 from pydemic.models import AlexeiModelSimulation
 import numpy as np
@@ -37,149 +39,50 @@ if __name__ == "__main__":
 
     """
 
+    tspan = [ (2020,3,1), (2020,6,1) ]
+    total_population = 1.e5
     
 
-    sim = AlexeiModelSimulation()
+    # generate simulation
+    sim = AlexeiModelSimulation(r0=5.0)
+    y0 = sim.get_initial_population(total=total_population)
 
-    sim.print_network()
-    print(sim.compartments)
-    print(sim)
-
-    tspan = [ (2020,3,1), (2020,4,1) ]
-
-    y0 = {
-        'susceptible': np.array([10000]),
-        'exposed': np.array([1]),
-        'infectious': np.array([0]),
-        'recovered': np.array([0]),
-        'confirmation_cases_base': np.array([0]),
-        'confirmed_yes': np.array([0]),
-        'confirmed_no': np.array([0]),
-        'hospitalized_cases_base': np.array([0]),
-        'hospitalized_icu_will_dead': np.array([0]),
-        'hospitalized_died': np.array([0]),
-        'hospitalized_will_recover': np.array([0]),
-        'hospitalized_recovered': np.array([0])
-    }
-
+    # run the simulation
     dense_result = sim.solve_deterministic(tspan, y0)
     times = np.arange(dense_result.t[0], dense_result.t[-1])
+    dates = [ datetime(2020,1,1)+timedelta(days=x) for x in times ]
     result = sim.dense_to_logger(dense_result, times)
 
+    # save result
     save_data(result, "data.txt")
 
+    compartments_to_plot = [
+        "susceptible",
+        "exposed",
+        "infectious",
+        "removed",
+        #"hospitalized_cases_base",
+        "hospitalized_died",
+    ]
 
+    # plot result
     fig = plt.figure(figsize=(8,8))
     ax1 = plt.subplot(1,1,1)
-
-    for compartment in result.compartments:
-        ax1.plot(times, result.y[compartment], label=compartment)
+    for compartment in compartments_to_plot:
+        ax1.plot(dates, result.y[compartment], label=compartment)
         print(compartment, result.y[compartment][-1])
-
     ax1.set_yscale('log')
     ax1.set_ylim(ymin=0.8)
     ax1.legend()
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+    fig.autofmt_xdate()
 
     plt.savefig('alexei.png')
 
 
 
 
-
-    #    epidemiology, severity, population.imports_per_day,
-    #    len(age_distribution.counts), contain
-    #)
-
-    # set initial conditions
-    #y0 = sim.get_initial_population(population, age_distribution)
-
-    # run deterministic solver
-    #result = sim.solve_deterministic((start_date, end_date), y0)
-
-    # sample output once per day
-    #times = np.arange(result.t[0], result.t[-1])
-    #return sim.dense_to_logger(result, times)
-
-
-
-
 """
-import numpy as np
-from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel, date_to_ms)
-from pydemic.models import NeherModelSimulation
-import matplotlib as mpl
-mpl.use('agg')
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import matplotlib.gridspec as gridspec
-from pydemic import ContainmentModel
-from pydemic.load import get_case_data
-from datetime import datetime, timedelta
-
-
-def sim_from_containment_model(contain):
-    # create simulation object
-    sim = NeherModelSimulation(
-        epidemiology, severity, population.imports_per_day,
-        len(age_distribution.counts), contain
-    )
-
-    # set initial conditions
-    y0 = sim.get_initial_population(population, age_distribution)
-
-    # run deterministic solver
-    result = sim.solve_deterministic((start_date, end_date), y0)
-
-    # sample output once per day
-    times = np.arange(result.t[0], result.t[-1])
-    return sim.dense_to_logger(result, times)
-
-start_date = (2020, 2, 23, 0, 0, 0)
-end_date = (2020, 5, 1, 0, 0, 0)
-
-# use get_* data methods
-population = PopulationModel(
-    country='United States of America',
-    cases='USA-Illinois',
-    population_served=12659682,
-    suspected_cases_today=10,  # originally 215
-    ICU_beds=1e10,  # originally 1055
-    hospital_beds=1e10,  # originally 31649
-    imports_per_day=0,  # originally 5.0
-)
-age_distribution = AgeDistribution(
-    bin_edges=np.arange(0, 90, 10),
-    counts=[39721484, 42332393, 46094077, 44668271, 40348398, 42120077,
-            38488173, 24082598, 13147180]
-)
-severity = SeverityModel(
-    id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
-    age_group=age_distribution.bin_edges,
-    isolated=np.array([0., 0., 0., 0., 0., 0., 0., 0., 0.]),
-    confirmed=np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]),
-    severe=np.array([1., 3., 3., 3., 6., 10., 25., 35., 50.]),
-    critical=np.array([5., 10., 10., 15., 20., 25., 35., 45., 55.]),
-    fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
-)
-epidemiology = EpidemiologyModel(
-    r0=2.7,
-    incubation_time=1,
-    infectious_period=5,
-    length_hospital_stay=7,
-    length_ICU_stay=7,
-    seasonal_forcing=0.2,
-    peak_month=0,
-    overflow_severity=2
-)
-
-results = {}
-
-containment = ContainmentModel(start_date, end_date)
-results['no_containment'] = sim_from_containment_model(containment), containment
-
-# load reported data
-cases = get_case_data("USA-Illinois")
 
 fig = plt.figure(figsize=(14, 8))
 
