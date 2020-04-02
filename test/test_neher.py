@@ -29,47 +29,48 @@ from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
 from neher_port import NeherPortSimulation
 from pydemic.models import NeherModelSimulation
 
+n_age_groups = 9
+start_date = (2020, 3, 1)
+end_date = (2020, 9, 1)
+containment_date = (2020, 3, 20)
+containment_factor = 0.6
+
+population = PopulationModel(
+    country='United States of America',
+    cases='USA-Illinois',
+    population_served=12659682,
+    initial_cases=215,
+    ICU_beds=1e10,  # originally 1055
+    hospital_beds=1e10,  # originally 31649
+    imports_per_day=5.0,
+)
+age_distribution = AgeDistribution(
+    bin_edges=np.arange(0, 90, 10),
+    counts=[39721484, 42332393, 46094077, 44668271, 40348398, 42120077,
+            38488173, 24082598, 13147180]
+)
+severity = SeverityModel(
+    id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
+    age_group=np.arange(0., 90., 10),
+    isolated=np.array([0., 0., 20., 10., 0., 0., 50., 90., 0.]),
+    confirmed=np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]),
+    severe=np.array([1., 3., 3., 3., 6., 10., 25., 35., 50.]),
+    critical=np.array([5., 10., 10., 15., 20., 25., 35., 45., 55.]),
+    fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
+)
+epidemiology = EpidemiologyModel(
+    r0=3.7,
+    incubation_time=5,
+    infectious_period=3,
+    length_hospital_stay=4,
+    length_ICU_stay=14,
+    seasonal_forcing=0.2,
+    peak_month=0,
+    overflow_severity=2
+)
+
 
 def test_neher():
-    n_age_groups = 9
-    start_date = (2020, 3, 1)
-    end_date = (2020, 9, 1)
-    containment_date = (2020, 3, 20)
-    containment_factor = 0.6
-
-    population = PopulationModel(
-        country='United States of America',
-        cases='USA-Illinois',
-        population_served=12659682,
-        initial_cases=215,
-        ICU_beds=1e10,  # originally 1055
-        hospital_beds=1e10,  # originally 31649
-        imports_per_day=5.0,
-    )
-    age_distribution = AgeDistribution(
-        bin_edges=np.arange(0, 90, 10),
-        counts=[39721484, 42332393, 46094077, 44668271, 40348398, 42120077,
-                38488173, 24082598, 13147180]
-    )
-    severity = SeverityModel(
-        id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
-        age_group=np.arange(0., 90., 10),
-        isolated=np.array([0., 0., 20., 10., 0., 0., 50., 90., 0.]),
-        confirmed=np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]),
-        severe=np.array([1., 3., 3., 3., 6., 10., 25., 35., 50.]),
-        critical=np.array([5., 10., 10., 15., 20., 25., 35., 45., 55.]),
-        fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
-    )
-    epidemiology = EpidemiologyModel(
-        r0=3.7,
-        incubation_time=5,
-        infectious_period=3,
-        length_hospital_stay=4,
-        length_ICU_stay=14,
-        seasonal_forcing=0.2,
-        peak_month=0,
-        overflow_severity=2
-    )
     from pydemic import ContainmentModel
     containment = ContainmentModel(start_date, (2021, 1, 1))
     containment.add_sharp_event(containment_date, containment_factor)
@@ -108,10 +109,6 @@ def test_neher():
     scipy_res = sim.solve_deterministic((start_date, (2020, 9, 2)), y0)
     scipy_res = sim.dense_to_logger(scipy_res, new_result.t)
 
-    def days_to_dates(days):
-        from datetime import datetime, timedelta
-        return [datetime(2020, 1, 1) + timedelta(x) for x in days]
-
     for name in compartments:
         test = np.logical_and(new_result.y[name] > 0, scipy_res.y[name] > 0)
         relerr = np.abs(1 - new_result.y[name][test] / scipy_res.y[name][test])
@@ -126,5 +123,77 @@ def test_neher():
     assert np.max(total_err) < 1.e-13
 
 
+def test_neher_estimator():
+    from pydemic.models.neher import NeherModelEstimator
+    data = {
+        't': np.array([78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90]),
+        'dead': np.array([4,  5,  6,  9, 12, 16, 19, 26, 34, 47, 65, 73, 99])
+    }
+    # the values from here are all overwritten
+    population = "USA-Illinois"
+    age_dist_pop = "United States of America"
+
+    from pydemic.models import SampleParameter
+
+    fit_parameters = [
+        SampleParameter('r0', (2, 4), 3, .2),
+        SampleParameter('start_day', (50, 60), 55, 2),
+    ]
+
+    fixed_values = dict(
+        end_day=np.max(data['t']) + 2,
+        population=population,
+        age_dist_pop=age_dist_pop,
+        population_served=12659682,
+        initial_cases=10.,
+        imports_per_day=1.1,
+        age_distribution=age_distribution,
+        mitigation_factor=1,
+        mitigation_day=80,
+        mitigation_width=.05,
+    )
+    estimator = NeherModelEstimator(fit_parameters, fixed_values, data)
+
+    test_likelihood = estimator([2.7, 53.8])
+    assert np.abs(1 - test_likelihood / (-0.024719371802653944)) < 1.e-6
+
+    # run uniform sampling
+    nsamples = 10
+    uniform_values, uniform_likelihoods = estimator.sample_uniform(nsamples)
+    uniform_likelihoods = uniform_likelihoods.reshape(nsamples, nsamples)
+    r0_vals = uniform_values[:, 0].reshape(nsamples, nsamples)
+    start_day_vals = uniform_values[:, 1].reshape(nsamples, nsamples)
+
+    max_loc = np.where(uniform_likelihoods == uniform_likelihoods.max())
+    r0_best = r0_vals[max_loc][0]
+    start_day_best = start_day_vals[max_loc][0]
+
+    assert np.abs(1 - r0_best / 2.888888888888889) < 1.e-6
+    assert np.abs(1 - start_day_best / 55.55555555555556) < 1.e-6
+    assert np.abs(1 - uniform_likelihoods.max() / (-0.05882974922577774)) < 1.e-6
+
+    import emcee
+    np.random.seed(42)
+
+    n_walkers = 4
+    n_steps = 10
+
+    initial_positions = estimator.get_initial_positions(n_walkers)
+    n_dims = initial_positions.shape[-1]
+
+    sampler = emcee.EnsembleSampler(n_walkers, n_dims, estimator)
+    sampler.run_mcmc(initial_positions, n_steps)
+
+    flat_samples = sampler.get_chain(discard=0, flat=True)
+    emcee_likelihoods = sampler.get_log_prob(discard=0, flat=True)
+    r0_best = flat_samples[np.argmax(emcee_likelihoods)][0]
+    start_day_best = flat_samples[np.argmax(emcee_likelihoods)][1]
+
+    assert np.abs(1 - r0_best / 2.8938105765390065) < 1.e-6
+    assert np.abs(1 - start_day_best / 55.387301110086625) < 1.e-6
+    assert np.abs(1 - emcee_likelihoods.max() / (-0.06134292826617456)) < 1.e-6
+
+
 if __name__ == "__main__":
     test_neher()
+    test_neher_estimator()

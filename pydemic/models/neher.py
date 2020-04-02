@@ -146,6 +146,8 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         from pydemic.load import get_population_model, get_age_distribution_model
         pop_name = kwargs.pop('population')
         population = get_population_model(pop_name)
+        if 'population_served' in kwargs:
+            population.population_served = kwargs.pop('population_served')
         if 'initial_cases' in kwargs:
             population.initial_cases = kwargs.pop('initial_cases')
         if 'imports_per_day' in kwargs:
@@ -155,6 +157,7 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
 
         age_dist_pop = kwargs.pop('age_dist_pop', pop_name)
         age_distribution = get_age_distribution_model(age_dist_pop)
+        age_distribution = kwargs.pop('age_distribution', age_distribution)
         n_age_groups = len(age_distribution.counts)
 
         from pydemic import SeverityModel, EpidemiologyModel, ContainmentModel
