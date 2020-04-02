@@ -112,9 +112,8 @@ def test_neher(plot=False):
     scipy_res = sim.dense_to_logger(scipy_res, new_result.t)
 
     def days_to_dates(days):
-        from datetime import datetime
-        from pydemic import date_from
-        return [datetime(*date_from(x)) for x in days]
+        from datetime import datetime, timedelta
+        return [datetime(2020, 1, 1) + timedelta(x) for x in days]
 
     for name in compartments:
         test = np.logical_and(new_result.y[name] > 0, scipy_res.y[name] > 0)

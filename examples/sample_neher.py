@@ -38,8 +38,10 @@ from multiprocessing import Pool, cpu_count
 
 if __name__ == "__main__":
     # load reported data
+    population = "USA-Illinois"
+    age_dist_pop = "United States of America"
     from pydemic.load import get_case_data
-    cases = get_case_data("USA-Illinois")
+    cases = get_case_data(population)
     death_counts = np.array(cases.deaths)
     data_deaths_gtr_1 = (death_counts > 1)
     death_counts = death_counts[data_deaths_gtr_1]
@@ -50,6 +52,9 @@ if __name__ == "__main__":
     fit_parameters = [
         SampleParameter('r0', (2, 4), 3, .2),
         SampleParameter('start_day', (40, 60), 50, 2),
+        # SampleParameter('mitigation_factor', (.05, 1), .9, .1),
+        # SampleParameter('mitigation_day', (60, 88), 80, 2),
+        # SampleParameter('mitigation_width', (.05, 20), 10, 2),
     ]
 
     labels = {
@@ -62,11 +67,13 @@ if __name__ == "__main__":
 
     fixed_values = dict(
         end_day=np.max(data['t']) + 2,
-        country='USA-Illinois',
-        subregion="United States of America",
+        population=population,
+        age_dist_pop=age_dist_pop,
         mitigation_factor=1,
         mitigation_day=80,
         mitigation_width=.05,
+        initial_cases=10.,
+        imports_per_day=1.1,
     )
 
     from pydemic.models.neher import NeherModelEstimator
@@ -111,9 +118,8 @@ if __name__ == "__main__":
     model_deaths = result.y['dead'].sum(axis=-1)
 
     def days_to_dates(days):
-        from datetime import datetime
-        from pydemic import date_from
-        return [datetime(*date_from(x)) for x in days]
+        from datetime import datetime, timedelta
+        return [datetime(2020, 1, 1) + timedelta(x) for x in days]
 
     ax.semilogy(days_to_dates(cases.dates), cases.deaths,
                 'x', c='r', ms=4, markeredgewidth=1,

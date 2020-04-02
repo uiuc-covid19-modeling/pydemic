@@ -85,9 +85,8 @@ ax = [fig.add_subplot(gspec[:2, 0]), fig.add_subplot(gspec[2, 0])]
 
 
 def days_to_dates(days):
-    from datetime import datetime
-    from pydemic import date_from
-    return [datetime(*date_from(x)) for x in days]
+    from datetime import datetime, timedelta
+    return [datetime(2020, 1, 1) + timedelta(x) for x in days]
 
 
 ax[0].semilogy(days_to_dates(cases.dates), cases.deaths,

@@ -127,6 +127,8 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
     def get_log_likelihood(self, parameters):
         if not self.check_within_bounds(list(parameters.values())):
             return -np.inf
+        if parameters['mitigation_day'] < parameters['start_day']:
+            return -np.inf
 
         model_data = self.get_model_data(
             self.data['t'], **parameters, **self.fixed_values
@@ -140,22 +142,18 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         start_time = kwargs.pop('start_day')
         end_time = kwargs.pop('end_day')
 
-        from pydemic.load import (get_population_model,
-                                  get_age_distribution_model)
-        country = kwargs.get('country')
-        subregion = kwargs.get('subregion', country)
-        population = get_population_model(country)
-        from pydemic import PopulationModel
-        population = PopulationModel(
-            country='United States of America',
-            cases='USA-Illinois',
-            population_served=12659682,
-            initial_cases=10,  # original 215
-            ICU_beds=1e10,  # originally 1055
-            hospital_beds=1e10,  # originally 31649
-            imports_per_day=1.1   # originally 5.0
-        )
-        age_distribution = get_age_distribution_model(subregion)
+        from pydemic.load import get_population_model, get_age_distribution_model
+        pop_name = kwargs.pop('population')
+        population = get_population_model(pop_name)
+        if 'initial_cases' in kwargs:
+            population.initial_cases = kwargs.pop('initial_cases')
+        if 'imports_per_day' in kwargs:
+            population.imports_per_day = kwargs.pop('imports_per_day')
+        population.ICU_beds = 1e10
+        population.hospital_beds = 1e10
+
+        age_dist_pop = kwargs.pop('age_dist_pop', pop_name)
+        age_distribution = get_age_distribution_model(age_dist_pop)
         n_age_groups = len(age_distribution.counts)
 
         from pydemic import SeverityModel, EpidemiologyModel, ContainmentModel
@@ -168,15 +166,16 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
             critical=np.array([5., 10., 10., 15., 20., 25., 35., 45., 55.]),
             fatal=np.array([30., 30., 30., 30., 30., 40., 40., 50., 50.]),
         )
+        severity = kwargs.pop('severity', severity)
         epidemiology = EpidemiologyModel(
-            r0=kwargs.get('r0'),
-            incubation_time=1,
-            infectious_period=5,
-            length_hospital_stay=7,
-            length_ICU_stay=7,
-            seasonal_forcing=0.2,
-            peak_month=0,
-            overflow_severity=2
+            r0=kwargs.pop('r0'),
+            incubation_time=kwargs.pop('incubation_time', 1),
+            infectious_period=kwargs.pop('infectious_period', 5),
+            length_hospital_stay=kwargs.pop('length_hospital_stay', 7),
+            length_ICU_stay=kwargs.pop('length_ICU_stay', 7),
+            seasonal_forcing=kwargs.pop('seasonal_forcing', .2),
+            peak_month=kwargs.pop('peak_month', 0),
+            overflow_severity=kwargs.pop('overflow_severity', 2),
         )
 
         mitigation_day = kwargs.pop('mitigation_day')
