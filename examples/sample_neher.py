@@ -162,7 +162,7 @@ if __name__ == "__main__":
     ax[0].set_ylim(.9, .5 * ax[0].get_ylim()[1])
 
     cumulative_estimator = NeherModelEstimator(fit_parameters, fixed_values, data,
-                                               fit_daily_deaths=False)
+                                               fit_cumulative=True)
     tt = np.linspace(best_parameters['start_day'], best_parameters['end_day'], 1000)
     result = cumulative_estimator.get_model_data(tt, **best_parameters)
 

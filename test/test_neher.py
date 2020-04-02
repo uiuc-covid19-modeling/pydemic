@@ -153,7 +153,7 @@ def test_neher_estimator():
         mitigation_width=.05,
     )
     estimator = NeherModelEstimator(fit_parameters, fixed_values, data,
-                                    fit_daily_deaths=False)
+                                    fit_cumulative=True)
 
     test_likelihood = estimator([2.7, 53.8])
     assert np.abs(1 - test_likelihood / (-0.019927175841621653)) < 1.e-6

@@ -141,13 +141,13 @@ def poisson_norm(model, data):
 
 class NeherModelEstimator(LikelihoodEstimatorBase):
     def __init__(self, fit_parameters, fixed_values, data, norm=None,
-                 fit_daily_deaths=True):
-        self.fit_daily_deaths = fit_daily_deaths
+                 fit_cumulative=True):
+        self.fit_cumulative = fit_cumulative
 
-        if self.fit_daily_deaths and norm is None:
-            norm = poisson_norm
-        elif norm is None:
+        if self.fit_cumulative and norm is None:
             norm = clipped_l2_log_norm
+        elif norm is None:
+            norm = poisson_norm
 
         super().__init__(fit_parameters, fixed_values, data, norm=norm)
 
@@ -164,10 +164,10 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         model_dead = model_data.y['dead'].sum(axis=-1)
         model_uncert = np.power(model_dead, .5)
 
-        if self.fit_daily_deaths:
-            return self.norm(model_dead, self.data['dead'])
-        else:
+        if self.fit_cumulative:
             return self.norm(model_dead, self.data['dead'], model_uncert)
+        else:
+            return self.norm(model_dead, self.data['dead'])
 
     def get_model_data(self, t, **kwargs):
         start_time = kwargs.pop('start_day')
@@ -229,12 +229,12 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
 
         result = sim.solve_deterministic((start_time, end_time), y0)
 
-        if not self.fit_daily_deaths:
+        if self.fit_cumulative:
             return sim.dense_to_logger(result, t)
         else:
             model_data = sim.dense_to_logger(result, t)
             model_data_1 = sim.dense_to_logger(result, np.array(t) - 1)
-
-            model_data.y['dead'] = model_data.y['dead'] - model_data_1.y['dead']
+            for key in model_data.y.keys():
+                model_data.y[key] = model_data.y[key] - model_data_1.y[key]
 
             return model_data
