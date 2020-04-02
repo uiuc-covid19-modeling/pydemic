@@ -155,7 +155,7 @@ def test_neher_estimator():
     estimator = NeherModelEstimator(fit_parameters, fixed_values, data)
 
     test_likelihood = estimator([2.7, 53.8])
-    assert np.abs(1 - test_likelihood / (-0.024719371802653944)) < 1.e-6
+    assert np.abs(1 - test_likelihood / (-0.019927175841621653)) < 1.e-6
 
     # run uniform sampling
     nsamples = 10
@@ -168,9 +168,9 @@ def test_neher_estimator():
     r0_best = r0_vals[max_loc][0]
     start_day_best = start_day_vals[max_loc][0]
 
-    assert np.abs(1 - r0_best / 2.888888888888889) < 1.e-6
-    assert np.abs(1 - start_day_best / 55.55555555555556) < 1.e-6
-    assert np.abs(1 - uniform_likelihoods.max() / (-0.05882974922577774)) < 1.e-6
+    assert np.abs(1 - r0_best / 2.6666666666666665) < 1.e-6
+    assert np.abs(1 - start_day_best / 53.333333333333336) < 1.e-6
+    assert np.abs(1 - uniform_likelihoods.max() / (-0.0550594031551889)) < 1.e-6
 
     import emcee
     np.random.seed(42)
@@ -189,9 +189,9 @@ def test_neher_estimator():
     r0_best = flat_samples[np.argmax(emcee_likelihoods)][0]
     start_day_best = flat_samples[np.argmax(emcee_likelihoods)][1]
 
-    assert np.abs(1 - r0_best / 2.8938105765390065) < 1.e-6
-    assert np.abs(1 - start_day_best / 55.387301110086625) < 1.e-6
-    assert np.abs(1 - emcee_likelihoods.max() / (-0.06134292826617456)) < 1.e-6
+    assert np.abs(1 - r0_best / 2.677571956653811) < 1.e-6
+    assert np.abs(1 - start_day_best / 53.5794313238115) < 1.e-6
+    assert np.abs(1 - emcee_likelihoods.max() / (-0.025986918976544388)) < 1.e-6
 
 
 if __name__ == "__main__":

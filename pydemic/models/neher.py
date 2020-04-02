@@ -123,7 +123,23 @@ class NeherModelSimulation(Simulation):
         return super().solve_deterministic((t_start, t_end), y0, **kwargs)
 
 
+def clipped_l2_log_norm(model, data, model_uncert):
+    model = np.maximum(model, .1)
+    sig = np.log(model_uncert / model)
+    sig += 0.05
+
+    top = np.power(np.log(data)-np.log(model), 2.)
+    bot = np.power(sig, 2.)
+
+    return - 1/2 * np.sum(top / bot)
+
+
 class NeherModelEstimator(LikelihoodEstimatorBase):
+    def __init__(self, fit_parameters, fixed_values, data, norm=None):
+        if norm is None:
+            norm = clipped_l2_log_norm
+        super().__init__(fit_parameters, fixed_values, data, norm=norm)
+
     def get_log_likelihood(self, parameters):
         if not self.check_within_bounds(list(parameters.values())):
             return -np.inf
@@ -134,10 +150,10 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         model_data = self.get_model_data(
             self.data['t'], **parameters, **self.fixed_values
         )
+        model_dead = model_data.y['dead'].sum(axis=-1)
+        model_uncert = np.power(model_dead, .5)
 
-        likelihood = -1/2 * self.norm(model_data.y['dead'].sum(axis=-1),
-                                      self.data['dead'])
-        return likelihood
+        return self.norm(model_dead, self.data['dead'], model_uncert)
 
     def get_model_data(self, t, **kwargs):
         start_time = kwargs.pop('start_day')

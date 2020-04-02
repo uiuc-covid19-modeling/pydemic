@@ -27,7 +27,7 @@ import numpy as np
 
 
 def l2_log_norm(a, b):
-    return np.sum(np.power(np.log(a)-np.log(b), 2.))
+    return -1/2 * np.sum(np.power(np.log(a)-np.log(b), 2.))
 
 
 class LikelihoodEstimatorBase:
