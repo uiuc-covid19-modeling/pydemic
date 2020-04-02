@@ -75,9 +75,11 @@ class SampleParameter:
 
 from pydemic.models.seir import SEIRModelSimulation
 from pydemic.models.neher import NeherModelSimulation
+from pydemic.models.alexei import AlexeiModelSimulation
 
 
 __all__ = [
     "SEIRModelSimulation",
     "NeherModelSimulation",
+    "AlexeiModelSimulation"
 ]

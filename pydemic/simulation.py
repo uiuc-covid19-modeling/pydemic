@@ -244,8 +244,15 @@ class Simulation:
             compartmental model.
         """
 
+        rhs_keys = []
+        for x in reactions:
+            if type(x.rhs) == tuple:
+                rhs_keys += [rhs for rhs in x.rhs]
+            else:
+                rhs_keys.append(x.rhs)
+        rhs_keys = set(rhs_keys)
         lhs_keys = set(x.lhs for x in reactions)
-        rhs_keys = set(x.rhs for x in reactions)
+
         self.compartments = list(lhs_keys | rhs_keys)
 
         self._network = tuple(react for reaction in reactions
@@ -262,6 +269,7 @@ class Simulation:
     def step_gillespie_direct(self, time, state, dt):
         increments = {}
 
+        # FIXME: fix this for split reactions
         for reaction in self._network:
             reaction_rate = reaction.evaluator(time, state)
             dY = reaction_rate
@@ -295,6 +303,7 @@ class Simulation:
         state.y[lhs][full_index[1:]] -= 1.
         state.y[rhs][full_index[1:]] += 1.
 
+        # FIXME: fix this for split reactions
         if state.y[lhs][full_index[1:]] < 0:
             state.y[lhs][full_index[1:]] += 1.
             state.y[rhs][full_index[1:]] -= 1.
@@ -404,7 +413,11 @@ class Simulation:
 
         for reaction in self._network:
             rate = reaction.evaluator(t, state)
-            dy_state.y[reaction.rhs] += rate
+            if type(reaction.rhs) == tuple:
+                for rhs in reaction.rhs:
+                    dy_state.y[rhs] += rate
+            else:    
+                dy_state.y[reaction.rhs] += rate
             dy_state.y[reaction.lhs] -= rate
 
         return self.state_to_array(dy_state)
