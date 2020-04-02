@@ -134,10 +134,21 @@ def clipped_l2_log_norm(model, data, model_uncert):
     return - 1/2 * np.sum(top / bot)
 
 
+def poisson_norm(model, data):
+    from scipy.special import factorial
+    return np.sum(- model - np.log(factorial(data)) + data * np.log(model))
+
+
 class NeherModelEstimator(LikelihoodEstimatorBase):
-    def __init__(self, fit_parameters, fixed_values, data, norm=None):
-        if norm is None:
+    def __init__(self, fit_parameters, fixed_values, data, norm=None,
+                 fit_daily_deaths=True):
+        self.fit_daily_deaths = fit_daily_deaths
+
+        if self.fit_daily_deaths and norm is None:
+            norm = poisson_norm
+        elif norm is None:
             norm = clipped_l2_log_norm
+
         super().__init__(fit_parameters, fixed_values, data, norm=norm)
 
     def get_log_likelihood(self, parameters):
@@ -153,7 +164,10 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         model_dead = model_data.y['dead'].sum(axis=-1)
         model_uncert = np.power(model_dead, .5)
 
-        return self.norm(model_dead, self.data['dead'], model_uncert)
+        if self.fit_daily_deaths:
+            return self.norm(model_dead, self.data['dead'])
+        else:
+            return self.norm(model_dead, self.data['dead'], model_uncert)
 
     def get_model_data(self, t, **kwargs):
         start_time = kwargs.pop('start_day')
@@ -214,4 +228,13 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         y0 = sim.get_initial_population(population, age_distribution)
 
         result = sim.solve_deterministic((start_time, end_time), y0)
-        return sim.dense_to_logger(result, t)
+
+        if not self.fit_daily_deaths:
+            return sim.dense_to_logger(result, t)
+        else:
+            model_data = sim.dense_to_logger(result, t)
+            model_data_1 = sim.dense_to_logger(result, np.array(t) - 1)
+
+            model_data.y['dead'] = model_data.y['dead'] - model_data_1.y['dead']
+
+            return model_data

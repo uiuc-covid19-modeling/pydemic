@@ -43,12 +43,18 @@ if __name__ == "__main__":
     from pydemic.load import get_case_data
     cases = get_case_data(population)
     death_counts = np.array(cases.deaths)
-    data_deaths_gtr_1 = (death_counts > 1)
-    death_counts = death_counts[data_deaths_gtr_1]
-    data = {'t': np.array(cases.dates)[data_deaths_gtr_1], 'dead': death_counts}
+
+    # start at day of first death
+    index_first_death = np.searchsorted(death_counts, .1)
+    death_counts = np.array(cases.deaths)[index_first_death:]
+    t = np.array(cases.dates)[index_first_death:]
+    data = {'t': t, 'dead': death_counts}
+
+    daily_deaths = np.diff(data['dead'], prepend=0)
+    data['dead'] = daily_deaths[daily_deaths > 0]
+    data['t'] = data['t'][daily_deaths > 0]
 
     from pydemic.models import SampleParameter
-
     fit_parameters = [
         SampleParameter('r0', (2, 4), 3, .2),
         SampleParameter('start_day', (40, 60), 50, 2),
@@ -103,7 +109,7 @@ if __name__ == "__main__":
 
     # run MCMC
     n_walkers = 32
-    n_steps = 100
+    n_steps = 200
 
     initial_positions = estimator.get_initial_positions(n_walkers)
     n_dims = initial_positions.shape[-1]
@@ -112,7 +118,10 @@ if __name__ == "__main__":
     sampler.run_mcmc(initial_positions, n_steps, progress=True)
     # pool.terminate()
 
-    flat_samples = sampler.get_chain(discard=10, thin=10, flat=True)
+    discard = 10
+    thin = 10
+    flat_samples = sampler.get_chain(discard=discard, thin=thin, flat=True)
+    likelihoods = sampler.get_log_prob(discard=discard, thin=thin, flat=True)
     import corner
     fig = corner.corner(flat_samples,
                         labels=[labels[key] for key in estimator.fit_names],
@@ -124,40 +133,55 @@ if __name__ == "__main__":
     q = np.diff(mcmc, axis=0)
     best_fit = dict(zip(estimator.fit_names, mcmc[1, :]))
     uncertainties = dict(zip(estimator.fit_names, q.T))
-    print('best fit:', best_fit)
-    print('uncertainties:', uncertainties)
+    print('50%% best fit:', best_fit)
+    print('50%% uncertainties:', uncertainties)
 
-    fig, ax = plt.subplots(1, 1)
-
+    flat_samples[np.argmax(likelihoods)]
+    best_fit = dict(zip(estimator.fit_names, flat_samples[np.argmax(likelihoods)]))
     best_parameters = {**best_fit, **estimator.fixed_values}
-
-    tt = np.linspace(best_parameters['start_day'], best_parameters['end_day'], 1000)
-
-    result = estimator.get_model_data(tt, **best_parameters)
-    model_dates = result.t
-    model_deaths = result.y['dead'].sum(axis=-1)
+    print('fit of maximum L:', best_fit)
 
     def days_to_dates(days):
         from datetime import datetime, timedelta
-        return [datetime(2020, 1, 1) + timedelta(x) for x in days]
-
-    ax.semilogy(days_to_dates(cases.dates), cases.deaths,
-                'x', c='r', ms=4, markeredgewidth=1,
-                label='reported deaths')
-
-    ax.semilogy(days_to_dates(model_dates), model_deaths,
-                '-', linewidth=1.1, color='k', label='deterministic')
-    ax.fill_between(
-        days_to_dates(model_dates),
-        model_deaths + np.sqrt(model_deaths),
-        model_deaths - np.sqrt(model_deaths),
-        alpha=.3, color='b',
-    )
-    ax.set_ylabel("count (persons)")
-    ax.set_ylim(.95, .5 * ax.get_ylim()[1])
-    ax.legend()
+        return [datetime(2020, 1, 1) + timedelta(float(x)) for x in days]
 
     import matplotlib.dates as mdates
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+
+    tt = np.linspace(best_parameters['start_day']+1, best_parameters['end_day'],
+                     1000)
+    result = estimator.get_model_data(tt, **best_parameters)
+
+    fig, ax = plt.subplots(2, 1, figsize=(6, 8), sharex=True)
+    ax[0].semilogy(days_to_dates(data['t']), data['dead'],
+                   'x', c='r', ms=4, markeredgewidth=1,
+                   label='reported')
+    ax[0].semilogy(days_to_dates(result.t), result.y['dead'].sum(axis=-1),
+                   '-', linewidth=1.1, color='k',
+                   label='deterministic')
+    ax[0].set_ylabel("daily deaths")
+    ax[0].set_ylim(.9, .5 * ax[0].get_ylim()[1])
+
+    cumulative_estimator = NeherModelEstimator(fit_parameters, fixed_values, data,
+                                               fit_daily_deaths=False)
+    tt = np.linspace(best_parameters['start_day'], best_parameters['end_day'], 1000)
+    result = cumulative_estimator.get_model_data(tt, **best_parameters)
+
+    ax[1].semilogy(days_to_dates(data['t']), np.cumsum(data['dead']),
+                   'x', c='r', ms=4, markeredgewidth=1,
+                   label='reported deaths')
+
+    ax[1].semilogy(days_to_dates(result.t), result.y['dead'].sum(axis=-1),
+                   '-', linewidth=1.1, color='k',
+                   label='deterministic')
+
+    ax[1].set_ylabel("cumulative deaths)")
+    ax[1].set_ylim(.95, .5 * ax[1].get_ylim()[1])
+
+    ax[0].legend()
+    ax[0].grid()
+    ax[1].grid()
+
     fig.autofmt_xdate()
-    fig.savefig('neher_best_fit.png')
+    fig.subplots_adjust(wspace=0, hspace=0)
+    fig.savefig('neher_best_fit_to_deaths.png', bbox_inches='tight')
