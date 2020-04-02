@@ -118,7 +118,7 @@ if __name__ == "__main__":
     sampler.run_mcmc(initial_positions, n_steps, progress=True)
     # pool.terminate()
 
-    discard = 10
+    discard = 100
     thin = 10
     flat_samples = sampler.get_chain(discard=discard, thin=thin, flat=True)
     likelihoods = sampler.get_log_prob(discard=discard, thin=thin, flat=True)
