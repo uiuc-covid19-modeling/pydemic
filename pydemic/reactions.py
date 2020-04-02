@@ -68,7 +68,7 @@ class Reaction:
         self.evaluator = evaluator
 
     def __repr__(self):
-        return "{0:s} --> {1:s}".format(self.lhs, str(self.rhs))
+        return "{0:s} --> {1:s}".format(str(self.lhs), str(self.rhs))
 
     def get_reactions(self):
         """

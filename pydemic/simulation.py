@@ -254,6 +254,7 @@ class Simulation:
         lhs_keys = set(x.lhs for x in reactions)
 
         self.compartments = list(lhs_keys | rhs_keys)
+        self.compartments = [ x for x in self.compartments if x is not None ]
 
         self._network = tuple(react for reaction in reactions
                               for react in reaction.get_reactions())
@@ -418,7 +419,8 @@ class Simulation:
                     dy_state.y[rhs] += rate
             else:    
                 dy_state.y[reaction.rhs] += rate
-            dy_state.y[reaction.lhs] -= rate
+            if reaction.lhs is not None:
+                dy_state.y[reaction.lhs] -= rate
 
         return self.state_to_array(dy_state)
 
