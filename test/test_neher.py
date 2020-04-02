@@ -24,14 +24,13 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from datetime import datetime
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, date_to_ms)
 from neher_port import NeherPortSimulation
 from pydemic.models import NeherModelSimulation
 
 
-def test_neher(plot=False):
+def test_neher():
     n_age_groups = 9
     start_date = (2020, 3, 1)
     end_date = (2020, 9, 1)
@@ -90,8 +89,6 @@ def test_neher(plot=False):
     end_time = date_to_ms(end_date)
     port_result = port(start_time, end_time, lambda x: x)
 
-    port_dates = [datetime.utcfromtimestamp(x//1000) for x in port_result.t]
-
     y0 = sim.get_initial_population(population, age_distribution)
 
     new_result = sim((start_date, end_date), y0, dt=.25)
@@ -128,35 +125,6 @@ def test_neher(plot=False):
     print('total error is', np.average(total_err))
     assert np.max(total_err) < 1.e-13
 
-    if plot:
-        import matplotlib as mpl
-        mpl.use('agg')
-        import matplotlib.pyplot as plt
-        import matplotlib.dates as mdates
-        # make figure
-        fig = plt.figure(figsize=(10, 8))
-        ax1 = plt.subplot(1, 1, 1)
-
-        for key in compartments:
-            ax1.plot(port_dates, port_result.y[key].sum(axis=-1), label=key)
-            ax1.plot(days_to_dates(scipy_res.t), new_result.y[key].sum(axis=1), '--')
-
-        # plot on y log scale
-        ax1.set_yscale('log')
-        ax1.set_ylim(ymin=1)
-
-        # plot x axis as dates
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
-        fig.autofmt_xdate()
-
-        # formatting hints
-        ax1.legend()
-        ax1.set_xlabel('time')
-        ax1.set_ylabel('count (persons)')
-
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.savefig('compare_rewrite.png')
-
 
 if __name__ == "__main__":
-    test_neher(plot=True)
+    test_neher()

@@ -30,7 +30,7 @@ from pydemic import GammaProcess, Simulation
 
 @pytest.mark.parametrize("shape", [1, 2, 8])
 @pytest.mark.parametrize("scale", [1, 1.4])
-def test_gamma(shape, scale, plot=False):
+def test_gamma(shape, scale):
     reactions = (
         GammaProcess('a', 'b', shape=shape, scale=lambda t, y: scale),
     )
@@ -75,19 +75,6 @@ def test_gamma(shape, scale, plot=False):
     print('total error is', np.max(total_err))
     assert np.max(total_err) < 1.e-13
 
-    if plot:
-        import matplotlib as mpl
-        mpl.use('agg')
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots()
-        for i, name in enumerate(compartments):
-            ax.plot(t, scipy_sol[name], linewidth=.5, label=name+', scipy')
-            ax.plot(t, result.y[name], '--', label=name + ', pydemic')
-
-        ax.legend(loc='center left', bbox_to_anchor=(1, .5))
-        fig.savefig('test_gamma.png', bbox_inches='tight')
-
 
 if __name__ == "__main__":
-    test_gamma(3, 2.3, plot=True)
+    test_gamma(3, 2.3)

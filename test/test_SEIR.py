@@ -31,7 +31,7 @@ from pydemic.models import SEIRModelSimulation
 @pytest.mark.parametrize("total_pop", [1e4, 1e6])
 @pytest.mark.parametrize("avg_infection_rate", [12, 8])
 def test_SEIR(total_pop, avg_infection_rate, infectious_rate=1,
-              removal_rate=1, plot=False):
+              removal_rate=1):
     sim = SEIRModelSimulation(avg_infection_rate, infectious_rate, removal_rate)
 
     compartments = ('susceptible', 'exposed', 'infectious', 'removed')
@@ -89,19 +89,6 @@ def test_SEIR(total_pop, avg_infection_rate, infectious_rate=1,
     print('total error is', np.max(total_err))
     assert np.max(total_err) < 1.e-13
 
-    if plot:
-        import matplotlib as mpl
-        mpl.use('agg')
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots()
-        for i, name in enumerate(compartments):
-            ax.semilogy(t, true_sol[name], linewidth=.5, label=name+', scipy')
-            ax.semilogy(t, result.y[name], '--', label=name + ', pydemic')
-
-        ax.legend(loc='center left', bbox_to_anchor=(1, .5))
-        fig.savefig('SEIR_example.png', bbox_inches='tight')
-
 
 if __name__ == "__main__":
-    test_SEIR(1e6, 12, plot=True)
+    test_SEIR(1e6, 12)
