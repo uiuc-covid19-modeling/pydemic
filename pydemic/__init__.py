@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 from pydemic.simulation import (Simulation, SimulationState, StateLogger,
                                 QuantileLogger)
-from pydemic.reactions import Reaction, ErlangProcess, GammaProcess
+from pydemic.reactions import Reaction, PassiveReaction, ErlangProcess, GammaProcess
 
 
 class AttrDict(dict):
@@ -267,6 +267,7 @@ __all__ = [
     "AttrDict",
     "Simulation",
     "Reaction",
+    "PassiveReaction",
     "ErlangProcess",
     "GammaProcess",
     "Simulation",

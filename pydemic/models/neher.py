@@ -24,7 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from pydemic import Reaction, Simulation, map_to_days_if_needed
+from pydemic import Reaction, PassiveReaction, Simulation, map_to_days_if_needed
 from pydemic.models import LikelihoodEstimatorBase
 
 
@@ -68,6 +68,9 @@ class NeherModelSimulation(Simulation):
         self.seasonal_forcing = epidemiology.seasonal_forcing
         self.peak_day = 30 * epidemiology.peak_month + 14.75
 
+        def I_to_H(t, y):
+            return y.infectious * infectious_hospitalized_rate
+
         reactions = (
             Reaction("susceptible", "exposed",
                      lambda t, y: ((1 - isolated_frac) * self.containment(t, y)
@@ -77,8 +80,8 @@ class NeherModelSimulation(Simulation):
                      lambda t, y: imports_per_day / n_age_groups),
             Reaction("exposed", "infectious",
                      lambda t, y: y.exposed * exposed_infectious_rate),
-            Reaction("infectious", "hospitalized",
-                     lambda t, y: y.infectious * infectious_hospitalized_rate),
+            Reaction("infectious", "hospitalized", I_to_H),
+            PassiveReaction(None, "hospitalized_tracker", I_to_H),
             Reaction("infectious", "recovered",
                      lambda t, y: y.infectious * infectious_recovered_rate),
             Reaction("hospitalized", "recovered",
@@ -103,6 +106,7 @@ class NeherModelSimulation(Simulation):
             'infectious': np.zeros(n_age_groups),
             'recovered': np.zeros(n_age_groups),
             'hospitalized': np.zeros(n_age_groups),
+            'hospitalized_tracker': np.zeros(n_age_groups),
             'critical': np.zeros(n_age_groups),
             'dead': np.zeros(n_age_groups)
         }
@@ -135,8 +139,8 @@ def clipped_l2_log_norm(model, data, model_uncert):
 
 
 def poisson_norm(model, data):
-    from scipy.special import factorial
-    return np.sum(- model - np.log(factorial(data)) + data * np.log(model))
+    from scipy.special import gammaln  # pylint: disable=E0611
+    return np.sum(- model - gammaln(data) + data * np.log(model))
 
 
 class NeherModelEstimator(LikelihoodEstimatorBase):
@@ -151,23 +155,33 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
 
         super().__init__(fit_parameters, fixed_values, data, norm=norm)
 
+        if not self.fit_cumulative:
+            for key, val in self.data.items():
+                if key != 't':
+                    self.data[key] = np.diff(val, prepend=0)  # FIXME
+
     def get_log_likelihood(self, parameters):
         if not self.check_within_bounds(list(parameters.values())):
             return -np.inf
-        if 'mitigation_day' in parameters and 'mitigation_day' in parameters:
+        if 'mitigation_day' in parameters and 'start_day' in parameters:
+            # FIXME: doesn't check if either is fixed
             if parameters['mitigation_day'] < parameters['start_day']:
                 return -np.inf
 
         model_data = self.get_model_data(
             self.data['t'], **parameters, **self.fixed_values
         )
-        model_dead = model_data.y['dead'].sum(axis=-1)
-        model_uncert = np.power(model_dead, .5)
+        model_dead = np.maximum(.1, model_data.y['dead'].sum(axis=-1))
 
+        data_nonzero = self.data['dead'] > .9
         if self.fit_cumulative:
-            return self.norm(model_dead, self.data['dead'], model_uncert)
+            model_uncert = np.power(model_dead, .5)
+            return self.norm(model_dead[data_nonzero],
+                             self.data['dead'][data_nonzero],
+                             model_uncert[data_nonzero])
         else:
-            return self.norm(model_dead, self.data['dead'])
+            return self.norm(model_dead[data_nonzero],
+                             self.data['dead'][data_nonzero])
 
     def get_model_data(self, t, **kwargs):
         start_time = kwargs.pop('start_day')

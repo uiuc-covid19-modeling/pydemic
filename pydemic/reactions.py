@@ -29,6 +29,7 @@ __doc__ = """
 .. autoclass:: Reaction
 .. autoclass:: ErlangProcess
 .. autoclass:: GammaProcess
+.. autoclass:: PassiveReaction
 """
 
 
@@ -77,6 +78,16 @@ class Reaction:
         """
 
         return tuple([self])
+
+
+class PassiveReaction(Reaction):
+    """
+    A reaction used for bookkeeping purposes.
+
+    .. automethod:: __init__
+    .. automethod:: get_reactions
+    """
+    pass
 
 
 class ErlangProcess(Reaction):

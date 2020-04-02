@@ -244,23 +244,36 @@ class Simulation:
             compartmental model.
         """
 
-        rhs_keys = []
-        for x in reactions:
-            if type(x.rhs) == tuple:
-                rhs_keys += [rhs for rhs in x.rhs]
-            else:
-                rhs_keys.append(x.rhs)
-        rhs_keys = set(rhs_keys)
-        lhs_keys = set(x.lhs for x in reactions)
+        def flatten(items):
+            for i in items:
+                if isinstance(i, (list, tuple)):
+                    for j in flatten(i):
+                        yield j
+                else:
+                    yield i
 
-        self.compartments = list(lhs_keys | rhs_keys)
-        self.compartments = [x for x in self.compartments if x is not None]
+        rhs_keys = []
+        lhs_keys = []
+        passive_compartments = []
+        for reaction in reactions:
+            from pydemic.reactions import PassiveReaction
+            if not isinstance(reaction, PassiveReaction):
+                lhs_keys.append(reaction.lhs)
+                rhs_keys.append(reaction.rhs)
+            else:
+                passive_compartments.extend([reaction.lhs, reaction.rhs])
+
+        lhs_keys = set(flatten(lhs_keys))
+        rhs_keys = set(flatten(rhs_keys))
+        self.compartments = list((lhs_keys | rhs_keys) - set([None]))
+        self.passive_compartments = list(set(passive_compartments) - set([None]))
+        self.evolved_compartments = self.compartments + self.passive_compartments
 
         self._network = tuple(react for reaction in reactions
                               for react in reaction.get_reactions())
 
-        all_lhs = set(x.lhs for x in self._network)
-        all_rhs = set(x.rhs for x in self._network)
+        all_lhs = set(x.lhs for x in self._network) - set([None])
+        all_rhs = set(x.rhs for x in self._network) - set([None])
         self.hidden_compartments = list((all_lhs | all_rhs) - set(self.compartments))
 
     def print_network(self):
@@ -425,13 +438,14 @@ class Simulation:
         return self.state_to_array(dy_state)
 
     def array_to_state(self, time, array):
-        array = array.reshape(len(self.compartments), *self.compartment_shape)
-        y = {comp: array[i] for i, comp in enumerate(self.compartments)}
+        n_evolved = len(self.evolved_compartments)
+        array = array.reshape(n_evolved, *self.compartment_shape)
+        y = {comp: array[i] for i, comp in enumerate(self.evolved_compartments)}
         return SimulationState(time, y, {})
 
     def state_to_array(self, state):
-        array = np.empty((len(self.compartments),)+self.compartment_shape)
-        for i, comp in enumerate(self.compartments):
+        array = np.empty((len(self.evolved_compartments),)+self.compartment_shape)
+        for i, comp in enumerate(self.evolved_compartments):
             array[i] = state.y[comp]
 
         return array.reshape(-1)
@@ -465,11 +479,12 @@ class Simulation:
             )
 
         logger = StateLogger()
-        shape = (len(self.compartments),)+self.compartment_shape
+        shape = (len(self.evolved_compartments),)+self.compartment_shape
 
         def get_state_at_t(t):
             array = solve_ivp_result.sol(t).reshape(*shape)
-            comps = {comp: array[i] for i, comp in enumerate(self.compartments)}
+            comps = {comp: array[i]
+                     for i, comp in enumerate(self.evolved_compartments)}
             return SimulationState(t, comps, {})
 
         logger.initialize_with_state(get_state_at_t(times[0]))
