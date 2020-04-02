@@ -44,7 +44,7 @@ if __name__ == "__main__":
     
 
     # generate simulation
-    sim = AlexeiModelSimulation(r0=5.0)
+    sim = AlexeiModelSimulation(r0=2.7)
     y0 = sim.get_initial_population(total=total_population)
 
     # run the simulation
@@ -61,8 +61,9 @@ if __name__ == "__main__":
         "exposed",
         "infectious",
         "removed",
-        #"hospitalized_cases_base",
         "hospitalized_died",
+        #"hospitalized_cases_base",
+        #"hospitalized_died",
     ]
 
     # plot result

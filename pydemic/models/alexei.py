@@ -95,7 +95,7 @@ class AlexeiModelSimulation(Simulation):
         P_d = 0.01    # of people who are infected, how many end up dying
         t_icu = 10.   # time between onset and icu admission
         t_dead = 7.5  # time between icu admission and death
-        t_h = 1.      # could not find on Alexei's blog post
+        t_h = 0.05      # could not find on Alexei's blog post
         t_r = 1.      # could not find on Alexei's blog post
 
         reactions = (
@@ -115,29 +115,33 @@ class AlexeiModelSimulation(Simulation):
             Reaction("confirmation_cases_base_3", "confirmation_cases_base",
                      lambda t, y: y.confirmation_cases_base_3 / incubation_mubar),
 
-            Reaction("confirmation_cases_base", "confirmed_yes",
-                     lambda t, y: P_c * y.confirmation_cases_base / t_c),
-            Reaction("confirmation_cases_base", "confirmed_no",
+            Reaction("confirmation_cases_base", "confirmed_yes",   # how many are ultimately confirmed
+                     lambda t, y: P_c * y.confirmation_cases_base / t_c), 
+            Reaction("confirmation_cases_base", "confirmed_no",    # not needed, but maybe useful for accounting?
                      lambda t, y: (1. - P_c) * y.confirmation_cases_base / t_c),
 
             Reaction(None, "hospitalized_cases_base_1",  ## should be gamma with k = 3+
-                     lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
+                     lambda t, y: P_d * y.infectious.sum() * y.susceptible / self.total_population * S2E),
             Reaction("hospitalized_cases_base_1", "hospitalized_cases_base_2",
-                     lambda t, y: y.confirmation_cases_base_1 / incubation_mubar),
+                     lambda t, y: y.hospitalized_cases_base_1 / incubation_mubar),
             Reaction("hospitalized_cases_base_2", "hospitalized_cases_base_3",
-                     lambda t, y: y.confirmation_cases_base_2 / incubation_mubar),
+                     lambda t, y: y.hospitalized_cases_base_2 / incubation_mubar),
             Reaction("hospitalized_cases_base_3", "hospitalized_cases_base",
-                     lambda t, y: y.confirmation_cases_base_3 / incubation_mubar),
+                     lambda t, y: y.hospitalized_cases_base_3 / incubation_mubar),
             
-            Reaction("hospitalized_cases_base", "hospitalized_icu_will_dead",
-                     lambda t, y: P_d * y.hospitalized_cases_base / t_icu),
-            Reaction("hospitalized_icu_will_dead", "hospitalized_died",
-                     lambda t, y: y.hospitalized_cases_base / t_dead),
+            Reaction("hospitalized_cases_base", "hospitalized_icu_will_die",
+                     lambda t, y: y.hospitalized_cases_base / t_icu),
+            Reaction("hospitalized_icu_will_die", "hospitalized_died",
+                     lambda t, y: y.hospitalized_icu_will_die / t_dead),
 
-            Reaction("hospitalized_cases_base", "hospitalized_will_recover",
-                     lambda t, y: (P_h - P_d) * y.hospitalized_cases_base / t_h),
-            Reaction("hospitalized_will_recover", "hospitalized_recovered",
-                     lambda t, y: y.hospitalized_will_recover / t_r),
+            
+            # Reaction("hospitalized_cases_base", "hospitalized_will_recover",
+            #          lambda t, y: (P_h - P_d) * y.hospitalized_cases_base / t_h),
+            # Reaction("hospitalized_will_recover", "hospitalized_recovered",
+            #          lambda t, y: y.hospitalized_will_recover / t_r),
+
+            # Reaction("hospitalized_cases_base", "hospitalized_never",
+            #          lambda t, y: (1. - P_h) * y.hospitalized_cases_base / t_h)
         )
 
 
