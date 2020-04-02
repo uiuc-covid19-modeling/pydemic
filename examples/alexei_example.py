@@ -1,4 +1,4 @@
-import matplotlib as mpl 
+import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -10,12 +10,12 @@ import numpy as np
 
 def save_data(result, filename):
     from datetime import datetime, timedelta
-    dates = [ datetime(2020,1,1)+timedelta(days=x) for x in result.t ]
+    dates = [datetime(2020, 1, 1)+timedelta(days=x) for x in result.t]
     compartments = {}
     fp = open(filename, 'w')
     fp.write("time\t")
     for compartment in result.compartments:
-        compartments[compartment] = result.y[compartment] 
+        compartments[compartment] = result.y[compartment]
         fp.write(compartment + "\t")
     fp.write("\n")
     for i in range(len(dates)):
@@ -27,21 +27,17 @@ def save_data(result, filename):
 
 
 if __name__ == "__main__":
-
     """
-        
-        From blog post: dD/dt = p_d [ICU] / tau
+    From blog post: dD/dt = p_d [ICU] / tau
 
-        where we must specify tau : the average ICU stay length (7-9 days for COVID)
-                             p_d  : the probability of death in the ICU (from 60% to 80% according to data Alexei has referenced)
+    where we must specify tau : the average ICU stay length (7-9 days for COVID)
+                            p_d  : the probability of death in the ICU (from 60% to 80% according to data Alexei has referenced)
 
-        coefficient is tau/p_d ~ 10 days
-
+    coefficient is tau/p_d ~ 10 days
     """
 
-    tspan = [ (2020,3,1), (2020,6,1) ]
+    tspan = [(2020, 3, 1), (2020, 6, 1)]
     total_population = 1.e5
-    
 
     # generate simulation
     sim = AlexeiModelSimulation(r0=2.7)
@@ -50,7 +46,7 @@ if __name__ == "__main__":
     # run the simulation
     dense_result = sim.solve_deterministic(tspan, y0)
     times = np.arange(dense_result.t[0], dense_result.t[-1])
-    dates = [ datetime(2020,1,1)+timedelta(days=x) for x in times ]
+    dates = [datetime(2020, 1, 1)+timedelta(days=x) for x in times]
     result = sim.dense_to_logger(dense_result, times)
 
     # save result
@@ -67,8 +63,8 @@ if __name__ == "__main__":
     ]
 
     # plot result
-    fig = plt.figure(figsize=(8,8))
-    ax1 = plt.subplot(1,1,1)
+    fig = plt.figure(figsize=(8, 8))
+    ax1 = plt.subplot(1, 1, 1)
     for compartment in compartments_to_plot:
         ax1.plot(dates, result.y[compartment], label=compartment)
         print(compartment, result.y[compartment][-1])
@@ -79,8 +75,6 @@ if __name__ == "__main__":
     fig.autofmt_xdate()
 
     plt.savefig('alexei.png')
-
-
 
 
 """
@@ -101,7 +95,7 @@ ax[0].semilogy(days_to_dates(cases.dates), cases.deaths,
 for label, (result, contain) in results.items():
     ax[0].semilogy(days_to_dates(result.t), result.y['dead'].sum(axis=-1),
                 '-', linewidth=1.5, label=label)
-    
+
     ax[1].plot(days_to_dates(result.t), 2.7 * contain(result.t),
                 '-', linewidth=1.5, label=label)
 
