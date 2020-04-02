@@ -146,7 +146,6 @@ if __name__ == "__main__":
         return [datetime(2020, 1, 1) + timedelta(float(x)) for x in days]
 
     import matplotlib.dates as mdates
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
 
     tt = np.linspace(best_parameters['start_day']+1, best_parameters['end_day'],
                      1000)
@@ -181,6 +180,7 @@ if __name__ == "__main__":
     ax[0].legend()
     ax[0].grid()
     ax[1].grid()
+    ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
 
     fig.autofmt_xdate()
     fig.subplots_adjust(wspace=0, hspace=0)
