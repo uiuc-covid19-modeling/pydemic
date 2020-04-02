@@ -95,14 +95,14 @@ class AlexeiModelSimulation(Simulation):
             Reaction("infectious", "recovered",
                      lambda t, y: y.infectious * I2R),
 
-            Reaction(None, "confirmation_cases_base",
+            Reaction(None, "confirmation_cases_base",  ## should be gamma with k = 3+
                      lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
             Reaction("confirmation_cases_base", "confirmed_yes",
                      lambda t, y: P_c * y.confirmation_cases_base / t_c),
             Reaction("confirmation_cases_base", "confirmed_no",
                      lambda t, y: (1. - P_c) * y.confirmation_cases_base / t_c),
 
-            Reaction(None, "hospitalized_cases_base",
+            Reaction(None, "hospitalized_cases_base",  ## should be gamma with k = 3+
                      lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
             
             Reaction("hospitalized_cases_base", "hospitalized_icu_will_dead",
