@@ -35,7 +35,7 @@ class LikelihoodEstimatorBase:
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
-        self.data = data
+        self.data = data.copy()
 
         if norm is None:
             self.norm = l2_log_norm
