@@ -187,7 +187,8 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         start_time = kwargs.pop('start_day')
         end_time = kwargs.pop('end_day')
 
-        from pydemic.load import get_population_model, get_age_distribution_model
+        from pydemic.data.neher_load import (get_population_model,
+                                             get_age_distribution_model)
         pop_name = kwargs.pop('population')
         population = get_population_model(pop_name)
         if 'population_served' in kwargs:
