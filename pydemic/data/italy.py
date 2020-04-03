@@ -65,7 +65,7 @@ def string_to_date(string):
 
 
 def scrape_case_data():
-    r  = requests.get(data_url)
+    r = requests.get(data_url)
     all_data = json.loads(r.text)
     r.close()
     all_data = [

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
 from pydemic import ContainmentModel
-from pydemic.load import get_case_data
+from pydemic.data.us import get_case_data
 
 
 def sim_from_containment_model(contain):
@@ -75,7 +75,7 @@ containment = ContainmentModel(start_date, end_date)
 results['no_containment'] = sim_from_containment_model(containment), containment
 
 # load reported data
-cases = get_case_data("USA-Illinois")
+cases = get_case_data("IL")
 
 fig = plt.figure(figsize=(14, 8))
 
@@ -86,10 +86,10 @@ ax = [fig.add_subplot(gspec[:2, 0]), fig.add_subplot(gspec[2, 0])]
 
 def days_to_dates(days):
     from datetime import datetime, timedelta
-    return [datetime(2020, 1, 1) + timedelta(x) for x in days]
+    return [datetime(2020, 1, 1) + timedelta(int(x)) for x in days]
 
 
-ax[0].semilogy(days_to_dates(cases.dates), cases.deaths,
+ax[0].semilogy(days_to_dates(cases.t), cases.y['death'],
                'x', c='r', ms=6, markeredgewidth=2,
                label='reported deaths')
 

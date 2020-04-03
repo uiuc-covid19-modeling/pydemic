@@ -35,28 +35,24 @@ plt.rc('font', family='serif', size=12)
 import emcee
 from multiprocessing import Pool, cpu_count
 
-
 if __name__ == "__main__":
     # load reported data
     population = "USA-Illinois"
     age_dist_pop = "United States of America"
-    from pydemic.load import get_case_data
-    cases = get_case_data(population)
-    death_counts = np.array(cases.deaths)
+
+    from pydemic.data.us import get_case_data
+    cases = get_case_data('IL')
+
+    i_start = np.searchsorted(cases.y['death'], .1)
+    i_end = np.searchsorted(cases.t, 90)
 
     # start at day of first death
-    index_first_death = np.searchsorted(death_counts, .1)
-    death_counts = np.array(cases.deaths)[index_first_death:]
-    t = np.array(cases.dates)[index_first_death:]
-    data = {'t': t, 'dead': death_counts}
-
-    daily_deaths = np.diff(data['dead'], prepend=0)
-    data['dead'] = daily_deaths[daily_deaths > 0]
-    data['t'] = data['t'][daily_deaths > 0]
+    data = {'t': cases.t[i_start:i_end], 'dead': cases.y['death'][i_start:i_end]}
 
     from pydemic.models import SampleParameter
+
     fit_parameters = [
-        SampleParameter('r0', (2, 4), 3, .2),
+        SampleParameter('r0', (1, 5), 3, .2),
         SampleParameter('start_day', (40, 60), 50, 2),
         # SampleParameter('mitigation_factor', (.05, 1), .9, .1),
         # SampleParameter('mitigation_day', (60, 88), 80, 2),
@@ -75,11 +71,11 @@ if __name__ == "__main__":
         end_day=np.max(data['t']) + 2,
         population=population,
         age_dist_pop=age_dist_pop,
-        mitigation_factor=1,
-        mitigation_day=80,
-        mitigation_width=.05,
         initial_cases=10.,
         imports_per_day=1.1,
+        mitigation_factor=1,
+        mitigation_day=80,
+        mitigation_width=1,
     )
 
     from pydemic.models.neher import NeherModelEstimator
@@ -114,6 +110,9 @@ if __name__ == "__main__":
     initial_positions = estimator.get_initial_positions(n_walkers)
     n_dims = initial_positions.shape[-1]
 
+    num_workers = cpu_count()
+    pool = Pool(num_workers)
+
     sampler = emcee.EnsembleSampler(n_walkers, n_dims, estimator, pool=pool)
     sampler.run_mcmc(initial_positions, n_steps, progress=True)
     # pool.terminate()
@@ -145,14 +144,12 @@ if __name__ == "__main__":
         from datetime import datetime, timedelta
         return [datetime(2020, 1, 1) + timedelta(float(x)) for x in days]
 
-    import matplotlib.dates as mdates
-
-    tt = np.linspace(best_parameters['start_day']+1, best_parameters['end_day'],
-                     1000)
+    tt = np.linspace(best_parameters['start_day']+1,
+                     best_parameters['end_day'], 1000)
     result = estimator.get_model_data(tt, **best_parameters)
 
     fig, ax = plt.subplots(2, 1, figsize=(6, 8), sharex=True)
-    ax[0].semilogy(days_to_dates(data['t']), data['dead'],
+    ax[0].semilogy(days_to_dates(data['t']), np.diff(data['dead'], prepend=0),
                    'x', c='r', ms=4, markeredgewidth=1,
                    label='reported')
     ax[0].semilogy(days_to_dates(result.t), result.y['dead'].sum(axis=-1),
@@ -166,7 +163,7 @@ if __name__ == "__main__":
     tt = np.linspace(best_parameters['start_day'], best_parameters['end_day'], 1000)
     result = cumulative_estimator.get_model_data(tt, **best_parameters)
 
-    ax[1].semilogy(days_to_dates(data['t']), np.cumsum(data['dead']),
+    ax[1].semilogy(days_to_dates(data['t']), data['dead'],
                    'x', c='r', ms=4, markeredgewidth=1,
                    label='reported deaths')
 
@@ -174,14 +171,25 @@ if __name__ == "__main__":
                    '-', linewidth=1.1, color='k',
                    label='deterministic')
 
-    ax[1].set_ylabel("cumulative deaths)")
+    ax[1].set_ylabel("cumulative deaths")
     ax[1].set_ylim(.95, .5 * ax[1].get_ylim()[1])
 
     ax[0].legend()
     ax[0].grid()
     ax[1].grid()
-    ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
 
-    fig.autofmt_xdate()
-    fig.subplots_adjust(wspace=0, hspace=0)
+    model_deaths = result.y['dead'].sum(axis=-1)
+    uncert = np.sqrt(model_deaths)
+    ax[1].fill_between(
+        days_to_dates(result.t),
+        model_deaths + uncert,
+        model_deaths - uncert,
+        alpha=.3, color='b',
+    )
+
+    fig.tight_layout()
+    title = '\n'.join(
+        [labels[key]+' = '+('%.3f' % val) for key, val in best_fit.items()]
+    )
+    fig.suptitle(title, va='baseline', y=1.)
     fig.savefig('neher_best_fit_to_deaths.png', bbox_inches='tight')

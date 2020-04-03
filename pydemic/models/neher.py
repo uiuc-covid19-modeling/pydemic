@@ -145,7 +145,7 @@ def poisson_norm(model, data):
 
 class NeherModelEstimator(LikelihoodEstimatorBase):
     def __init__(self, fit_parameters, fixed_values, data, norm=None,
-                 fit_cumulative=True):
+                 fit_cumulative=False):
         self.fit_cumulative = fit_cumulative
 
         if self.fit_cumulative and norm is None:
@@ -257,7 +257,7 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
 
 class NeherModelDeathAndCasesEstimator(NeherModelEstimator):
     def __init__(self, fit_parameters, fixed_values, data, norm=None,
-                 fit_cumulative=True, weights=None):
+                 fit_cumulative=False, weights=None):
         super().__init__(fit_parameters, fixed_values, data, norm=norm,
                          fit_cumulative=fit_cumulative)
 

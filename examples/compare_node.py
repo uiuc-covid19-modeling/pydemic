@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from pydemic import SeverityModel, EpidemiologyModel, ContainmentModel, date_to_ms
-from pydemic.load import get_population_model, get_age_distribution_model
+from pydemic.data.neher_load import get_population_model, get_age_distribution_model
 
 import os
 import sys
