@@ -32,55 +32,73 @@ from pydemic.data import camel_to_snake, dict_to_case_data
 cwd = os.path.dirname(os.path.abspath(__file__))
 
 _casedata_filename = os.path.join(
-    cwd, "../../assets/us_case_counts.json"
+    cwd, "../../assets/italy_case_counts.json"
 )
-data_url = "https://covidtracking.com/api/states/daily"
-info_url = "https://covidtracking.com/api/states/info"
+
+translation = {
+    'data': 'date',
+    'stato': 'state',
+    'codice_regione': 'region_code',
+    'denominazione_regione': 'region',
+    'lat': 'lat',
+    'long': 'long',
+    'ricoverati_con_sintomi': 'hospitalized_with_symptoms',
+    'terapia_intensiva': 'ICU',
+    'totale_ospedalizzati': 'total_hospitalized',
+    'isolamento_domiciliare': 'isolated',
+    'totale_positivi': 'positive',
+    'variazione_totale_positivi': 'total_change_positive',
+    'nuovi_positivi': 'positive_increase',
+    'dimessi_guariti': 'discharged',
+    'deceduti': 'deaths',
+    'totale_casi': 'total_cases',
+    'tamponi': 'total_tests',
+    'note_it': 'note_it',
+    'note_en': 'note_en',
+}
+
+data_url  = "https://raw.github.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json"  # noqa
 
 
-def num_to_date(num):
-    year = num // 10000
-    month = (num - 10000 * year) // 100
-    day = (num - 10000 * year - 100 * month)
-    return (year, month, day)
+def string_to_date(string):
+    return tuple(map(int, string[:10].split('-')))
 
 
 def scrape_case_data():
-    r = requests.get(info_url)
-    info = json.loads(r.text)
-    r.close()
-
-    info = {item.pop('state'): item for item in info}
-
-    r = requests.get(data_url)
+    r  = requests.get(data_url)
     all_data = json.loads(r.text)
     r.close()
+    all_data = [
+        {translation[key]: val for key, val in x.items()}
+        for x in all_data
+    ]
 
+    regions = set([x['region'] for x in all_data])
     data_fields = all_data[0].keys()
 
-    state_data = {}
-    for state in info.keys():
-        state_data[state] = []
+    region_data = {}
+    for region in regions:
+        region_data[region] = []
 
     for data_point in all_data:
-        state = data_point.pop('state')
-        state_data[state].append(data_point)
+        region = data_point.pop('region')
+        region_data[region].append(data_point)
 
-    state_data_series = {}
-    for state, data in state_data.items():
+    region_data_series = {}
+    for region, data in region_data.items():
         sorted_data = sorted(data, key=lambda x: x['date'])
         for dp in sorted_data:
-            dp['date'] = num_to_date(dp['date'])
+            dp['date'] = string_to_date(dp['date'])
 
         data_series = {}
         for key in data_fields:
             snake_key = camel_to_snake(key)
             data_series[snake_key] = [x.get(key) for x in sorted_data]
 
-        state_data_series[state] = data_series
+        region_data_series[region] = data_series
 
     with open(_casedata_filename, 'w') as f:
-        json.dump(state_data_series, f)
+        json.dump(region_data_series, f)
 
 
 def get_case_data(state):

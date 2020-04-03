@@ -84,8 +84,16 @@ def dict_to_case_data(data_dict):
     return CaseData(t, y)
 
 
+def scrape_all_data():
+    from pydemic.data.us import scrape_case_data
+    scrape_case_data()
+    from pydemic.data.italy import scrape_case_data
+    scrape_case_data()
+
+
 __all__ = [
     "camel_to_snake",
     "CaseData",
     "dict_to_case_data",
+    "scrape_all_data"
 ]
