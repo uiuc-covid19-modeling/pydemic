@@ -1,3 +1,0 @@
-[submodule "data"]
-	path = data
-	url = git@github.com:gnwong/covid19_scenarios_data.git
