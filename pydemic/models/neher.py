@@ -305,3 +305,54 @@ class NeherModelDeathAndCasesEstimator(NeherModelEstimator):
                                self.data['cases'][cases_nonzero])
 
         return self.weights['dead'] * L_dead + self.weights['cases'] * L_case
+
+
+class NeherModelDeathAndCriticalEstimator(NeherModelEstimator):
+    def __init__(self, fit_parameters, fixed_values, data, norm=None,
+                 fit_cumulative=False, weights=None):
+        super().__init__(fit_parameters, fixed_values, data, norm=norm,
+                         fit_cumulative=fit_cumulative)
+
+        if weights is None:
+            self.weights = {'dead': 1, 'critical': 1}
+        else:
+            self.weights = weights
+
+    def get_log_likelihood(self, parameters):
+        if not self.check_within_bounds(list(parameters.values())):
+            return -np.inf
+        if 'mitigation_day' in parameters and 'start_day' in parameters:
+            # FIXME: doesn't check if either is fixed
+            if parameters['mitigation_day'] < parameters['start_day']:
+                return -np.inf
+
+        fudge = parameters.pop('fudge')
+
+        model_data = self.get_model_data(
+            self.data['t'], **parameters, **self.fixed_values
+        )
+        model_dead = np.maximum(.1, model_data.y['dead'].sum(axis=-1))
+        model_critical = np.maximum(
+            .1,
+            (fudge * model_data.y['critical'].sum(axis=-1))
+        )
+
+        dead_nonzero = self.data['dead'] > .9
+        critical_nonzero = self.data['critical'] > .9
+
+        if self.fit_cumulative:
+            model_uncert = np.power(model_dead, .5)
+            L_dead = self.norm(model_dead[dead_nonzero],
+                               self.data['dead'][dead_nonzero],
+                               model_uncert[dead_nonzero])
+            model_uncert = np.power(model_critical, .5)
+            L_crit = self.norm(model_critical[critical_nonzero],
+                               self.data['critical'][critical_nonzero],
+                               model_uncert[critical_nonzero])
+        else:
+            L_dead = self.norm(model_dead[dead_nonzero],
+                               self.data['dead'][dead_nonzero])
+            L_crit = self.norm(model_critical[critical_nonzero],
+                               self.data['critical'][critical_nonzero])
+
+        return self.weights['dead'] * L_dead + self.weights['critical'] * L_crit
