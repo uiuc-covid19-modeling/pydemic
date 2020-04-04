@@ -450,7 +450,7 @@ class Simulation:
 
         return array.reshape(-1)
 
-    def solve_deterministic(self, t_span, y0, rtol=1e-8):
+    def solve_deterministic(self, t_span, y0, rtol=1e-6):
         """
         :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
