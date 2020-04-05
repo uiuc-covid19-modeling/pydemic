@@ -23,7 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
 from scipy.stats import poisson
 import numpy as np
 
@@ -159,6 +158,27 @@ class StateLogger:
         for compartment in self.compartments:
             text += "  - {0:s} {1:s}\n".format(compartment, str(self.y[compartment].shape))
         return text[:-1]
+
+    def save_tsv(self, fname, dt_days=None):
+        from datetime import datetime, timedelta
+        dates = [ datetime(2020,1,1)+timedelta(days=x) for x in self.t ]
+        compartment_data = {}
+        fp = open(fname, 'w')
+        fp.write("date\ttime")
+        for compartment in self.compartments:
+            fp.write("\t"+compartment)
+            compartment_data[compartment] = self.y[compartment].sum(axis=-1)
+        fp.write("\n")
+        last_date = None
+        for i in range(len(dates)):
+            if last_date is not None and dt_days is not None:
+                if (dates[i]-last_date).days < dt_days:
+                    continue
+            last_date = dates[i]
+            fp.write(dates[i].strftime("%y-%m-%d")+"\t"+dates[i].strftime("%H:%M:%S")+"\t")
+            fp.write("\t".join("{0:g}".format(compartment_data[x][i]) for x in self.compartments)+"\n")
+        fp.close()
+
 
 
 _default_quantiles = (0.0455, 0.3173, 0.5, 0.6827, 0.9545)
