@@ -153,6 +153,13 @@ class StateLogger:
             else:
                 self.y[key] = self.y[key][:self.slice]
 
+    def __repr__(self):
+        text = "{0:s} with\n".format(str(type(self)))
+        text += "  - t from {0:g} to {1:g}\n".format(self.t[0], self.t[-1])
+        for compartment in self.compartments:
+            text += "  - {0:s} {1:s}\n".format(compartment, str(self.y[compartment].shape))
+        return text[:-1]
+
 
 _default_quantiles = (0.0455, 0.3173, 0.5, 0.6827, 0.9545)
 

@@ -89,6 +89,20 @@ def date_from(days, relative_to=(2020, 1, 1)):
     return tuple([full_date.year, full_date.month, full_date.day])
 
 
+def days_to_dates(days):
+    """
+    Converts a list of days (represented in float format) to datetime
+    objects.
+
+    :arg days: A :class:`float` number of days since 2020-01-01.
+
+    :returns: A :class:`tuple` of datetime objects for each day in the
+        passed array.
+    """
+    from datetime import datetime, timedelta
+    return [datetime(2020, 1, 1) + timedelta(float(x)) for x in days]
+
+
 def map_to_days_if_needed(time):
     if isinstance(time, (tuple, list)):
         return days_from(time)
