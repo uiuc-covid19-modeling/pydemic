@@ -30,8 +30,10 @@ if __name__ == "__main__":
     """
     From blog post: dD/dt = p_d [ICU] / tau
 
-    where we must specify tau : the average ICU stay length (7-9 days for COVID)
-                            p_d  : the probability of death in the ICU (from 60% to 80% according to data Alexei has referenced)
+    where we must specify
+    tau: the average ICU stay length (7-9 days for COVID)
+    p_d: the probability of death in the ICU
+        (from 60% to 80% according to data Alexei has referenced)
 
     coefficient is tau/p_d ~ 10 days
     """

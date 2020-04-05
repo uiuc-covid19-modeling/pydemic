@@ -25,8 +25,8 @@ THE SOFTWARE.
 
 from datetime import datetime, timedelta
 import numpy as np
-from pydemic import Reaction, Simulation  # , SplitReaction
-from pydemic.models import LikelihoodEstimatorBase
+from pydemic import Reaction, Simulation
+# from pydemic.models import LikelihoodEstimatorBase
 
 
 class AlexeiModelSimulation(Simulation):
@@ -40,11 +40,8 @@ class AlexeiModelSimulation(Simulation):
     """
 
     def beta(self, t, y):
-        phase = 2. * np.pi * (t-self.peak_day)/365
-        return self.avg_infection_rate * (1. + self.seasonal_forcing * np.cos(phase))
-
-    #def __init__(self, epidemiology, severity, imports_per_day,
-    #             n_age_groups, containment):
+        phase = 2 * np.pi * (t - self.peak_day) / 365
+        return self.avg_infection_rate * (1 + self.seasonal_forcing * np.cos(phase))
 
     def __init__(self, **kwargs):
         """
@@ -74,6 +71,10 @@ class AlexeiModelSimulation(Simulation):
         serial_mubar = serial_mu / serial_k
         r0 = kwargs.pop('r0', 2.7)
 
+        self.seasonal_forcing = kwargs.pop('seasonal_forcing')
+        self.peak_day = kwargs.pop('peak_day')
+        self.avg_infection_rate = kwargs.pop('avg_infection_rate')
+
         # get coefficients for basic S-E-I-R loop. these are inverse
         # rates (i.e., directly multiply them). we solve for the
         # final coefficient by recalling R0 ~ S2E / I2R
@@ -92,55 +93,55 @@ class AlexeiModelSimulation(Simulation):
         t_c = kwargs.pop('t_c', 7.5)  # what is the timescale for confirmed cases
 
         # and also model hospitalized persons
-        P_h = 0.2     # of people who are infected, how many go to the hospital ()
+        # P_h = 0.2     # of people who are infected, how many go to the hospital ()
         P_d = 0.01    # of people who are infected, how many end up dying
         t_icu = 10.   # time between onset and icu admission
         t_dead = 7.5  # time between icu admission and death
-        t_h = 0.05      # could not find on Alexei's blog post
-        t_r = 1.      # could not find on Alexei's blog post
+        # t_h = 0.05      # could not find on Alexei's blog post
+        # t_r = 1.      # could not find on Alexei's blog post
 
         reactions = (
             Reaction("susceptible", "exposed",
-                     lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
+                     lambda t, y: (y.infectious.sum() * y.susceptible
+                                   / self.total_population * S2E)),
             Reaction("exposed", "infectious",
                      lambda t, y: y.exposed * E2I),
             Reaction("infectious", "removed",
                      lambda t, y: y.infectious * I2R),
 
-            Reaction(None, "confirmation_cases_base_1",  # should be gamma with k = 3+
-                     lambda t, y: y.infectious.sum() * y.susceptible / self.total_population * S2E),
+            Reaction(None, "confirmation_cases_base_1",  # should be gamma w/k=3+
+                     lambda t, y: (y.infectious.sum() * y.susceptible
+                                   / self.total_population * S2E)),
             Reaction("confirmation_cases_base_1", "confirmation_cases_base_2",
                      lambda t, y: y.confirmation_cases_base_1 / incubation_mubar),
             Reaction("confirmation_cases_base_2", "confirmation_cases_base_3",
                      lambda t, y: y.confirmation_cases_base_2 / incubation_mubar),
             Reaction("confirmation_cases_base_3", "confirmation_cases_base",
                      lambda t, y: y.confirmation_cases_base_3 / incubation_mubar),
-
-            Reaction("confirmation_cases_base", "confirmed_yes",   # how many are ultimately confirmed
+            # how many are ultimately confirmed
+            Reaction("confirmation_cases_base", "confirmed_yes",
                      lambda t, y: P_c * y.confirmation_cases_base / t_c),
-            Reaction("confirmation_cases_base", "confirmed_no",    # not needed, but maybe useful for accounting?
+            # not needed, but maybe useful for accounting?
+            Reaction("confirmation_cases_base", "confirmed_no",
                      lambda t, y: (1. - P_c) * y.confirmation_cases_base / t_c),
 
-            Reaction(None, "hospitalized_cases_base_1",  # should be gamma with k = 3+
-                     lambda t, y: P_d * y.infectious.sum() * y.susceptible / self.total_population * S2E),
+            Reaction(None, "hospitalized_cases_base_1",  # should be gamma w/k=3+
+                     lambda t, y: (P_d * y.infectious.sum() * y.susceptible
+                                   / self.total_population * S2E)),
             Reaction("hospitalized_cases_base_1", "hospitalized_cases_base_2",
                      lambda t, y: y.hospitalized_cases_base_1 / incubation_mubar),
             Reaction("hospitalized_cases_base_2", "hospitalized_cases_base_3",
                      lambda t, y: y.hospitalized_cases_base_2 / incubation_mubar),
             Reaction("hospitalized_cases_base_3", "hospitalized_cases_base",
                      lambda t, y: y.hospitalized_cases_base_3 / incubation_mubar),
-
             Reaction("hospitalized_cases_base", "hospitalized_icu_will_die",
                      lambda t, y: y.hospitalized_cases_base / t_icu),
             Reaction("hospitalized_icu_will_die", "hospitalized_died",
                      lambda t, y: y.hospitalized_icu_will_die / t_dead),
-
-
             # Reaction("hospitalized_cases_base", "hospitalized_will_recover",
             #          lambda t, y: (P_h - P_d) * y.hospitalized_cases_base / t_h),
             # Reaction("hospitalized_will_recover", "hospitalized_recovered",
             #          lambda t, y: y.hospitalized_will_recover / t_r),
-
             # Reaction("hospitalized_cases_base", "hospitalized_never",
             #          lambda t, y: (1. - P_h) * y.hospitalized_cases_base / t_h)
         )

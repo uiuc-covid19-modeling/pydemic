@@ -41,8 +41,8 @@ class NeherModelSimulation(Simulation):
     """
 
     def beta(self, t, y):
-        phase = 2. * np.pi * (t-self.peak_day)/365
-        return self.avg_infection_rate * (1. + self.seasonal_forcing * np.cos(phase))
+        phase = 2 * np.pi * (t - self.peak_day) / 365
+        return self.avg_infection_rate * (1 + self.seasonal_forcing * np.cos(phase))
 
     def __init__(self, epidemiology, severity, imports_per_day,
                  n_age_groups, containment):
