@@ -159,12 +159,24 @@ class StateLogger:
             text += "  - {0:s} {1:s}\n".format(compartment, str(self.y[compartment].shape))
         return text[:-1]
 
-    def save_tsv(self, fname, dt_days=None):
+    def save_tsv(self, fname, dt_days=None, save_times=False):
+        """
+        Used to save contents in easy-to-read tsv file format.
+
+        :arg: fname A :class:`string` path for where to save the data.
+
+        :arg: dt_days If not None, the minimum cadence in days at which to save the data.
+
+        :arg: save_times If True, outputs a second column in the tsv containing
+            the times (in HH:MM:SS format) for each data point.
+        """
         from datetime import datetime, timedelta
         dates = [ datetime(2020,1,1)+timedelta(days=x) for x in self.t ]
         compartment_data = {}
         fp = open(fname, 'w')
-        fp.write("date\ttime")
+        fp.write("date")
+        if save_times:
+            fp.write("\ttime")
         for compartment in self.compartments:
             fp.write("\t"+compartment)
             compartment_data[compartment] = self.y[compartment].sum(axis=-1)
@@ -175,7 +187,9 @@ class StateLogger:
                 if (dates[i]-last_date).days < dt_days:
                     continue
             last_date = dates[i]
-            fp.write(dates[i].strftime("%y-%m-%d")+"\t"+dates[i].strftime("%H:%M:%S")+"\t")
+            fp.write(dates[i].strftime("%y-%m-%d")+"\t")
+            if save_times:
+                fp.write(dates[i].strftime("%H:%M:%S")+"\t")
             fp.write("\t".join("{0:g}".format(compartment_data[x][i]) for x in self.compartments)+"\n")
         fp.close()
 
