@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 import numpy as np
 from pydemic import Reaction, PassiveReaction, Simulation, map_to_days_if_needed
-from pydemic.models import LikelihoodEstimatorBase
+from pydemic.sampling import LikelihoodEstimatorBase
 
 
 class NeherModelSimulation(Simulation):
