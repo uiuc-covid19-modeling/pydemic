@@ -114,18 +114,23 @@ class LikelihoodEstimatorBase:
         sampler = emcee.EnsembleSampler(walkers, ndim, self, moves=moves,
                                         backend=backend, pool=pool)
 
-        index = 0
-        autocorrelations = np.zeros((int(steps//checkpoint_steps)+1, ndim))
-        for sample in sampler.sample(initial_positions, iterations=steps,
-                                     progress=progress):
-            if sampler.iteration % checkpoint_steps:
-                continue
+        sampler.run_mcmc(initial_positions, steps, progress=progress)
 
-            tau = sampler.get_autocorr_time(tol=0)
-            autocorrelations[index, :] = np.mean(tau)
-            index += 1
+        return sampler
 
-            # FIXME: automatic convergence doesn't work .. odd array shapes?
-            print(autocorrelations[index-1])
+        if False:
+            index = 0
+            autocorrelations = np.zeros((int(steps//checkpoint_steps)+1, ndim))
+            for sample in sampler.sample(initial_positions, iterations=steps,
+                                         progress=progress):
+                if sampler.iteration % checkpoint_steps:
+                    continue
+                tau = sampler.get_autocorr_time(tol=0)
+                autocorrelations[index, :] = tau
+                index += 1
+                # FIXME: autocorrelation time is too long to use this
+                #        method...
 
-        return sampler, autocorrelations
+            return sampler, autocorrelations
+
+
