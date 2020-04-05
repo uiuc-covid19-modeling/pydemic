@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # start at day of first death
     data = {'t': cases.t[i_start:i_end], 'dead': cases.y['death'][i_start:i_end]}
 
-    from pydemic.models import SampleParameter
+    from pydemic.sampling import SampleParameter
 
     fit_parameters = [
         SampleParameter('r0', (1, 5), 3, .2),

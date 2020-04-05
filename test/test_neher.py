@@ -133,7 +133,7 @@ def test_neher_estimator():
     population = "USA-Illinois"
     age_dist_pop = "United States of America"
 
-    from pydemic.models import SampleParameter
+    from pydemic.sampling import SampleParameter
 
     fit_parameters = [
         SampleParameter('r0', (2, 4), 3, .2),
