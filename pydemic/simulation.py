@@ -374,27 +374,28 @@ class Simulation:
         increments = {}
 
         for reaction in self._network:
-            dY = np.empty_like(state.y[reaction.lhs])
-            dY[...] = dt * reaction.evaluator(time, state)
+            from pydemic.reactions import PassiveReaction
+            if not isinstance(reaction, PassiveReaction):  # FIXME
+                dY = np.empty_like(state.y[reaction.lhs])
+                dY[...] = dt * reaction.evaluator(time, state)
 
-            if stochastic_method == "tau_leap":
-                dY[...] = poisson.rvs(dY)
+                if stochastic_method == "tau_leap":
+                    dY[...] = poisson.rvs(dY)
 
-            dY_max = state.y[reaction.lhs].copy()
-            for (_lhs, _rhs), incr in increments.items():
-                if reaction.lhs == _lhs:
-                    dY_max -= incr
-            dY = np.minimum(dY_max, dY)
+                dY_max = state.y[reaction.lhs].copy()
+                for (_lhs, _rhs), incr in increments.items():
+                    if reaction.lhs == _lhs:
+                        dY_max -= incr
+                dY = np.minimum(dY_max, dY)
 
-            if (reaction.lhs, reaction.rhs) in increments:
-                increments[reaction.lhs, reaction.rhs] += dY
-            else:
-                increments[reaction.lhs, reaction.rhs] = dY
+                if (reaction.lhs, reaction.rhs) in increments:
+                    increments[reaction.lhs, reaction.rhs] += dY
+                else:
+                    increments[reaction.lhs, reaction.rhs] = dY
 
         for (lhs, rhs), dY in increments.items():
             state.y[lhs] -= dY
             state.y[rhs] += dY
-
         return dt
 
     def initialize_full_state(self, time, y0, samples):
