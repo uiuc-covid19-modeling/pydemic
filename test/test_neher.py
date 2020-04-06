@@ -125,10 +125,10 @@ def test_neher():
 
 def test_neher_estimator():
     from pydemic.models.neher import NeherModelEstimator
-    data = {
-        't': np.array([78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90]),
-        'dead': np.array([4,  5,  6,  9, 12, 16, 19, 26, 34, 47, 65, 73, 99])
-    }
+    from pydemic.data import CaseData
+    t = np.array([78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90])
+    y = {'dead': np.array([4,  5,  6,  9, 12, 16, 19, 26, 34, 47, 65, 73, 99])}
+    data = CaseData(t, y)
     # the values from here are all overwritten
     population = "USA-Illinois"
     age_dist_pop = "United States of America"
@@ -141,7 +141,7 @@ def test_neher_estimator():
     ]
 
     fixed_values = dict(
-        end_day=np.max(data['t']) + 2,
+        end_day=data.t[-1] + 2,
         population=population,
         age_dist_pop=age_dist_pop,
         population_served=12659682,
@@ -200,5 +200,5 @@ def test_neher_estimator():
 
 
 if __name__ == "__main__":
-    test_neher()
+    # test_neher()
     test_neher_estimator()

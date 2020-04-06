@@ -69,7 +69,7 @@ class LikelihoodEstimatorBase:
 
     def get_initial_positions(self, walkers, method='normal'):
         if method == 'uniform':
-            init = np.array([np.random.uniform(par.bounds[0], par.bounds[1], walkers) 
+            init = np.array([np.random.uniform(par.bounds[0], par.bounds[1], walkers)
                              for par in self.fit_parameters])
         else:
             init = np.array([par.guess + np.random.randn(walkers) * par.uncertainty
@@ -97,7 +97,7 @@ class LikelihoodEstimatorBase:
         return np.array(values), np.array(likelihoods)
 
     def sample_emcee(self, steps, walkers=None, pool=None, moves=None,
-                     checkpoint_steps=100, backend_filename=None, progress=True):
+                     init_method='normal', backend_filename=None, progress=True):
         if pool is None:
             from multiprocessing import Pool
             pool = Pool()
@@ -106,7 +106,7 @@ class LikelihoodEstimatorBase:
 
         import emcee
 
-        initial_positions = self.get_initial_positions(walkers)
+        initial_positions = self.get_initial_positions(walkers, method=init_method)
         ndim = initial_positions.shape[-1]
 
         if backend_filename is not None:
@@ -121,20 +121,3 @@ class LikelihoodEstimatorBase:
         sampler.run_mcmc(initial_positions, steps, progress=progress)
 
         return sampler
-
-        if False:
-            index = 0
-            autocorrelations = np.zeros((int(steps//checkpoint_steps)+1, ndim))
-            for sample in sampler.sample(initial_positions, iterations=steps,
-                                         progress=progress):
-                if sampler.iteration % checkpoint_steps:
-                    continue
-                tau = sampler.get_autocorr_time(tol=0)
-                autocorrelations[index, :] = tau
-                index += 1
-                # FIXME: autocorrelation time is too long to use this
-                #        method...
-
-            return sampler, autocorrelations
-
-

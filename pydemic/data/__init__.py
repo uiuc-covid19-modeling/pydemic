@@ -74,6 +74,10 @@ class CaseData:
         self.t = t
         self.y = y
 
+    def copy(self):
+        y_copy = {key: val.copy() for key, val in self.y.items()}
+        return CaseData(self.t.copy(), y_copy)
+
 
 def dict_to_case_data(data_dict):
     from pydemic import days_from

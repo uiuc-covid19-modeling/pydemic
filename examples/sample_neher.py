@@ -26,63 +26,47 @@ THE SOFTWARE.
 
 import os
 os.environ["OMP_NUM_THREADS"] = '1'
-
 import numpy as np
-import matplotlib as mpl
-mpl.use('agg')
-import matplotlib.pyplot as plt
-plt.rc('font', family='serif', size=12)
-import emcee
-from multiprocessing import Pool, cpu_count
 
 if __name__ == "__main__":
-    # load reported data
     population = "USA-Illinois"
     age_dist_pop = "United States of America"
-
     from pydemic.data.us import get_case_data
-    cases = get_case_data('IL')
+    data = get_case_data('IL')
 
-    i_start = np.searchsorted(cases.y['death'], .1)
-    i_end = np.searchsorted(cases.t, 90)
-
-    # start at day of first death
-    data = {'t': cases.t[i_start:i_end], 'dead': cases.y['death'][i_start:i_end]}
+    i_end = np.searchsorted(data.t, 90)
+    data.t = data.t[:i_end]
+    data.y = {'dead': np.array(data.y['death'][:i_end]),
+              'cases': np.array(data.y['positive'][:i_end])}
 
     from pydemic.sampling import SampleParameter
 
     fit_parameters = [
         SampleParameter('r0', (1, 5), 3, .2),
         SampleParameter('start_day', (40, 60), 50, 2),
-        # SampleParameter('mitigation_factor', (.05, 1), .9, .1),
-        # SampleParameter('mitigation_day', (60, 88), 80, 2),
-        # SampleParameter('mitigation_width', (.05, 20), 10, 2),
     ]
 
-    labels = {
-        'r0': r'$R_0$',
-        'start_day': 'start day',
-        'mitigation_factor': 'mitigation factor',
-        'mitigation_day': 'mitigation day',
-        'mitigation_width': 'mitigation width',
-    }
-
     fixed_values = dict(
-        end_day=np.max(data['t']) + 2,
+        end_day=data.t[-1] + 2,
         population=population,
         age_dist_pop=age_dist_pop,
         initial_cases=10.,
         imports_per_day=1.1,
+        mitigation_day=81,
+        mitigation_width=3,
         mitigation_factor=1,
-        mitigation_day=80,
-        mitigation_width=1,
+        hospital_case_ratio=1.2,
     )
 
     from pydemic.models.neher import NeherModelEstimator
-    estimator = NeherModelEstimator(fit_parameters, fixed_values, data)
+    estimator = NeherModelEstimator(
+        fit_parameters, fixed_values, data,
+        fit_cumulative=True,
+        weights={'dead': 1, 'cases': 0, 'critical': 0}
+    )
 
-    num_workers = cpu_count()
-    pool = Pool(num_workers)
+    from multiprocessing import Pool
+    pool = Pool(32)
 
     # run uniform sampling
     nsamples = 25
@@ -97,6 +81,22 @@ if __name__ == "__main__":
                                 [r0_vals[max_loc][0], start_day_vals[max_loc][0]]))
     print('uniform best fit:', uniform_best_fit)
 
+    from pydemic import days_to_dates
+    import matplotlib as mpl
+    mpl.use('agg')
+    import matplotlib.pyplot as plt
+
+    plt.rc('font', family='serif', size=12)
+
+    labels = {
+        'r0': r'$R_0$',
+        'start_day': 'start day',
+        'mitigation_factor': 'mitigation factor',
+        'mitigation_day': 'mitigation day',
+        'mitigation_width': 'mitigation width',
+        'hospital_case_ratio': 'hospital/case ratio'
+    }
+
     fig, ax = plt.subplots()
     ax.pcolormesh(r0_vals, start_day_vals, np.exp(uniform_likelihoods))
     ax.set_xlabel('r0')
@@ -104,17 +104,9 @@ if __name__ == "__main__":
     fig.savefig('neher_uniform_samples.png')
 
     # run MCMC
-    n_walkers = 32
-    n_steps = 200
-
-    initial_positions = estimator.get_initial_positions(n_walkers)
-    n_dims = initial_positions.shape[-1]
-
-    num_workers = cpu_count()
-    pool = Pool(num_workers)
-
-    sampler = emcee.EnsembleSampler(n_walkers, n_dims, estimator, pool=pool)
-    sampler.run_mcmc(initial_positions, n_steps, progress=True)
+    walkers = 64
+    steps = 200
+    sampler = estimator.sample_emcee(steps, walkers=walkers, pool=pool)
     # pool.terminate()
 
     discard = 100
@@ -140,56 +132,74 @@ if __name__ == "__main__":
     best_parameters = {**best_fit, **estimator.fixed_values}
     print('fit of maximum L:', best_fit)
 
-    def days_to_dates(days):
-        from datetime import datetime, timedelta
-        return [datetime(2020, 1, 1) + timedelta(float(x)) for x in days]
+    def scatter(ax, x, y, color='r', ms=4, markeredgewidth=1, label=None):
+        ax.semilogy(x, y,
+                    'x', color=color, ms=ms, markeredgewidth=markeredgewidth,
+                    label=label)
 
-    tt = np.linspace(best_parameters['start_day']+1,
-                     best_parameters['end_day'], 1000)
-    result = estimator.get_model_data(tt, **best_parameters)
+    def plot_with_quantiles(ax, x, y, quantiles=True, label=None):
+        ax.semilogy(x, y,
+                    '-', linewidth=1.1, color='k',
+                    label=label)
 
-    fig, ax = plt.subplots(2, 1, figsize=(6, 8), sharex=True)
-    ax[0].semilogy(days_to_dates(data['t']), np.diff(data['dead'], prepend=0),
-                   'x', c='r', ms=4, markeredgewidth=1,
-                   label='reported')
-    ax[0].semilogy(days_to_dates(result.t), result.y['dead'].sum(axis=-1),
-                   '-', linewidth=1.1, color='k',
-                   label='deterministic')
-    ax[0].set_ylabel("daily deaths")
-    ax[0].set_ylim(.9, .5 * ax[0].get_ylim()[1])
+        if quantiles:
+            ax.fill_between(
+                x, y + np.sqrt(y), y - np.sqrt(y),
+                alpha=.3, color='b'
+            )
 
-    cumulative_estimator = NeherModelEstimator(fit_parameters, fixed_values, data,
-                                               fit_cumulative=True)
-    tt = np.linspace(best_parameters['start_day'], best_parameters['end_day'], 1000)
-    result = cumulative_estimator.get_model_data(tt, **best_parameters)
+    def get_data(params):
+        tt = np.linspace(params['start_day']+1, params['end_day'], 1000)
+        # will become diff data
+        model_data = NeherModelEstimator.get_model_data(tt, **params)
+        # will be actual data
+        model_data_1 = NeherModelEstimator.get_model_data(tt-1, **params)
+        for key in model_data.y.keys():
+            model_data.y[key] -= model_data_1.y[key]
 
-    ax[1].semilogy(days_to_dates(data['t']), data['dead'],
-                   'x', c='r', ms=4, markeredgewidth=1,
-                   label='reported deaths')
+        return model_data_1, model_data
 
-    ax[1].semilogy(days_to_dates(result.t), result.y['dead'].sum(axis=-1),
-                   '-', linewidth=1.1, color='k',
-                   label='deterministic')
+    fig, ax = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=False)
 
-    ax[1].set_ylabel("cumulative deaths")
-    ax[1].set_ylim(.95, .5 * ax[1].get_ylim()[1])
+    result, diff = get_data(best_parameters)
 
-    ax[0].legend()
-    ax[0].grid()
-    ax[1].grid()
+    # plot daily results
+    dead = diff.y['dead'].sum(axis=-1)
+    cases = (best_parameters['hospital_case_ratio']
+             * diff.y['hospitalized_tracker'].sum(axis=-1))
 
-    model_deaths = result.y['dead'].sum(axis=-1)
-    uncert = np.sqrt(model_deaths)
-    ax[1].fill_between(
-        days_to_dates(result.t),
-        model_deaths + uncert,
-        model_deaths - uncert,
-        alpha=.3, color='b',
-    )
+    scatter(ax[0, 0], days_to_dates(data.t), np.diff(data.y['dead'], prepend=0))
+    plot_with_quantiles(ax[0, 0], days_to_dates(diff.t), dead, False)
+    ax[0, 0].set_ylabel("daily new deaths")
+
+    scatter(ax[0, 1], days_to_dates(data.t), np.diff(data.y['cases'], prepend=0))
+    plot_with_quantiles(ax[0, 1], days_to_dates(diff.t), cases, False)
+    ax[0, 1].set_ylabel("daily new cases")
+
+    # plot cumulative results
+    dead = result.y['dead'].sum(axis=-1)
+    cases = (best_parameters['hospital_case_ratio']
+             * result.y['hospitalized_tracker'].sum(axis=-1))
+
+    scatter(ax[1, 0], days_to_dates(data.t), data.y['dead'])
+    plot_with_quantiles(ax[1, 0], days_to_dates(result.t), dead, True)
+    ax[1, 0].set_ylabel("cumulative deaths")
+
+    scatter(ax[1, 1], days_to_dates(data.t), data.y['cases'])
+    plot_with_quantiles(ax[1, 1], days_to_dates(result.t), cases, True)
+    ax[1, 1].set_ylabel("cumulative cases")
+
+    for a in ax.reshape(-1):
+        a.grid()
+        a.set_ylim(.9, .5 * a.get_ylim()[1])
 
     fig.tight_layout()
-    title = '\n'.join(
-        [labels[key]+' = '+('%.3f' % val) for key, val in best_fit.items()]
-    )
+    title = '\n'.join([labels[key]+' = '+('%.3f' % val)
+                       for key, val in best_fit.items()])
     fig.suptitle(title, va='baseline', y=1.)
+    fig.autofmt_xdate()
+    fig.subplots_adjust(hspace=0)
     fig.savefig('neher_best_fit_to_deaths.png', bbox_inches='tight')
+
+    pool.close()
+    pool.join()

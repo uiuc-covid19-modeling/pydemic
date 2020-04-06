@@ -145,7 +145,7 @@ def poisson_norm(model, data):
 
 class NeherModelEstimator(LikelihoodEstimatorBase):
     def __init__(self, fit_parameters, fixed_values, data, norm=None,
-                 fit_cumulative=False):
+                 fit_cumulative=False, weights=None):
         self.fit_cumulative = fit_cumulative
 
         if self.fit_cumulative and norm is None:
@@ -156,9 +156,13 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         super().__init__(fit_parameters, fixed_values, data, norm=norm)
 
         if not self.fit_cumulative:
-            for key, val in self.data.items():
+            for key, val in self.data.y.items():
                 if key != 't':
-                    self.data[key] = np.diff(val, prepend=0)  # FIXME
+                    self.data.y[key] = np.diff(val, prepend=0)  # FIXME
+
+        self.weights = {'dead': 1, 'critical': 1, 'cases': 1}
+        if weights is not None:
+            self.weights.update(weights)
 
     def get_log_likelihood(self, parameters):
         if not self.check_within_bounds(list(parameters.values())):
@@ -168,22 +172,61 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
             if parameters['mitigation_day'] < parameters['start_day']:
                 return -np.inf
 
+        # get model data at daily values
+        # when computing diffs, datasets were prepended with 0, so there is no need
+        # to evaluate at an extra data point on day earlier
+        t_eval = np.arange(self.data.t[0], self.data.t[-1]+2)
         model_data = self.get_model_data(
-            self.data['t'], **parameters, **self.fixed_values
+            t_eval, **parameters, **self.fixed_values
         )
-        model_dead = np.maximum(.1, model_data.y['dead'].sum(axis=-1))
+        data_t_indices = np.isin(t_eval, self.data.t)
 
-        data_nonzero = self.data['dead'] > .9
-        if self.fit_cumulative:
-            model_uncert = np.power(model_dead, .5)
-            return self.norm(model_dead[data_nonzero],
-                             self.data['dead'][data_nonzero],
-                             model_uncert[data_nonzero])
-        else:
-            return self.norm(model_dead[data_nonzero],
-                             self.data['dead'][data_nonzero])
+        def get_one_likelihood(_model, data):
+            if not self.fit_cumulative:
+                model = np.diff(_model, prepend=0)
+            else:
+                model = _model
 
-    def get_model_data(self, t, **kwargs):
+            # slice to match data time coordinates
+            model = model[data_t_indices]
+            # ensure no model data is smaller than .1
+            model = np.maximum(.1, model)
+            # only compare data points whose values are >= 1
+            data_nonzero = data > .9
+
+            if self.fit_cumulative:
+                sigma = np.power(model, .5)
+                return self.norm(model[data_nonzero],
+                                 data[data_nonzero],
+                                 sigma[data_nonzero])
+            else:
+                return self.norm(model[data_nonzero],
+                                 data[data_nonzero])
+
+        likelihood = 0
+        if 'cases' in self.data.y and self.weights['cases'] > 0:
+            hospital_case_ratio = parameters.pop('hospital_case_ratio')
+            model_cases = (hospital_case_ratio
+                           * model_data.y['hospitalized_tracker'].sum(axis=-1))
+            L = get_one_likelihood(model_cases, self.data.y['cases'])
+            likelihood += self.weights['cases'] * L
+
+        if 'dead' in self.data.y and self.weights['dead'] > 0:
+            model_dead = model_data.y['dead'].sum(axis=-1)
+            L = get_one_likelihood(model_dead, self.data.y['dead'])
+            likelihood += self.weights['dead'] * L
+
+        if 'critical' in self.data.y and self.weights['critical'] > 0:
+            critical_ICU_ratio = parameters.pop('critical_ICU_ratio')
+            model_crit = (critical_ICU_ratio
+                          * model_data.y['critical'].sum(axis=-1))
+            L = get_one_likelihood(model_crit, self.data.y['critical'])
+            likelihood += self.weights['critical'] * L
+
+        return likelihood
+
+    @classmethod
+    def get_model_data(cls, t, **kwargs):
         start_time = kwargs.pop('start_day')
         end_time = kwargs.pop('end_day')
 
@@ -244,115 +287,4 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
 
         result = sim.solve_deterministic((start_time, end_time), y0)
 
-        if self.fit_cumulative:
-            return sim.dense_to_logger(result, t)
-        else:
-            model_data = sim.dense_to_logger(result, t)
-            model_data_1 = sim.dense_to_logger(result, np.array(t) - 1)
-            for key in model_data.y.keys():
-                model_data.y[key] = model_data.y[key] - model_data_1.y[key]
-
-            return model_data
-
-
-class NeherModelDeathAndCasesEstimator(NeherModelEstimator):
-    def __init__(self, fit_parameters, fixed_values, data, norm=None,
-                 fit_cumulative=False, weights=None):
-        super().__init__(fit_parameters, fixed_values, data, norm=norm,
-                         fit_cumulative=fit_cumulative)
-
-        if weights is None:
-            self.weights = {'dead': 1, 'cases': 1}
-        else:
-            self.weights = weights
-
-    def get_log_likelihood(self, parameters):
-        if not self.check_within_bounds(list(parameters.values())):
-            return -np.inf
-        if 'mitigation_day' in parameters and 'start_day' in parameters:
-            # FIXME: doesn't check if either is fixed
-            if parameters['mitigation_day'] < parameters['start_day']:
-                return -np.inf
-
-        hospital_to_case_multiplier = parameters.pop('hospital_to_case_multiplier')
-
-        model_data = self.get_model_data(
-            self.data['t'], **parameters, **self.fixed_values
-        )
-        model_dead = np.maximum(.1, model_data.y['dead'].sum(axis=-1))
-        model_cases = np.maximum(
-            .1,
-            (hospital_to_case_multiplier
-             * model_data.y['hospitalized_tracker'].sum(axis=-1))
-        )
-
-        dead_nonzero = self.data['dead'] > .9
-        cases_nonzero = self.data['cases'] > .9
-
-        if self.fit_cumulative:
-            model_uncert = np.power(model_dead, .5)
-            L_dead = self.norm(model_dead[dead_nonzero],
-                               self.data['dead'][dead_nonzero],
-                               model_uncert[dead_nonzero])
-            model_uncert = np.power(model_cases, .5)
-            L_case = self.norm(model_cases[cases_nonzero],
-                               self.data['cases'][cases_nonzero],
-                               model_uncert[cases_nonzero])
-        else:
-            L_dead = self.norm(model_dead[dead_nonzero],
-                               self.data['dead'][dead_nonzero])
-            L_case = self.norm(model_cases[cases_nonzero],
-                               self.data['cases'][cases_nonzero])
-
-        return self.weights['dead'] * L_dead + self.weights['cases'] * L_case
-
-
-class NeherModelDeathAndCriticalEstimator(NeherModelEstimator):
-    def __init__(self, fit_parameters, fixed_values, data, norm=None,
-                 fit_cumulative=False, weights=None):
-        super().__init__(fit_parameters, fixed_values, data, norm=norm,
-                         fit_cumulative=fit_cumulative)
-
-        if weights is None:
-            self.weights = {'dead': 1, 'critical': 1}
-        else:
-            self.weights = weights
-
-    def get_log_likelihood(self, parameters):
-        if not self.check_within_bounds(list(parameters.values())):
-            return -np.inf
-        if 'mitigation_day' in parameters and 'start_day' in parameters:
-            # FIXME: doesn't check if either is fixed
-            if parameters['mitigation_day'] < parameters['start_day']:
-                return -np.inf
-
-        fudge = parameters.pop('fudge')
-
-        model_data = self.get_model_data(
-            self.data['t'], **parameters, **self.fixed_values
-        )
-        model_dead = np.maximum(.1, model_data.y['dead'].sum(axis=-1))
-        model_critical = np.maximum(
-            .1,
-            (fudge * model_data.y['critical'].sum(axis=-1))
-        )
-
-        dead_nonzero = self.data['dead'] > .9
-        critical_nonzero = self.data['critical'] > .9
-
-        if self.fit_cumulative:
-            model_uncert = np.power(model_dead, .5)
-            L_dead = self.norm(model_dead[dead_nonzero],
-                               self.data['dead'][dead_nonzero],
-                               model_uncert[dead_nonzero])
-            model_uncert = np.power(model_critical, .5)
-            L_crit = self.norm(model_critical[critical_nonzero],
-                               self.data['critical'][critical_nonzero],
-                               model_uncert[critical_nonzero])
-        else:
-            L_dead = self.norm(model_dead[dead_nonzero],
-                               self.data['dead'][dead_nonzero])
-            L_crit = self.norm(model_critical[critical_nonzero],
-                               self.data['critical'][critical_nonzero])
-
-        return self.weights['dead'] * L_dead + self.weights['critical'] * L_crit
+        return sim.dense_to_logger(result, t)
