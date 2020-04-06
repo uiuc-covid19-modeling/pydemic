@@ -67,9 +67,13 @@ class LikelihoodEstimatorBase:
     def get_log_likelihood(self, parameters):
         raise NotImplementedError
 
-    def get_initial_positions(self, walkers):
-        init = np.array([par.guess + np.random.randn(walkers) * par.uncertainty
-                         for par in self.fit_parameters])
+    def get_initial_positions(self, walkers, method='normal'):
+        if method == 'uniform':
+            init = np.array([np.random.uniform(par.bounds[0], par.bounds[1], walkers) 
+                             for par in self.fit_parameters])
+        else:
+            init = np.array([par.guess + np.random.randn(walkers) * par.uncertainty
+                             for par in self.fit_parameters])
         return init.T
 
     def sample_uniform(self, num_points, pool=None):
