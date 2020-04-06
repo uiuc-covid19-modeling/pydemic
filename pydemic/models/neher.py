@@ -155,14 +155,15 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
 
         super().__init__(fit_parameters, fixed_values, data, norm=norm)
 
-        if not self.fit_cumulative:
-            for key, val in self.data.y.items():
-                if key != 't':
-                    self.data.y[key] = np.diff(val, prepend=0)  # FIXME
-
-        self.weights = {'dead': 1, 'critical': 1, 'cases': 1}
+        self.weights = {'dead': 1, 'critical': 1, 'positive': 1}
         if weights is not None:
             self.weights.update(weights)
+
+        if not self.fit_cumulative:
+            self.data.y = {
+                key: np.diff(self.data.y[key], prepend=0)
+                for key in self.weights
+            }
 
     def get_log_likelihood(self, parameters):
         if not self.check_within_bounds(list(parameters.values())):
@@ -204,12 +205,12 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
                                  data[data_nonzero])
 
         likelihood = 0
-        if 'cases' in self.data.y and self.weights['cases'] > 0:
-            hospital_case_ratio = parameters.pop('hospital_case_ratio')
-            model_cases = (hospital_case_ratio
-                           * model_data.y['hospitalized_tracker'].sum(axis=-1))
-            L = get_one_likelihood(model_cases, self.data.y['cases'])
-            likelihood += self.weights['cases'] * L
+        if 'positive' in self.data.y and self.weights['positive'] > 0:
+            fraction_hospitalized = parameters.pop('fraction_hospitalized')
+            model_pos = (model_data.y['hospitalized_tracker'].sum(axis=-1)
+                         / fraction_hospitalized)
+            L = get_one_likelihood(model_pos, self.data.y['positive'])
+            likelihood += self.weights['positive'] * L
 
         if 'dead' in self.data.y and self.weights['dead'] > 0:
             model_dead = model_data.y['dead'].sum(axis=-1)
@@ -230,8 +231,7 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         start_time = kwargs.pop('start_day')
         end_time = kwargs.pop('end_day')
 
-        from pydemic.data.neher_load import (get_population_model,
-                                             get_age_distribution_model)
+        from pydemic.data import get_population_model, get_age_distribution_model
         pop_name = kwargs.pop('population')
         population = get_population_model(pop_name)
         if 'population_served' in kwargs:

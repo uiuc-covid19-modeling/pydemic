@@ -31,13 +31,13 @@ import numpy as np
 if __name__ == "__main__":
     population = "USA-Illinois"
     age_dist_pop = "United States of America"
-    from pydemic.data.us import get_case_data
-    data = get_case_data('IL')
+    from pydemic.data import united_states
+    data = united_states.get_case_data('IL')
 
     i_end = np.searchsorted(data.t, 90)
     data.t = data.t[:i_end]
-    data.y = {'dead': np.array(data.y['death'][:i_end]),
-              'cases': np.array(data.y['positive'][:i_end])}
+    data.y = {'dead': np.array(data.y['dead'][:i_end]),
+              'positive': np.array(data.y['positive'][:i_end])}
 
     from pydemic.sampling import SampleParameter
 
@@ -55,14 +55,14 @@ if __name__ == "__main__":
         mitigation_day=81,
         mitigation_width=3,
         mitigation_factor=1,
-        hospital_case_ratio=1.2,
+        fraction_hospitalized=1.2,
     )
 
     from pydemic.models.neher import NeherModelEstimator
     estimator = NeherModelEstimator(
         fit_parameters, fixed_values, data,
         fit_cumulative=True,
-        weights={'dead': 1, 'cases': 0, 'critical': 0}
+        weights={'dead': 1, 'positive': 0, 'critical': 0}
     )
 
     from multiprocessing import Pool
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         'mitigation_factor': 'mitigation factor',
         'mitigation_day': 'mitigation day',
         'mitigation_width': 'mitigation width',
-        'hospital_case_ratio': 'hospital/case ratio'
+        'fraction_hospitalized': 'hospitalized fraction'
     }
 
     fig, ax = plt.subplots()
@@ -165,29 +165,29 @@ if __name__ == "__main__":
 
     # plot daily results
     dead = diff.y['dead'].sum(axis=-1)
-    cases = (best_parameters['hospital_case_ratio']
-             * diff.y['hospitalized_tracker'].sum(axis=-1))
+    positive = (diff.y['hospitalized_tracker'].sum(axis=-1)
+                / best_parameters['fraction_hospitalized'])
 
     scatter(ax[0, 0], days_to_dates(data.t), np.diff(data.y['dead'], prepend=0))
     plot_with_quantiles(ax[0, 0], days_to_dates(diff.t), dead, False)
     ax[0, 0].set_ylabel("daily new deaths")
 
-    scatter(ax[0, 1], days_to_dates(data.t), np.diff(data.y['cases'], prepend=0))
-    plot_with_quantiles(ax[0, 1], days_to_dates(diff.t), cases, False)
-    ax[0, 1].set_ylabel("daily new cases")
+    scatter(ax[0, 1], days_to_dates(data.t), np.diff(data.y['positive'], prepend=0))
+    plot_with_quantiles(ax[0, 1], days_to_dates(diff.t), positive, False)
+    ax[0, 1].set_ylabel("daily new positive")
 
     # plot cumulative results
     dead = result.y['dead'].sum(axis=-1)
-    cases = (best_parameters['hospital_case_ratio']
-             * result.y['hospitalized_tracker'].sum(axis=-1))
+    positive = (result.y['hospitalized_tracker'].sum(axis=-1)
+                / best_parameters['fraction_hospitalized'])
 
     scatter(ax[1, 0], days_to_dates(data.t), data.y['dead'])
     plot_with_quantiles(ax[1, 0], days_to_dates(result.t), dead, True)
     ax[1, 0].set_ylabel("cumulative deaths")
 
-    scatter(ax[1, 1], days_to_dates(data.t), data.y['cases'])
-    plot_with_quantiles(ax[1, 1], days_to_dates(result.t), cases, True)
-    ax[1, 1].set_ylabel("cumulative cases")
+    scatter(ax[1, 1], days_to_dates(data.t), data.y['positive'])
+    plot_with_quantiles(ax[1, 1], days_to_dates(result.t), positive, True)
+    ax[1, 1].set_ylabel("cumulative positive")
 
     for a in ax.reshape(-1):
         a.grid()

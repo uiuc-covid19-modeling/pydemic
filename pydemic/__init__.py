@@ -253,34 +253,6 @@ class SeverityModel(AttrDict):
     }
 
 
-class CaseData(AttrDict):
-    """
-    .. attribute:: dates
-
-    .. attribute:: last_date
-
-    .. attribute:: cases
-
-    .. attribute:: deaths
-
-    .. attribute:: hospitalized
-
-    .. attribute:: ICU
-
-    .. attribute:: recovered
-    """
-
-    expected_kwargs = {
-        'dates',
-        'last_date',
-        'cases',
-        'deaths',
-        'hospitalized',
-        'ICU',
-        'recovered'
-    }
-
-
 __all__ = [
     "AttrDict",
     "Simulation",
@@ -297,6 +269,5 @@ __all__ = [
     "SeverityModel",
     "ContainmentModel",
     "QuantileLogger",
-    "CaseData",
     "date_to_ms",
 ]

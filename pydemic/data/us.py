@@ -25,66 +25,70 @@ THE SOFTWARE.
 
 import os
 import json
-import requests
-from pydemic.data import camel_to_snake, dict_to_case_data
-
+from pydemic.data import DataParser
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
-_casedata_filename = os.path.join(
-    cwd, "../../assets/us_case_counts.json"
-)
-data_url = "https://covidtracking.com/api/states/daily"
-info_url = "https://covidtracking.com/api/states/info"
 
+class UnitedStatesDataParser(DataParser):
+    _casedata_filename = os.path.join(
+        cwd, "../../assets/us_case_counts.json"
+    )
+    _info_filename = os.path.join(
+        cwd, "../../assets/us_info.json"
+    )
+    data_url = "https://covidtracking.com/api/states/daily"
+    info_url = "https://covidtracking.com/api/states/info"
+    region_specifier = 'state'
 
-def num_to_date(num):
-    year = num // 10000
-    month = (num - 10000 * year) // 100
-    day = (num - 10000 * year - 100 * month)
-    return (year, month, day)
+    translation = {
+        'death': 'dead',
+        'in_icu_currently': 'critical',
+    }
 
+    def translate(self, key):
+        return self.translation.get(key, key)
 
-def scrape_case_data():
-    r = requests.get(info_url)
-    info = json.loads(r.text)
-    r.close()
+    def __init__(self):
+        super().__init__()
 
-    info = {item.pop('state'): item for item in info}
+        import os.path
+        if not os.path.isfile(self._info_filename):
+            self.update_info()
 
-    r = requests.get(data_url)
-    all_data = json.loads(r.text)
-    r.close()
+        with open(self._info_filename, 'r') as f:
+            info = json.load(f)
 
-    data_fields = all_data[0].keys()
+        self.abbreviations = {
+            val['name']: key for key, val in info.items()
+        }
+        self.inverse_abbreviations = {
+            val: key for key, val in self.abbreviations.items()
+        }
 
-    state_data = {}
-    for state in info.keys():
-        state_data[state] = []
+    def update_info(self):
+        import requests
+        r = requests.get(self.info_url)
+        info = json.loads(r.text)
+        r.close()
 
-    for data_point in all_data:
-        state = data_point.pop('state')
-        state_data[state].append(data_point)
+        info = {item.pop('state'): item for item in info}
 
-    state_data_series = {}
-    for state, data in state_data.items():
-        sorted_data = sorted(data, key=lambda x: x['date'])
-        for dp in sorted_data:
-            dp['date'] = num_to_date(dp['date'])
+        with open(self._info_filename, 'w') as f:
+            json.dump(info, f)
 
-        data_series = {}
-        for key in data_fields:
-            snake_key = camel_to_snake(key)
-            data_series[snake_key] = [x.get(key) for x in sorted_data]
+    def get_case_data(self, region):
+        if region in self.abbreviations:
+            region = self.abbreviations[region]
 
-        state_data_series[state] = data_series
+        return super().get_case_data(region)
 
-    with open(_casedata_filename, 'w') as f:
-        json.dump(state_data_series, f)
+    def get_population(self, name='United States of America'):
+        if name != 'United States of America':
+            if name in self.inverse_abbreviations:
+                name = self.inverse_abbreviations[name]
+            name = 'USA-' + name
+        return super().get_population(name)
 
-
-def get_case_data(state):
-    with open(_casedata_filename, 'r') as f:
-        case_data = json.load(f)
-
-    return dict_to_case_data(case_data[state])
+    def get_age_distribution_model(self):
+        return super().get_age_distribution_model('United States of America')
