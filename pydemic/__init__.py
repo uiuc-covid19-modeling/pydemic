@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
+from pydemic.tsimulation import (TrackedSimulation)
 from pydemic.simulation import (Simulation, SimulationState, StateLogger,
                                 QuantileLogger)
 from pydemic.reactions import Reaction, PassiveReaction, ErlangProcess, GammaProcess
@@ -288,6 +288,7 @@ __all__ = [
     "PassiveReaction",
     "ErlangProcess",
     "GammaProcess",
+    "TrackedSimulation",
     "Simulation",
     "SimulationState",
     "StateLogger",
