@@ -50,7 +50,7 @@ translation = {
     'variazione_totale_positivi': 'total_change_positive',
     'nuovi_positivi': 'positive_increase',
     'dimessi_guariti': 'discharged',
-    'deceduti': 'deaths',
+    'deceduti': 'death',
     'totale_casi': 'total_cases',
     'tamponi': 'total_tests',
     'note_it': 'note_it',
