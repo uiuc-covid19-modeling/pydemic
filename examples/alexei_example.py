@@ -33,17 +33,15 @@ from pydemic import days_to_dates
 
 
 if __name__ == "__main__":
-
     tspan = (55., 150.)
 
-
-    ## FIXME: doing a naive study of dt=1., 0.5, 0.25, 0.1, 0.05, 0.025, 0.01
-    ##        suggests that 0.05 is sufficient, but a more systematic study
-    ##        is probably worthwhile. it might also be possible to automatically
-    ##        translate some reactions into passive "after the fact" translations
+    # FIXME: doing a naive study of dt=1., 0.5, 0.25, 0.1, 0.05, 0.025, 0.01
+    # suggests that 0.05 is sufficient, but a more systematic study
+    # is probably worthwhile. it might also be possible to automatically
+    # translate some reactions into passive "after the fact" translations
     simulation = TrackedSimulation(tspan, dt=0.05)
     y0 = simulation.get_y0(population=1.e6, infected=1.)
-    
+
     import time
     then = time.time()
     result = simulation(tspan, y0)
@@ -51,15 +49,16 @@ if __name__ == "__main__":
     print("dt = {0:g} s".format(now - then))
 
     data = {}
-    data['susceptible'] = result.tracks['susceptible'].sum(axis=0) # sum over demographics
+    data['susceptible'] = result.tracks['susceptible'].sum(axis=0)
+    # sum over demographics
     data['infected'] = np.cumsum(result.tracks['infected'].sum(axis=0))
     data['symptomatic'] = np.cumsum(result.tracks['symptomatic'].sum(axis=0))
     data['critical_dead'] = np.cumsum(result.tracks['critical_dead'].sum(axis=0))
     data['dead'] = np.cumsum(result.tracks['dead'].sum(axis=0))
 
-    ## plotting
-    plt.figure(figsize=(8,6))
-    ax1 = plt.subplot(1,1,1)
+    # plotting
+    plt.figure(figsize=(8, 6))
+    ax1 = plt.subplot(1, 1, 1)
 
     for key in data:
         ax1.plot(days_to_dates(result.t), data[key], label=key)
@@ -69,8 +68,6 @@ if __name__ == "__main__":
     ax1.set_ylim(ymin=0.8, ymax=2.e6)
 
     plt.savefig('alexei_example.png')
-
-
 
     """
     population = "USA-Illinois"

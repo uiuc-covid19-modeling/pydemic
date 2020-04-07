@@ -23,7 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from scipy.stats import poisson
 import numpy as np
 
 __doc__ = """
@@ -31,6 +30,7 @@ __doc__ = """
 .. autoclass:: TrackedSimulation
 .. autoclass:: TrackedStateLogger
 """
+
 
 class TrackedStateLogger:
     """
@@ -59,7 +59,9 @@ class TrackedStateLogger:
         self.y = {}
         for key in self.track_names:
             val = state.tracks[key]
-            ary = np.zeros(shape=(self.chunk_length,)+val.shape[:-1])  # FIXME: I think this should always force the last dimension (time) to be collapsed
+            # FIXME: I think this should always force the last dimension
+            # (time) to be collapsed
+            ary = np.zeros(shape=(self.chunk_length,)+val.shape[:-1])
             self.y[key] = ary
             self.y[key][self.slice] = state.tracks[key].sum(axis=-1)
         self.slice = 1
@@ -114,7 +116,7 @@ class TrackedStateLogger:
             the times (in ``HH:MM:SS`` format) for each data point.
             Defaults to *False*.
         """
-        ## FIXME: rewrite this to deal with internal track_name / passive classes?
+        # FIXME: rewrite this to deal with internal track_name / passive classes?
         from datetime import datetime, timedelta
         dates = [datetime(2020, 1, 1)+timedelta(days=x) for x in self.t]
         compartment_data = {}
@@ -159,7 +161,8 @@ class TrackedSimulation:
 
     .. attribute:: tracks
 
-        FIXME: rewrite The compartment names comprising the simulation state, inferred as the set of
+        FIXME: rewrite The compartment names comprising the simulation state,
+        inferred as the set of
         all :attr:`Reaction.lhs`'s and :attr:`Reaction.rhs`'s from the input list
         of :class:`Reaction`'s.
     """
@@ -174,45 +177,55 @@ class TrackedSimulation:
         n_bins = int((tspan[1] - tspan[0]) / dt + 1)
         print(n_bins)
 
-        ## parameters used below from Alexei's post "relevant-delays-for-our-model" on March 30th.
+        # parameters used below from Alexei's post
+        # "relevant-delays-for-our-model" on March 30th.
 
-        ## generate times for interval generation
+        # generate times for interval generation
         ts = np.arange(0, n_bins) * dt
 
-        ## parameters for serial interval
+        # parameters for serial interval
         R0 = 3.2
-        serial_k = 1.5       # shape    1.5 -> 2.
-        serial_theta = 4.   # scale     4 -> 5
+        serial_k = 1.5  # shape 1.5 -> 2.
+        serial_theta = 4.  # scale 4 -> 5
 
-        ## parameters for incubation time
+        # parameters for incubation time
         p_symptomatic = 0.8  # the percentage of people who become symptomatic
         incubation_k = 3     # 3+ from alexei
-        incubation_theta = 5 # FIXME: confirm it should be this and not 1/this  (5 -> 6)
+        # FIXME: confirm it should be this and not 1/this  (5 -> 6)
+        incubation_theta = 5
 
-        ## parameters for testing positive
-        p_confirmed = 0.8  # percentage of people who become symptomatic who end up testing positive
-        positive_k = 1
-        positive_theta = 5.  # 5 -> 10 from Alexei
+        # parameters for testing positive
 
-        ## parameters for those who follow the symptomatic -> ICU -> death track
+        # percentage of people who become symptomatic who end up testing positive
+        # these aren't used, so they're commented out!
+        # p_confirmed = 0.8
+        # positive_k = 1
+        # positive_theta = 5.  # 5 -> 10 from Alexei
+
+        # parameters for those who follow the symptomatic -> ICU -> death track
         p_dead = 0.05    # percentage of symptomatic individuals who die
         icu_k = 1.
         icu_theta = 9    # 9 -> 11 from Alexei
-        dead_k = 1       # 
+        dead_k = 1       #
         dead_theta = 7   # 7 -> 8 from Alexei
 
-        ## in principle we have another set of distributions for those
-        ## who should go from onset -> hospital (including ICU?) -> recovered, but we don't have
-        ## numbers for those values. we can "fake" this by changing the ratios in the above class
-        ## of individuals who go to the ICU but don't die?
+        # in principle we have another set of distributions for those
+        # who should go from onset -> hospital (including ICU?) -> recovered,
+        # but we don't have
+        # numbers for those values. we can "fake" this by changing the ratios
+        # in the above class
+        # of individuals who go to the ICU but don't die?
 
-        ## FIXME: can also change "population", "susceptible", and "dead" into non-time series
-        ## arrays that just directly accumulate. one might call them "observer" tracks?
+        # FIXME: can also change "population", "susceptible", and "dead"
+        # into non-time series
+        # arrays that just directly accumulate. one might call them
+        # "observer" tracks?
 
-        ## FIXME: it might be possible to take integrated values from the cdf here instead of
-        ## point sampling the pdf to achieve faster convergence
+        # FIXME: it might be possible to take integrated values from the cdf
+        # here instead of
+        # point sampling the pdf to achieve faster convergence
         self.kernels = [
-            gamma.pdf(ts, serial_k, scale=serial_theta), 
+            gamma.pdf(ts, serial_k, scale=serial_theta),
             gamma.pdf(ts, incubation_k, scale=incubation_theta),
             gamma.pdf(ts, icu_k, scale=icu_theta),
             gamma.pdf(ts, dead_k, scale=dead_theta),
@@ -228,30 +241,45 @@ class TrackedSimulation:
         }
 
         def update_infected(state, count):
-            fraction = state.tracks['susceptible'][:,count-1] / state.tracks['population'][:,0]
-            update = R0 * np.dot(state.tracks['infected'][0,count::-1], self.kernels[0][:count+1]) * fraction
+            fraction = (state.tracks['susceptible'][:, count-1]
+                        / state.tracks['population'][:, 0])
+            update = fraction * R0 * np.dot(
+                state.tracks['infected'][0, count::-1],
+                self.kernels[0][:count+1]
+            )
             update *= self.dt
 
-            state.tracks['susceptible'][:,count] = state.tracks['susceptible'][:,count-1] - update # FIXME: does it make sense to update here?
-            return update # alternatively, always update in these functions?
+            # FIXME: does it make sense to update here?
+            state.tracks['susceptible'][:, count] = (
+                state.tracks['susceptible'][:, count-1] - update
+            )
+            return update  # alternatively, always update in these functions?
 
         def update_symptomatic(state, count):
-            symptomatic_source = np.dot(state.tracks['infected'][0,count::-1], self.kernels[1][:count+1]) * p_symptomatic * self.dt
+            symptomatic_source = p_symptomatic * self.dt * np.dot(
+                state.tracks['infected'][0, count::-1],
+                self.kernels[1][:count+1]
+            )
             return symptomatic_source
 
         def update_icu_dead(state, count):
-            icu_dead_source = p_dead * np.dot(state.tracks['symptomatic'][0,count::-1], self.kernels[2][:count+1]) * self.dt
+            icu_dead_source = p_dead * \
+                np.dot(state.tracks['symptomatic'][0, count::-1],
+                       self.kernels[2][:count+1]) * self.dt
             return icu_dead_source
 
         def update_dead(state, count):
-            dead_source = np.dot(state.tracks['critical_dead'][0,count::-1], self.kernels[3][:count+1]) * self.dt
+            dead_source = self.dt * np.dot(
+                state.tracks['critical_dead'][0, count::-1],
+                self.kernels[3][:count+1])
             return dead_source
 
         self.sources = {
             "susceptible": [
             ],
             "infected": [
-                lambda state, count: update_infected(state, count)  # FIXME: does not work for demographics
+                # FIXME: does not work for demographics
+                lambda state, count: update_infected(state, count)
             ],
             "symptomatic": [
                 lambda state, count: update_symptomatic(state, count)
@@ -266,12 +294,10 @@ class TrackedSimulation:
             ]
         }
 
-
     def step(self, state, count):
-
         for track in state.tracks:
             for source in self.sources[track]:
-                state.tracks[track][:,count] = source(state, count)
+                state.tracks[track][:, count] = source(state, count)
 
     def __call__(self, tspan, y0):
         """
@@ -291,35 +317,27 @@ class TrackedSimulation:
         state = TrackedSimulationState(times, self.tracks)
 
         for key in y0:
-            state.tracks[key][:,0] = y0[key]
+            state.tracks[key][:, 0] = y0[key]
 
         count = 0
         time = start_time
         while time < end_time:
 
-            # this ordering is correct! 
+            # this ordering is correct!
             # state[0] corresponds to start_time
             count += 1
             time += self.dt
             self.step(state, count)
 
-
         return state
 
-
-
     def deprecated__call__(self, tspan, y0, dt=1.):
-        """
-
-        """
-
         # suppose we have n_demographics number of demographics
         # and that we have n_tracks tracks. each track will have
-        # shape = (n_demographics, n_steps) where 
+        # shape = (n_demographics, n_steps) where
         # n_steps = ( (end_time - start_time) / dt ) + 1
         # and thus the "whole state" will have shape
         # n_tracks, n_demographics, n_steps
-
 
         # get time dimensions
         start_time, end_time = tspan
@@ -328,28 +346,26 @@ class TrackedSimulation:
         # get full state object
         n_tracks, n_demographics = y0.shape
         state = np.zeros((n_tracks, n_demographics, n_steps))
-        state[:,:,-1] = y0
+        state[:, :, -1] = y0
 
         # get time kernels
         time_kernels = np.zeros((len(self.kernels), n_steps))
         for i in range(len(self.kernels)):
-            time_kernels[i,:] = self.kernels[i]
+            time_kernels[i, :] = self.kernels[i]
 
         # get demographic kernels
-        demographic_kernels = np.ones((n_demographics,n_demographics))
+        demographic_kernels = np.ones((n_demographics, n_demographics))
 
         # interface with c
         from pydemic.ctypes import cfunc
         cmodule = cfunc.cfunc()
 
-        # FIXME: the kernels here are assumed to be separable, which is not necessarily
-        #        the right way to deal with this...
-        cmodule.evolve_track_simulation(state, time_kernels, demographic_kernels)  
-
-
+        # FIXME: the kernels here are assumed to be separable,
+        # which is not necessarily
+        # the right way to deal with this...
+        cmodule.evolve_track_simulation(state, time_kernels, demographic_kernels)
 
     def bad__call__(self, tspan, y0):
-
         # get time dimensions
         start_time, end_time = tspan
         n_steps = int((end_time - start_time) / self.dt + 1)
@@ -357,7 +373,7 @@ class TrackedSimulation:
         # get full state object
         n_tracks, n_demographics = y0.shape
         state = np.zeros((n_tracks, n_demographics, n_steps))
-        state[:,:,-1] = y0
+        state[:, :, -1] = y0
 
         # fill out each element of the state object
         time = start_time
@@ -372,9 +388,7 @@ class TrackedSimulation:
 
         return None
 
-
     def get_y0(self, population, infected):
-
         # FIXME: set these shapes by n_demographics
 
         y0 = {}
@@ -386,4 +400,3 @@ class TrackedSimulation:
         y0['infected'][:] = infected
 
         return y0
-
