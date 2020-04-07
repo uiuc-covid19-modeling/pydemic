@@ -24,85 +24,51 @@ THE SOFTWARE.
 """
 
 import os
-import json
-import requests
-from pydemic.data import camel_to_snake, dict_to_case_data
-
+from pydemic.data import DataParser
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
-_casedata_filename = os.path.join(
-    cwd, "../../assets/italy_case_counts.json"
-)
 
-translation = {
-    'data': 'date',
-    'stato': 'state',
-    'codice_regione': 'region_code',
-    'denominazione_regione': 'region',
-    'lat': 'lat',
-    'long': 'long',
-    'ricoverati_con_sintomi': 'hospitalized_with_symptoms',
-    'terapia_intensiva': 'ICU',
-    'totale_ospedalizzati': 'total_hospitalized',
-    'isolamento_domiciliare': 'isolated',
-    'totale_positivi': 'positive',
-    'variazione_totale_positivi': 'total_change_positive',
-    'nuovi_positivi': 'positive_increase',
-    'dimessi_guariti': 'discharged',
-    'deceduti': 'death',
-    'totale_casi': 'total_cases',
-    'tamponi': 'total_tests',
-    'note_it': 'note_it',
-    'note_en': 'note_en',
-}
+class ItalyDataParser(DataParser):
+    _casedata_filename = os.path.join(
+        cwd, "../../assets/italy_case_counts.json"
+    )
+    # info: https://github.com/pcm-dpc/COVID-19
+    data_url  = "https://raw.github.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json"  # noqa
+    region_specifier = 'region'
 
-data_url  = "https://raw.github.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json"  # noqa
+    translation = {
+        'data': 'date',
+        'stato': 'state',
+        'codice_regione': 'region_code',
+        'denominazione_regione': 'region',
+        'lat': 'lat',
+        'long': 'long',
+        'ricoverati_con_sintomi': 'hospitalized_with_symptoms',
+        'terapia_intensiva': 'critical',
+        'totale_ospedalizzati': 'total_hospitalized',
+        'isolamento_domiciliare': 'isolated',
+        'totale_casi': 'positive',
+        'nuovi_positivi': 'new_positive',
+        'totale_positivi': 'currently_positive',
+        'variazione_totale_positivi': 'change_in_currently_positive',
+        'dimessi_guariti': 'discharged',
+        'deceduti': 'dead',
+        'tamponi': 'total_tests',
+        'note_it': 'note_it',
+        'note_en': 'note_en',
+    }
 
+    def translate(self, key):
+        return self.translation[key]
 
-def string_to_date(string):
-    return tuple(map(int, string[:10].split('-')))
+    def convert_to_date(self, string):
+        return tuple(map(int, string[:10].split('-')))
 
+    def get_population(self, name='Italy'):
+        if name != 'Italy':
+            name = 'ITA-' + name
+        return super().get_population(name)
 
-def scrape_case_data():
-    r = requests.get(data_url)
-    all_data = json.loads(r.text)
-    r.close()
-    all_data = [
-        {translation[key]: val for key, val in x.items()}
-        for x in all_data
-    ]
-
-    regions = set([x['region'] for x in all_data])
-    data_fields = all_data[0].keys()
-
-    region_data = {}
-    for region in regions:
-        region_data[region] = []
-
-    for data_point in all_data:
-        region = data_point.pop('region')
-        region_data[region].append(data_point)
-
-    region_data_series = {}
-    for region, data in region_data.items():
-        sorted_data = sorted(data, key=lambda x: x['date'])
-        for dp in sorted_data:
-            dp['date'] = string_to_date(dp['date'])
-
-        data_series = {}
-        for key in data_fields:
-            snake_key = camel_to_snake(key)
-            data_series[snake_key] = [x.get(key) for x in sorted_data]
-
-        region_data_series[region] = data_series
-
-    with open(_casedata_filename, 'w') as f:
-        json.dump(region_data_series, f)
-
-
-def get_case_data(state):
-    with open(_casedata_filename, 'r') as f:
-        case_data = json.load(f)
-
-    return dict_to_case_data(case_data[state])
+    def get_age_distribution_model(self):
+        return super().get_age_distribution_model('Italy')

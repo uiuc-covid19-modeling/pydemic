@@ -23,44 +23,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import json
 import os
+import json
 import numpy as np
 
 cwd = os.path.dirname(os.path.abspath(__file__))
-
-_popdata_filename = os.path.join(
-    cwd, "../../assets/population.json"
-)
-_agedata_filename = os.path.join(
-    cwd, "../../assets/country_age_distribution.json"
-)
-
-with open(_popdata_filename, 'r') as f:
-    _populations = json.load(f)
-    for el in _populations:
-        el["data"]["population_served"] = el["data"].pop("populationServed")
-        el["data"]["initial_cases"] = el["data"].pop("suspectedCasesToday")
-        el["data"]["ICU_beds"] = el["data"].pop("ICUBeds")
-        el["data"]["hospital_beds"] = el["data"].pop("hospitalBeds")
-        el["data"]["imports_per_day"] = el["data"].pop("importsPerDay")
-    _population_dict = {pop['name']: pop['data'] for pop in _populations}
-
-with open(_agedata_filename, 'r') as f:
-    _age_data = json.load(f)
-
-
-def get_population_model(name):
-    data = _population_dict[name]
-    from pydemic import PopulationModel
-    return PopulationModel(**data)
-
-
-def get_age_distribution_model(subregion):
-    age_data = list(_age_data[subregion].values())
-    from pydemic import AgeDistribution
-    bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
-    return AgeDistribution(bin_edges=bin_edges, counts=age_data)
 
 
 def camel_to_snake(name):
@@ -88,11 +55,129 @@ def dict_to_case_data(data_dict):
     return CaseData(t, y)
 
 
+class DataParser:
+    _casedata_filename = None
+    data_url = None
+    region_specifier = 'state'
+    _popdata_filename = os.path.join(
+        cwd, "../../assets/population.json"
+    )
+    _agedata_filename = os.path.join(
+        cwd, "../../assets/country_age_distribution.json"
+    )
+
+    def __init__(self):
+        import os.path
+        if not os.path.isfile(self._casedata_filename):
+            self.scrape_case_data()
+
+    def translate(self, key):
+        return key
+
+    def convert_to_date(self, num):
+        year = num // 10000
+        month = (num - 10000 * year) // 100
+        day = (num - 10000 * year - 100 * month)
+        return (year, month, day)
+
+    def scrape_case_data(self):
+        import requests
+        r = requests.get(self.data_url)
+        all_data = json.loads(r.text)
+        r.close()
+
+        all_data = [
+            {self.translate(camel_to_snake(key)): val for key, val in x.items()}
+            for x in all_data
+        ]
+
+        regions = set([x[self.region_specifier] for x in all_data])
+        data_fields = all_data[0].keys()
+
+        region_data = {}
+        for region in regions:
+            region_data[region] = []
+
+        for data_point in all_data:
+            region = data_point.pop(self.region_specifier)
+            region_data[region].append(data_point)
+
+        region_data_series = {}
+        for region, data in region_data.items():
+            sorted_data = sorted(data, key=lambda x: x['date'])
+            for dp in sorted_data:
+                dp['date'] = self.convert_to_date(dp['date'])
+
+            data_series = {}
+            for key in data_fields:
+                data_series[key] = [x.get(key) for x in sorted_data]
+
+            region_data_series[region] = data_series
+
+        with open(self._casedata_filename, 'w') as f:
+            json.dump(region_data_series, f)
+
+    def get_case_data(self, region):
+        with open(self._casedata_filename, 'r') as f:
+            case_data = json.load(f)
+
+        return dict_to_case_data(case_data[region])
+
+    def get_population(self, name):
+        with open(self._popdata_filename, 'r') as f:
+            populations = json.load(f)
+        return populations[name]['populationServed']
+
+    def get_age_distribution_model(self, name):
+        with open(self._agedata_filename, 'r') as f:
+            age_data = json.load(f)
+
+        age_data = list(age_data[name].values())
+        from pydemic import AgeDistribution
+        bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
+        return AgeDistribution(bin_edges=bin_edges, counts=age_data)
+
+
+from pydemic.data.us import UnitedStatesDataParser
+united_states = UnitedStatesDataParser()
+from pydemic.data.italy import ItalyDataParser
+italy = ItalyDataParser()
+
+all_parsers = [united_states, italy]
+
+
 def scrape_all_data():
-    from pydemic.data.us import scrape_case_data
-    scrape_case_data()
-    from pydemic.data.italy import scrape_case_data
-    scrape_case_data()
+    for parser in all_parsers:
+        parser.scrape_case_data()
+
+
+def get_population_model(name):
+    with open(DataParser._popdata_filename, 'r') as f:
+        _populations = json.load(f)
+
+    data = _populations[name]
+    data_translated = {}
+    for key, val in data.items():
+        if key == 'ICUBeds':
+            key2 = 'ICU_beds'
+        elif key == 'suspectedCasesToday':
+            key2 = 'initial_cases'
+        else:
+            key2 = camel_to_snake(key)
+        data_translated[key2] = val
+
+    from pydemic import PopulationModel
+    return PopulationModel(**data_translated)
+
+
+def get_age_distribution_model(name):
+    with open(DataParser._agedata_filename, 'r') as f:
+        age_data = json.load(f)
+
+    age_data = list(age_data[name].values())
+    from pydemic import AgeDistribution
+    bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
+    return AgeDistribution(bin_edges=bin_edges, counts=age_data)
 
 
 __all__ = [
