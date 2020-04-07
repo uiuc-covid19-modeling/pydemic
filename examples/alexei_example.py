@@ -31,7 +31,6 @@ from pydemic import TrackedSimulation
 from pydemic import days_to_dates
 
 
-
 if __name__ == "__main__":
 
     tspan = (55., 120.)
@@ -47,7 +46,9 @@ if __name__ == "__main__":
     then = time.time()
     result = simulation(tspan, y0)
     now = time.time()
-    print(now - then)
+    print("dt = {0:g} s".format(now - then))
+
+    print(result)
 
     plt.figure(figsize=(8,6))
     ax1 = plt.subplot(1,1,1)
