@@ -59,7 +59,7 @@ class NonMarkovianSimulation:
     """
 
     def __init__(self, tspan, dt=1., 
-                 R0=3.2, serial_k=1.5, serial_theta=4.,
+                 r0=3.2, serial_k=1.5, serial_theta=4.,
                  p_symptomatic=0.8, incubation_k=3., incubation_theta=5.,
                  p_positive=0.8, positive_k=1., positive_theta=5.,
                  p_dead=0.05, icu_k=1., icu_theta=9., dead_k=1., dead_theta=7.):
@@ -85,10 +85,10 @@ class NonMarkovianSimulation:
 
 
         """
-        
+
         self.dt = dt
-        demo_shape = (9,)
-        n_bins = int((tspan[1] - tspan[0]) / dt + 1)
+        demo_shape = (1,)
+        n_bins = int((tspan[1] - tspan[0]) / dt + 2)
 
         # FIXME: in principle we have another set of distributions for those
         # who should go from onset -> hospital (including ICU?) -> recovered,
@@ -129,7 +129,7 @@ class NonMarkovianSimulation:
         def update_infected(state, count):
             fraction = (state.tracks['susceptible'][..., count-1]
                         / state.tracks['population'][..., 0])
-            update = fraction * R0 * np.dot(
+            update = fraction * r0 * np.dot(
                 state.tracks['infected'][..., count::-1],
                 self.kernels[0][:count+1]
             )
@@ -205,7 +205,7 @@ class NonMarkovianSimulation:
         """
 
         start_time, end_time = tspan
-        n_steps = int((end_time-start_time)/self.dt + 1)
+        n_steps = int((end_time-start_time)/self.dt + 2)
 
         times = np.linspace(start_time, end_time, n_steps)
 
