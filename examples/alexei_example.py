@@ -43,7 +43,6 @@ if __name__ == "__main__":
     simulation = TrackedSimulation(tspan, dt=0.05)
     y0 = simulation.get_y0(population=1.e6, infected=1.)
 
-    
     then = time.time()
     result = simulation(tspan, y0)
     now = time.time()

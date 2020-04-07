@@ -178,7 +178,8 @@ class TrackedSimulation:
         n_bins = int((tspan[1] - tspan[0]) / dt + 1)
         print("creating simulation object with {0:d} time bins".format(n_bins))
 
-        # FIXME: maybe threshold these values based on cumulative sum (< some max 1./population)?
+        # FIXME: maybe threshold these values based on cumulative sum
+        # (< some max 1./population)?
 
         # parameters used below from Alexei's post
         # "relevant-delays-for-our-model" on March 30th.
