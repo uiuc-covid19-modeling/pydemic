@@ -235,7 +235,7 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         age_distribution = kwargs.pop('age_distribution', age_distribution)
         n_age_groups = len(age_distribution.counts)
 
-        from pydemic import SeverityModel, EpidemiologyModel, ContainmentModel
+        from pydemic import SeverityModel, EpidemiologyModel
         severity = SeverityModel(
             id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
             age_group=np.arange(0., 90., 10),
@@ -258,18 +258,21 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         )
         fraction_hospitalized = kwargs.pop('fraction_hospitalized')
 
-        mitigation_day = kwargs.pop('mitigation_day')
-        mitigation_factor = kwargs.pop('mitigation_factor')
-        mitigation_width = kwargs.pop('mitigation_width')
+        from scipy.interpolate import interp1d
+        mit_t = np.array(kwargs.pop('mitigation_t'))
+        mitigation_t = np.insert(mit_t, [0, -1], [start_time - 10, end_time + 10])
 
-        containment = ContainmentModel((2019, 1, 1), (2022, 1, 1))
-        containment.add_sharp_event(mitigation_day, mitigation_factor,
-                                    dt_days=mitigation_width)
+        mitigation_keys = sorted([key for key in kwargs.keys()
+                                  if key.startswith('mitigation_factor')])
+        factors = np.array([kwargs.pop(key) for key in mitigation_keys])
+        mitigation_factors = np.insert(factors, [0, -1], [factors[0], factors[-1]])
+
+        mitigation = interp1d(mitigation_t, mitigation_factors)
 
         from pydemic.models import NeherModelSimulation
         sim = NeherModelSimulation(
             epidemiology, severity, population.imports_per_day,
-            n_age_groups, containment,
+            n_age_groups, mitigation,
             fraction_hospitalized=fraction_hospitalized
         )
         y0 = sim.get_initial_population(population, age_distribution)
