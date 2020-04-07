@@ -23,6 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from datetime import datetime, timedelta
+from scipy.stats import gamma
 import numpy as np
 
 __doc__ = """
@@ -52,6 +54,8 @@ class TrackedStateLogger:
         self.chunk_length = chunk_length
         self.t = np.zeros(shape=(self.chunk_length,))
         self.slice = 0
+        self.track_names = []
+        self.y = {}
 
     def initialize_with_state(self, state):
         self.t[0] = state.t
@@ -85,7 +89,7 @@ class TrackedStateLogger:
 
     def trim(self, flatten_first_axis_if_unit=True):
         self.t = self.t[:self.slice]
-        for key in self.y.keys():
+        for key in self.y:
             if self.y[key].ndim > 1:
                 if flatten_first_axis_if_unit and self.y[key].shape[1] == 1:
                     self.y[key] = self.y[key][:self.slice, 0, ...]
@@ -117,7 +121,6 @@ class TrackedStateLogger:
             Defaults to *False*.
         """
         # FIXME: rewrite this to deal with internal track_name / passive classes?
-        from datetime import datetime, timedelta
         dates = [datetime(2020, 1, 1)+timedelta(days=x) for x in self.t]
         compartment_data = {}
         fp = open(fname, 'w')
@@ -125,8 +128,8 @@ class TrackedStateLogger:
         if save_times:
             fp.write("\ttime")
         for key in self.track_names:
-            fp.write("\t"+compartment)
-            compartment_data[compartment] = self.y[compartment].sum(axis=-1)
+            fp.write("\t"+key)
+            compartment_data[key] = self.y[key].sum(axis=-1)
         fp.write("\n")
         last_date = None
         for i in range(len(dates)):
@@ -138,7 +141,7 @@ class TrackedStateLogger:
             if save_times:
                 fp.write(dates[i].strftime("%H:%M:%S")+"\t")
             fp.write("\t".join("{0:g}".format(
-                compartment_data[x][i]) for x in self.compartments)+"\n")
+                compartment_data[x][i]) for x in self.track_names)+"\n")
         fp.close()
 
 
@@ -172,10 +175,10 @@ class TrackedSimulation:
         self.dt = dt
         n_demographics = 1
 
-        from scipy.stats import gamma
-
         n_bins = int((tspan[1] - tspan[0]) / dt + 1)
-        print(n_bins)
+        print("creating simulation object with {0:d} time bins".format(n_bins))
+
+        # FIXME: maybe threshold these values based on cumulative sum (< some max 1./population)?
 
         # parameters used below from Alexei's post
         # "relevant-delays-for-our-model" on March 30th.
@@ -279,16 +282,17 @@ class TrackedSimulation:
             ],
             "infected": [
                 # FIXME: does not work for demographics
-                lambda state, count: update_infected(state, count)
+                # FIXME: some of these could be lambdas, if desired.
+                update_infected
             ],
             "symptomatic": [
-                lambda state, count: update_symptomatic(state, count)
+                update_symptomatic
             ],
             "critical_dead": [
-                lambda state, count: update_icu_dead(state, count)
+                update_icu_dead
             ],
             "dead": [
-                lambda state, count: update_dead(state, count)
+                update_dead
             ],
             "population": [
             ]
@@ -331,62 +335,58 @@ class TrackedSimulation:
 
         return state
 
-    def deprecated__call__(self, tspan, y0, dt=1.):
-        # suppose we have n_demographics number of demographics
-        # and that we have n_tracks tracks. each track will have
-        # shape = (n_demographics, n_steps) where
-        # n_steps = ( (end_time - start_time) / dt ) + 1
-        # and thus the "whole state" will have shape
-        # n_tracks, n_demographics, n_steps
+    # def deprecated__call__(self, tspan, y0, dt=1.):
+    #     # suppose we have n_demographics number of demographics
+    #     # and that we have n_tracks tracks. each track will have
+    #     # shape = (n_demographics, n_steps) where
+    #     # n_steps = ( (end_time - start_time) / dt ) + 1
+    #     # and thus the "whole state" will have shape
+    #     # n_tracks, n_demographics, n_steps
 
-        # get time dimensions
-        start_time, end_time = tspan
-        n_steps = int((end_time - start_time) / dt + 1)
+    #     # get time dimensions
+    #     start_time, end_time = tspan
+    #     n_steps = int((end_time - start_time) / dt + 1)
 
-        # get full state object
-        n_tracks, n_demographics = y0.shape
-        state = np.zeros((n_tracks, n_demographics, n_steps))
-        state[:, :, -1] = y0
+    #     # get full state object
+    #     n_tracks, n_demographics = y0.shape
+    #     state = np.zeros((n_tracks, n_demographics, n_steps))
+    #     state[:, :, -1] = y0
 
-        # get time kernels
-        time_kernels = np.zeros((len(self.kernels), n_steps))
-        for i in range(len(self.kernels)):
-            time_kernels[i, :] = self.kernels[i]
+    #     # get time kernels
+    #     time_kernels = np.zeros((len(self.kernels), n_steps))
+    #     for i in range(len(self.kernels)):
+    #         time_kernels[i, :] = self.kernels[i]
 
-        # get demographic kernels
-        demographic_kernels = np.ones((n_demographics, n_demographics))
+    #     # get demographic kernels
+    #     demographic_kernels = np.ones((n_demographics, n_demographics))
 
-        # interface with c
-        from pydemic.ctypes import cfunc
-        cmodule = cfunc.cfunc()
+    #     # interface with c
+    #     from pydemic.ctypes import cfunc
+    #     cmodule = cfunc.cfunc()
 
-        # FIXME: the kernels here are assumed to be separable,
-        # which is not necessarily
-        # the right way to deal with this...
-        cmodule.evolve_track_simulation(state, time_kernels, demographic_kernels)
+    #     # FIXME: the kernels here are assumed to be separable,
+    #     # which is not necessarily
+    #     # the right way to deal with this...
+    #     cmodule.evolve_track_simulation(state, time_kernels, demographic_kernels)
 
-    def bad__call__(self, tspan, y0):
-        # get time dimensions
-        start_time, end_time = tspan
-        n_steps = int((end_time - start_time) / self.dt + 1)
+    # def bad__call__(self, tspan, y0):
+    #     # get time dimensions
+    #     start_time, end_time = tspan
+    #     n_steps = int((end_time - start_time) / self.dt + 1)
 
-        # get full state object
-        n_tracks, n_demographics = y0.shape
-        state = np.zeros((n_tracks, n_demographics, n_steps))
-        state[:, :, -1] = y0
+    #     # get full state object
+    #     n_tracks, n_demographics = y0.shape
+    #     state = np.zeros((n_tracks, n_demographics, n_steps))
+    #     state[:, :, -1] = y0
 
-        # fill out each element of the state object
-        time = start_time
-        index = n_steps - 2
-        while time < end_time:
-            self.step_new(state, index, time)
-            time += self.dt
+    #     # fill out each element of the state object
+    #     time = start_time
+    #     index = n_steps - 2
+    #     while time < end_time:
+    #         self.step_new(state, index, time)
+    #         time += self.dt
 
-        print(state)
-
-        exit()
-
-        return None
+    #     return None
 
     def get_y0(self, population, infected):
         # FIXME: set these shapes by n_demographics

@@ -23,6 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import time
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     simulation = TrackedSimulation(tspan, dt=0.05)
     y0 = simulation.get_y0(population=1.e6, infected=1.)
 
-    import time
+    
     then = time.time()
     result = simulation(tspan, y0)
     now = time.time()
