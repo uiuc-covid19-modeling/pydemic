@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import pytest
 from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
                      EpidemiologyModel, date_to_ms)
 from neher_port import NeherPortSimulation
@@ -70,14 +71,15 @@ epidemiology = EpidemiologyModel(
 )
 
 
-def test_neher():
+@pytest.mark.parametrize("fraction_hospitalized", [.5, .005])
+def test_neher(fraction_hospitalized):
     from pydemic import ContainmentModel
     containment = ContainmentModel(start_date, (2021, 1, 1))
     containment.add_sharp_event(containment_date, containment_factor)
 
     sim = NeherModelSimulation(
         epidemiology, severity, population.imports_per_day,
-        n_age_groups, containment
+        n_age_groups, containment, fraction_hospitalized=fraction_hospitalized
     )
     compartments = sim.compartments
 
@@ -151,6 +153,7 @@ def test_neher_estimator():
         mitigation_factor=1,
         mitigation_day=80,
         mitigation_width=.05,
+        fraction_hospitalized=1.,
     )
     estimator = NeherModelEstimator(fit_parameters, fixed_values, data,
                                     fit_cumulative=True)
@@ -200,5 +203,5 @@ def test_neher_estimator():
 
 
 if __name__ == "__main__":
-    # test_neher()
+    test_neher(.5)
     test_neher_estimator()

@@ -54,7 +54,7 @@ class SimulationState:
     .. automethod:: sum
     """
 
-    def __init__(self, t, compartments, hidden_compartments):
+    def __init__(self, t, compartments, hidden_compartments, passive_compartments):
         """
         :arg t: The current time.
 
@@ -65,12 +65,17 @@ class SimulationState:
             (as :class:`numpy.ndarray`'s) of all compartments (the keys) not present
             in ``compartments`` (i.e., those used to implement
             and :class:`ErlangProcess`.)
+
+        :arg passive_compartments: A :class:`tuple` of compartment keys which are
+            computed for :class:`PassiveReaction`'s
+            (i.e., those which do not count toward the total population).
         """
 
         self.t = t
         self.y = {**compartments, **hidden_compartments}
         self.compartments = list(compartments.keys())
         self.hidden_compartments = list(hidden_compartments.keys())
+        self.passive_compartments = passive_compartments
 
         self.sum_compartments = {}
         for item in self.compartments:
@@ -87,7 +92,8 @@ class SimulationState:
         :returns: The total population across all summed compartments.
         """
 
-        return sum(val.sum() for val in self.y.values())
+        return sum(val.sum() for key, val in self.y.items()
+                   if key not in self.passive_compartments)
 
 
 class StateLogger:
@@ -411,7 +417,8 @@ class Simulation:
         for key in self.hidden_compartments:
             hidden_compartment_vals[key] = np.zeros_like(template)
 
-        state = SimulationState(time, compartment_vals, hidden_compartment_vals)
+        state = SimulationState(time, compartment_vals, hidden_compartment_vals,
+                                self.passive_compartments)
         return state
 
     def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None,
@@ -488,7 +495,7 @@ class Simulation:
         n_evolved = len(self.evolved_compartments)
         array = array.reshape(n_evolved, *self.compartment_shape)
         y = {comp: array[i] for i, comp in enumerate(self.evolved_compartments)}
-        return SimulationState(time, y, {})
+        return SimulationState(time, y, {}, self.passive_compartments)
 
     def state_to_array(self, state):
         array = np.empty((len(self.evolved_compartments),)+self.compartment_shape)
@@ -508,12 +515,13 @@ class Simulation:
         template = y0[self.compartments[0]]
         self.compartment_shape = template.shape
 
-        state = SimulationState(t_span[0], y0, {})
+        state = SimulationState(t_span[0], y0, {}, self.passive_compartments)
         y0_array = self.state_to_array(state)
 
         from scipy.integrate import solve_ivp
         result = solve_ivp(self.step_deterministic, t_span, y0_array,
-                           dense_output=True, rtol=rtol, method='DOP853')
+                           first_step=.1, dense_output=True, rtol=rtol, atol=1e-20,
+                           method='DOP853')
 
         return result
 
@@ -532,7 +540,7 @@ class Simulation:
             array = solve_ivp_result.sol(t).reshape(*shape)
             comps = {comp: array[i]
                      for i, comp in enumerate(self.evolved_compartments)}
-            return SimulationState(t, comps, {})
+            return SimulationState(t, comps, {}, self.passive_compartments)
 
         logger.initialize_with_state(get_state_at_t(times[0]))
 

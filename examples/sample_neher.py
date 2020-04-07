@@ -165,26 +165,22 @@ if __name__ == "__main__":
 
     # plot daily results
     dead = diff.y['dead'].sum(axis=-1)
-    positive = (diff.y['hospitalized_tracker'].sum(axis=-1)
-                / best_parameters['fraction_hospitalized'])
-
     scatter(ax[0, 0], days_to_dates(data.t), np.diff(data.y['dead'], prepend=0))
     plot_with_quantiles(ax[0, 0], days_to_dates(diff.t), dead, False)
     ax[0, 0].set_ylabel("daily new deaths")
 
+    positive = diff.y['positive'].sum(axis=-1)
     scatter(ax[0, 1], days_to_dates(data.t), np.diff(data.y['positive'], prepend=0))
     plot_with_quantiles(ax[0, 1], days_to_dates(diff.t), positive, False)
     ax[0, 1].set_ylabel("daily new positive")
 
     # plot cumulative results
     dead = result.y['dead'].sum(axis=-1)
-    positive = (result.y['hospitalized_tracker'].sum(axis=-1)
-                / best_parameters['fraction_hospitalized'])
-
     scatter(ax[1, 0], days_to_dates(data.t), data.y['dead'])
     plot_with_quantiles(ax[1, 0], days_to_dates(result.t), dead, True)
     ax[1, 0].set_ylabel("cumulative deaths")
 
+    positive = result.y['positive'].sum(axis=-1)
     scatter(ax[1, 1], days_to_dates(data.t), data.y['positive'])
     plot_with_quantiles(ax[1, 1], days_to_dates(result.t), positive, True)
     ax[1, 1].set_ylabel("cumulative positive")

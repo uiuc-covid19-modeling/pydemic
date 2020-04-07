@@ -45,7 +45,7 @@ class NeherModelSimulation(Simulation):
         return self.avg_infection_rate * (1 + self.seasonal_forcing * np.cos(phase))
 
     def __init__(self, epidemiology, severity, imports_per_day,
-                 n_age_groups, containment):
+                 n_age_groups, containment, fraction_hospitalized=1):
         self.containment = lambda t, y: containment(t)
 
         # translate from epidemiology/severity models into rates
@@ -81,7 +81,8 @@ class NeherModelSimulation(Simulation):
             Reaction("exposed", "infectious",
                      lambda t, y: y.exposed * exposed_infectious_rate),
             Reaction("infectious", "hospitalized", I_to_H),
-            PassiveReaction(None, "hospitalized_tracker", I_to_H),
+            PassiveReaction(None, "positive",
+                            lambda t, y: I_to_H(t, y) / fraction_hospitalized),
             Reaction("infectious", "recovered",
                      lambda t, y: y.infectious * infectious_recovered_rate),
             Reaction("hospitalized", "recovered",
@@ -106,7 +107,7 @@ class NeherModelSimulation(Simulation):
             'infectious': np.zeros(n_age_groups),
             'recovered': np.zeros(n_age_groups),
             'hospitalized': np.zeros(n_age_groups),
-            'hospitalized_tracker': np.zeros(n_age_groups),
+            'positive': np.zeros(n_age_groups),
             'critical': np.zeros(n_age_groups),
             'dead': np.zeros(n_age_groups)
         }
@@ -206,9 +207,7 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
 
         likelihood = 0
         if 'positive' in self.data.y and self.weights['positive'] > 0:
-            fraction_hospitalized = parameters.pop('fraction_hospitalized')
-            model_pos = (model_data.y['hospitalized_tracker'].sum(axis=-1)
-                         / fraction_hospitalized)
+            model_pos = model_data.y['positive'].sum(axis=-1)
             L = get_one_likelihood(model_pos, self.data.y['positive'])
             likelihood += self.weights['positive'] * L
 
@@ -269,6 +268,7 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
             peak_month=kwargs.pop('peak_month', 0),
             overflow_severity=kwargs.pop('overflow_severity', 2),
         )
+        fraction_hospitalized = kwargs.pop('fraction_hospitalized')
 
         mitigation_day = kwargs.pop('mitigation_day')
         mitigation_factor = kwargs.pop('mitigation_factor')
@@ -281,7 +281,8 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         from pydemic.models import NeherModelSimulation
         sim = NeherModelSimulation(
             epidemiology, severity, population.imports_per_day,
-            n_age_groups, containment
+            n_age_groups, containment,
+            fraction_hospitalized=fraction_hospitalized
         )
         y0 = sim.get_initial_population(population, age_distribution)
 
