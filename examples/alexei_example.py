@@ -33,7 +33,7 @@ from pydemic import days_to_dates
 
 if __name__ == "__main__":
 
-    tspan = (55., 120.)
+    tspan = (55., 150.)
 
     ## FIXME: doing a naive study of dt=1., 0.5, 0.25, 0.1, 0.05, 0.025, 0.01
     ##        suggests that 0.05 is sufficient, but a more systematic study

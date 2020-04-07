@@ -180,7 +180,7 @@ class TrackedSimulation:
         ts = np.arange(0, n_bins) * dt
 
         ## parameters for serial interval
-        R0 = 2.7
+        R0 = 3.2
         serial_k = 1.5       # shape    1.5 -> 2.
         serial_theta = 4.   # scale     4 -> 5
 
@@ -209,6 +209,8 @@ class TrackedSimulation:
         ## FIXME: can also change "population", "susceptible", and "dead" into non-time series
         ## arrays that just directly accumulate. one might call them "observer" tracks?
 
+        ## FIXME: it might be possible to take integrated values from the cdf here instead of
+        ## point sampling the pdf to achieve faster convergence
         self.kernels = [
             gamma.pdf(ts, serial_k, scale=serial_theta), 
             gamma.pdf(ts, incubation_k, scale=incubation_theta),
@@ -232,15 +234,15 @@ class TrackedSimulation:
 
         def update_symptomatic(t, y):
             symptomatic_source = p_symptomatic * (y['infected']*self.kernels[1]).sum() * dt
-            return symptomatic_source
+            return np.ones(n_demographics) * symptomatic_source
 
         def update_icu_dead(t, y):
             icu_dead_source = p_dead * (y['symptomatic']*self.kernels[2]).sum() * dt
-            return icu_dead_source
+            return np.ones(n_demographics) * icu_dead_source
 
         def update_dead(t, y):
             dead_source = (y['critical_dead']*self.kernels[3]).sum() * dt
-            return dead_source
+            return np.ones(n_demographics) * dead_source
 
         self.sources = {
             "susceptible": [
@@ -271,7 +273,12 @@ class TrackedSimulation:
             for source in self.sources[track]:
                 # FIXME: this doesn't feel particularly efficient
                 # FIXME: I'm not sure that I'm using the ... correctly here
-                self.tracks[track][...,source[0]] = source[1](state.t, state.tracks)
+                #update = np.empty_like(self.tracks[track][:,0,None])
+                #dy = source[1](state.t, state.tracks)[...,None][...,0]
+                #print(track, update.shape, self.tracks[track].shape, dy.shape)
+                #update[:,...] = dy
+                #print("update for", track, "has shape", update.shape, "versus", update_base.shape)
+                self.tracks[track][...,0] = source[1](state.t, state.tracks)[...,0]
 
 
     def __call__(self, tspan, y0):
@@ -287,9 +294,9 @@ class TrackedSimulation:
         start_time, end_time = tspan
 
         state = TrackedSimulationState(start_time, self.tracks)
-        state.tracks["infected"][0,0] = 1.
-        state.tracks["population"][0,0] = 1.e6
-        state.tracks["susceptible"][0,0] = 1.e6 - 1.
+        state.tracks["infected"][:,0] = 1.
+        state.tracks["population"][:,0] = 1.e6
+        state.tracks["susceptible"][:,0] = 1.e6 - 1.
 
         result = TrackedStateLogger()
         result.initialize_with_state(state)
