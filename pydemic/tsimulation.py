@@ -180,7 +180,7 @@ class TrackedSimulation:
         ts = np.arange(0, n_bins) * dt
 
         ## parameters for serial interval
-        R0 = 2.7
+        R0 = 3.2
         serial_k = 1.5       # shape    1.5 -> 2.
         serial_theta = 4.   # scale     4 -> 5
 
@@ -228,7 +228,7 @@ class TrackedSimulation:
         }
 
         def update_infected(state, count):
-            fraction = state.tracks['susceptible'][:,count] / state.tracks['population'][:,0]
+            fraction = state.tracks['susceptible'][:,count-1] / state.tracks['population'][:,0]
             update = R0 * np.dot(state.tracks['infected'][0,count::-1], self.kernels[0][:count+1]) * fraction
             update *= self.dt
 
@@ -236,17 +236,16 @@ class TrackedSimulation:
             return update # alternatively, always update in these functions?
 
         def update_symptomatic(state, count):
-            #symptomatic_source = p_symptomatic * (y['infected']*self.kernels[1]).sum() * dt
             symptomatic_source = np.dot(state.tracks['infected'][0,count::-1], self.kernels[1][:count+1]) * p_symptomatic * self.dt
             return symptomatic_source
 
-        def update_icu_dead(t, y):
-            icu_dead_source = p_dead * (y['symptomatic']*self.kernels[2]).sum() * dt
-            return np.ones(n_demographics) * icu_dead_source
+        def update_icu_dead(state, count):
+            icu_dead_source = p_dead * np.dot(state.tracks['symptomatic'][0,count::-1], self.kernels[2][:count+1]) * self.dt
+            return icu_dead_source
 
-        def update_dead(t, y):
-            dead_source = (y['critical_dead']*self.kernels[3]).sum() * dt
-            return np.ones(n_demographics) * dead_source
+        def update_dead(state, count):
+            dead_source = np.dot(state.tracks['critical_dead'][0,count::-1], self.kernels[3][:count+1]) * self.dt
+            return dead_source
 
         self.sources = {
             "susceptible": [
@@ -256,15 +255,12 @@ class TrackedSimulation:
             ],
             "symptomatic": [
                 lambda state, count: update_symptomatic(state, count)
-                #lambda t, y: update_symptomatic(t, y)
             ],
             "critical_dead": [
-                lambda state, count: 1.
-                #lambda t, y: update_icu_dead(t, y)
+                lambda state, count: update_icu_dead(state, count)
             ],
             "dead": [
-                lambda state, count: 1.
-                #lambda t, y: update_dead(t, y)
+                lambda state, count: update_dead(state, count)
             ],
             "population": [
             ]
@@ -274,9 +270,7 @@ class TrackedSimulation:
     def step(self, state, count):
 
         for track in state.tracks:
-
             for source in self.sources[track]:
-                update = source(state, count)
                 state.tracks[track][:,count] = source(state, count)
 
     def __call__(self, tspan, y0):
@@ -301,14 +295,13 @@ class TrackedSimulation:
 
         count = 0
         time = start_time
-        while time < end_time-self.dt:
+        while time < end_time:
 
             # this ordering is correct! 
             # state[0] corresponds to start_time
             count += 1
             time += self.dt
             self.step(state, count)
-
 
 
         return state
@@ -394,19 +387,3 @@ class TrackedSimulation:
 
         return y0
 
-
-    # def initialize_full_state(self, time, y0, samples):
-    #     compartment_vals = {}
-    #     for key, ary in y0.items():
-    #         ary = np.array(ary)
-    #         shape = (samples,) + ary.shape
-    #         compartment_vals[key] = np.empty(shape, dtype='float64')
-    #         compartment_vals[key][...] = ary[None, ...]
-
-    #     hidden_compartment_vals = {}
-    #     template = compartment_vals[self.compartments[0]]
-    #     for key in self.hidden_compartments:
-    #         hidden_compartment_vals[key] = np.zeros_like(template)
-
-    #     state = SimulationState(time, compartment_vals, hidden_compartment_vals)
-    #     return state
