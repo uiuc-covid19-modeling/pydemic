@@ -35,33 +35,103 @@ if __name__ == "__main__":
 
     tspan = (55., 150.)
 
-    ## FIXME: doing a naive study of dt=1., 0.5, 0.25, 0.1, 0.05, 0.025, 0.01
-    ##        suggests that 0.05 is sufficient, but a more systematic study
-    ##        is probably worthwhile. it might also be possible to automatically
-    ##        translate some reactions into passive "after the fact" translations
-    simulation = TrackedSimulation(tspan, dt=0.05)
-    
-    y0 = [ ] ## FIXME: actually use y0
-    import time
-    then = time.time()
-    result = simulation(tspan, y0)
-    now = time.time()
-    print("dt = {0:g} s".format(now - then))
 
-    print(result)
+    if False:
 
-    plt.figure(figsize=(8,6))
-    ax1 = plt.subplot(1,1,1)
+        simulation = TrackedSimulation(tspan, dt=1.)
 
-    for key in result.track_names:
-        ax1.plot(days_to_dates(result.t), result.y[key], label=key)
+        import numpy as np
+        n_tracks = 6
+        n_demographics = 1
+        y0 = np.zeros((n_tracks, n_demographics))
 
-    ax1.legend()
+        track_names = list(simulation.tracks.keys())
+        for i in range(len(track_names)):
+            if track_names[i] == "population":
+                y0[i,:] = 1.e6
+            elif track_names[i] == "susceptible":
+                y0[i,:] = 1.e6 - 1
+            elif track_names[i] == "infected":
+                y0[i,:] = 1
+        
+        import time
+        then = time.time()
+        result = simulation(tspan, y0)
+        now = time.time()
+        print("dt = {0:g} s".format(now - then))
 
-    ax1.set_yscale('log')
-    ax1.set_ylim(ymin=0.8, ymax=2.e6)
 
-    plt.savefig('alexei_example.png')
+
+    if True:
+        ## FIXME: doing a naive study of dt=1., 0.5, 0.25, 0.1, 0.05, 0.025, 0.01
+        ##        suggests that 0.05 is sufficient, but a more systematic study
+        ##        is probably worthwhile. it might also be possible to automatically
+        ##        translate some reactions into passive "after the fact" translations
+        simulation = TrackedSimulation(tspan, dt=0.05)
+        
+
+        import numpy as np
+        n_tracks = 6
+        n_demographics = 1
+
+        y0 = simulation.get_y0(population=1.e6, infected=1.)
+        
+        import time
+        then = time.time()
+        result = simulation(tspan, y0)
+        now = time.time()
+        print("dt = {0:g} s".format(now - then))
+
+        #print(result.tracks)
+
+        data = {}
+        data['susceptible'] = result.tracks['susceptible'].sum(axis=0) # sum over demographics
+        data['infected'] = np.cumsum(result.tracks['infected'].sum(axis=0))
+        data['symptomatic'] = np.cumsum(result.tracks['symptomatic'].sum(axis=0))
+        #susceptible = result.tracks['susceptible']
+
+        print(result.t.shape)
+
+
+        plt.figure(figsize=(8,6))
+        ax1 = plt.subplot(1,1,1)
+
+        for key in data:
+            #ax1.plot(days_to_dates(result.t), result.tracks[key], label=key)
+            ax1.plot(days_to_dates(result.t), data[key], label=key)
+            print(key, data[key].shape)
+
+        ax1.legend()
+
+        ax1.set_yscale('log')
+        ax1.set_ylim(ymin=0.8, ymax=2.e6)
+
+        plt.savefig('alexei_example.png')
+
+    if False:
+
+        # this would take more time to code up than is worth it, probably
+
+        simulation = TrackedSimulation(tspan)
+
+        import numpy as np
+        n_tracks = 6
+        n_demographics = 1
+        y0 = np.zeros((n_tracks, n_demographics))
+
+        print(simulation.tracks.keys())
+
+        track_names = list(simulation.tracks.keys())
+        for i in range(len(track_names)):
+            if track_names[i] == "population":
+                y0[i,:] = 1.e6
+            elif track_names[i] == "susceptible":
+                y0[i,:] = 1.e6 - 1
+            elif track_names[i] == "infected":
+                y0[i,:] = 1
+
+        result = simulation(tspan, y0, dt=1.)
+
 
 
 

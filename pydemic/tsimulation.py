@@ -180,7 +180,7 @@ class TrackedSimulation:
         ts = np.arange(0, n_bins) * dt
 
         ## parameters for serial interval
-        R0 = 3.2
+        R0 = 2.7
         serial_k = 1.5       # shape    1.5 -> 2.
         serial_theta = 4.   # scale     4 -> 5
 
@@ -219,22 +219,26 @@ class TrackedSimulation:
         ]
 
         self.tracks = {
-            "susceptible": np.zeros((n_demographics, 1)),
+            "susceptible": np.zeros((n_demographics, n_bins)),
             "infected": np.zeros((n_demographics, n_bins)),
             "symptomatic": np.zeros((n_demographics, n_bins)),
             "critical_dead": np.zeros((n_demographics, n_bins)),
             "dead": np.zeros((n_demographics, n_bins)),
-            "population": np.zeros((n_demographics, 1))
+            "population": np.zeros((n_demographics, n_bins))
         }
 
-        def update_infected(t, y):
-            dinfected = R0*(y['infected']*self.kernels[0]).sum() * y['susceptible']/y['population'] * dt
-            y['susceptible'] -= dinfected  # FIXME: yes please fix this
-            return dinfected
+        def update_infected(state, count):
+            fraction = state.tracks['susceptible'][:,count] / state.tracks['population'][:,0]
+            update = R0 * np.dot(state.tracks['infected'][0,count::-1], self.kernels[0][:count+1]) * fraction
+            update *= self.dt
 
-        def update_symptomatic(t, y):
-            symptomatic_source = p_symptomatic * (y['infected']*self.kernels[1]).sum() * dt
-            return np.ones(n_demographics) * symptomatic_source
+            state.tracks['susceptible'][:,count] = state.tracks['susceptible'][:,count-1] - update # FIXME: does it make sense to update here?
+            return update # alternatively, always update in these functions?
+
+        def update_symptomatic(state, count):
+            #symptomatic_source = p_symptomatic * (y['infected']*self.kernels[1]).sum() * dt
+            symptomatic_source = np.dot(state.tracks['infected'][0,count::-1], self.kernels[1][:count+1]) * p_symptomatic * self.dt
+            return symptomatic_source
 
         def update_icu_dead(t, y):
             icu_dead_source = p_dead * (y['symptomatic']*self.kernels[2]).sum() * dt
@@ -248,38 +252,32 @@ class TrackedSimulation:
             "susceptible": [
             ],
             "infected": [
-                lambda t, y: update_infected(t, y)
+                lambda state, count: update_infected(state, count)  # FIXME: does not work for demographics
             ],
             "symptomatic": [
-                lambda t, y: update_symptomatic(t, y)
+                lambda state, count: update_symptomatic(state, count)
+                #lambda t, y: update_symptomatic(t, y)
             ],
             "critical_dead": [
-                lambda t, y: update_icu_dead(t, y)
+                lambda state, count: 1.
+                #lambda t, y: update_icu_dead(t, y)
             ],
             "dead": [
-                lambda t, y: update_dead(t, y)
+                lambda state, count: 1.
+                #lambda t, y: update_dead(t, y)
             ],
             "population": [
             ]
         }
 
 
-    def step(self, state):
+    def step(self, state, count):
 
-        for track in self.tracks:
-
-            self.tracks[track] = np.roll(self.tracks[track], 1, axis=-1)
+        for track in state.tracks:
 
             for source in self.sources[track]:
-                # FIXME: this doesn't feel particularly efficient
-                # FIXME: I'm not sure that I'm using the ... correctly here
-                #update = np.empty_like(self.tracks[track][:,0,None])
-                #dy = source[1](state.t, state.tracks)[...,None][...,0]
-                #print(track, update.shape, self.tracks[track].shape, dy.shape)
-                #update[:,...] = dy
-                #print("update for", track, "has shape", update.shape, "versus", update_base.shape)
-                self.tracks[track][...,0] = source(state.t, state.tracks)[...,0]
-
+                update = source(state, count)
+                state.tracks[track][:,count] = source(state, count)
 
     def __call__(self, tspan, y0):
         """
@@ -292,27 +290,109 @@ class TrackedSimulation:
         """
 
         start_time, end_time = tspan
+        n_steps = int((end_time-start_time)/self.dt + 1)
 
-        state = TrackedSimulationState(start_time, self.tracks)
-        state.tracks["infected"][:,0] = 1.
-        state.tracks["population"][:,0] = 1.e6
-        state.tracks["susceptible"][:,0] = 1.e6 - 1.
+        times = np.linspace(start_time, end_time, n_steps)
 
-        result = TrackedStateLogger()
-        result.initialize_with_state(state)
-        
-        while state.t < end_time:
-            self.step(state)
-            state.t += self.dt
-            result(state)
-            #print("t = {0:g}".format(state.t))
+        state = TrackedSimulationState(times, self.tracks)
 
-        result.cleanup()
+        for key in y0:
+            state.tracks[key][:,0] = y0[key]
 
-        return result
+        count = 0
+        time = start_time
+        while time < end_time-self.dt:
 
+            # this ordering is correct! 
+            # state[0] corresponds to start_time
+            count += 1
+            time += self.dt
+            self.step(state, count)
 
 
+
+        return state
+
+
+
+    def deprecated__call__(self, tspan, y0, dt=1.):
+        """
+
+        """
+
+        # suppose we have n_demographics number of demographics
+        # and that we have n_tracks tracks. each track will have
+        # shape = (n_demographics, n_steps) where 
+        # n_steps = ( (end_time - start_time) / dt ) + 1
+        # and thus the "whole state" will have shape
+        # n_tracks, n_demographics, n_steps
+
+
+        # get time dimensions
+        start_time, end_time = tspan
+        n_steps = int((end_time - start_time) / dt + 1)
+
+        # get full state object
+        n_tracks, n_demographics = y0.shape
+        state = np.zeros((n_tracks, n_demographics, n_steps))
+        state[:,:,-1] = y0
+
+        # get time kernels
+        time_kernels = np.zeros((len(self.kernels), n_steps))
+        for i in range(len(self.kernels)):
+            time_kernels[i,:] = self.kernels[i]
+
+        # get demographic kernels
+        demographic_kernels = np.ones((n_demographics,n_demographics))
+
+        # interface with c
+        from pydemic.ctypes import cfunc
+        cmodule = cfunc.cfunc()
+
+        # FIXME: the kernels here are assumed to be separable, which is not necessarily
+        #        the right way to deal with this...
+        cmodule.evolve_track_simulation(state, time_kernels, demographic_kernels)  
+
+
+
+    def bad__call__(self, tspan, y0):
+
+        # get time dimensions
+        start_time, end_time = tspan
+        n_steps = int((end_time - start_time) / self.dt + 1)
+
+        # get full state object
+        n_tracks, n_demographics = y0.shape
+        state = np.zeros((n_tracks, n_demographics, n_steps))
+        state[:,:,-1] = y0
+
+        # fill out each element of the state object
+        time = start_time
+        index = n_steps - 2
+        while time < end_time:
+            self.step_new(state, index, time)
+            time += self.dt
+
+        print(state)
+
+        exit()
+
+        return None
+
+
+    def get_y0(self, population, infected):
+
+        # FIXME: set these shapes by n_demographics
+
+        y0 = {}
+        for key in self.tracks:
+            y0[key] = np.array([0.])
+
+        y0['population'][:] = population
+        y0['susceptible'][:] = population - infected
+        y0['infected'][:] = infected
+
+        return y0
 
 
     # def initialize_full_state(self, time, y0, samples):
