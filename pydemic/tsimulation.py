@@ -173,7 +173,7 @@ class TrackedSimulation:
     def __init__(self, tspan, dt=1.):
 
         self.dt = dt
-        n_demographics = 1
+        demo_shape = (9,)
 
         n_bins = int((tspan[1] - tspan[0]) / dt + 1)
         print("creating simulation object with {0:d} time bins".format(n_bins))
@@ -236,45 +236,45 @@ class TrackedSimulation:
         ]
 
         self.tracks = {
-            "susceptible": np.zeros((n_demographics, n_bins)),
-            "infected": np.zeros((n_demographics, n_bins)),
-            "symptomatic": np.zeros((n_demographics, n_bins)),
-            "critical_dead": np.zeros((n_demographics, n_bins)),
-            "dead": np.zeros((n_demographics, n_bins)),
-            "population": np.zeros((n_demographics, n_bins))
+            "susceptible": np.zeros(demo_shape+(n_bins,)),
+            "infected": np.zeros(demo_shape+(n_bins,)),
+            "symptomatic": np.zeros(demo_shape+(n_bins,)),
+            "critical_dead": np.zeros(demo_shape+(n_bins,)),
+            "dead": np.zeros(demo_shape+(n_bins,)),
+            "population": np.zeros(demo_shape+(n_bins,))
         }
 
         def update_infected(state, count):
-            fraction = (state.tracks['susceptible'][:, count-1]
-                        / state.tracks['population'][:, 0])
+            fraction = (state.tracks['susceptible'][..., count-1]
+                        / state.tracks['population'][..., 0])
             update = fraction * R0 * np.dot(
-                state.tracks['infected'][0, count::-1],
+                state.tracks['infected'][..., count::-1],
                 self.kernels[0][:count+1]
             )
             update *= self.dt
 
             # FIXME: does it make sense to update here?
-            state.tracks['susceptible'][:, count] = (
-                state.tracks['susceptible'][:, count-1] - update
+            state.tracks['susceptible'][..., count] = (
+                state.tracks['susceptible'][..., count-1] - update
             )
             return update  # alternatively, always update in these functions?
 
         def update_symptomatic(state, count):
             symptomatic_source = p_symptomatic * self.dt * np.dot(
-                state.tracks['infected'][0, count::-1],
+                state.tracks['infected'][..., count::-1],
                 self.kernels[1][:count+1]
             )
             return symptomatic_source
 
         def update_icu_dead(state, count):
             icu_dead_source = p_dead * \
-                np.dot(state.tracks['symptomatic'][0, count::-1],
+                np.dot(state.tracks['symptomatic'][..., count::-1],
                        self.kernels[2][:count+1]) * self.dt
             return icu_dead_source
 
         def update_dead(state, count):
             dead_source = self.dt * np.dot(
-                state.tracks['critical_dead'][0, count::-1],
+                state.tracks['critical_dead'][..., count::-1],
                 self.kernels[3][:count+1])
             return dead_source
 
@@ -302,7 +302,7 @@ class TrackedSimulation:
     def step(self, state, count):
         for track in state.tracks:
             for source in self.sources[track]:
-                state.tracks[track][:, count] = source(state, count)
+                state.tracks[track][..., count] = source(state, count)
 
     def __call__(self, tspan, y0):
         """
@@ -322,7 +322,7 @@ class TrackedSimulation:
         state = TrackedSimulationState(times, self.tracks)
 
         for key in y0:
-            state.tracks[key][:, 0] = y0[key]
+            state.tracks[key][..., 0] = y0[key]
 
         count = 0
         time = start_time
@@ -396,8 +396,8 @@ class TrackedSimulation:
         for key in self.tracks:
             y0[key] = np.array([0.])
 
-        y0['population'][:] = population
-        y0['susceptible'][:] = population - infected
-        y0['infected'][:] = infected
+        y0['population'][...] = population
+        y0['susceptible'][...] = population - infected
+        y0['infected'][...] = infected
 
         return y0
