@@ -155,8 +155,9 @@ def test_neher_estimator():
         mitigation_width=.05,
         fraction_hospitalized=1.,
     )
-    estimator = NeherModelEstimator(fit_parameters, fixed_values, data,
-                                    fit_cumulative=True)
+    estimator = NeherModelEstimator(
+        fit_parameters, fixed_values, data, {'dead': 1}, fit_cumulative=True
+    )
 
     test_L = estimator([2.7, 53.8])
 

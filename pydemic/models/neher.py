@@ -145,9 +145,10 @@ def poisson_norm(model, data):
 
 
 class NeherModelEstimator(LikelihoodEstimatorBase):
-    def __init__(self, fit_parameters, fixed_values, data, norm=None,
-                 fit_cumulative=False, weights=None):
+    def __init__(self, fit_parameters, fixed_values, data, weights, norm=None,
+                 fit_cumulative=False):
         self.fit_cumulative = fit_cumulative
+        self.weights = weights
 
         if self.fit_cumulative and norm is None:
             norm = clipped_l2_log_norm
@@ -155,10 +156,6 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
             norm = poisson_norm
 
         super().__init__(fit_parameters, fixed_values, data, norm=norm)
-
-        self.weights = {'dead': 1, 'critical': 1, 'positive': 1}
-        if weights is not None:
-            self.weights.update(weights)
 
         if not self.fit_cumulative:
             self.data.y = {
@@ -206,22 +203,13 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
                                  data[data_nonzero])
 
         likelihood = 0
-        if 'positive' in self.data.y and self.weights['positive'] > 0:
-            model_pos = model_data.y['positive'].sum(axis=-1)
-            L = get_one_likelihood(model_pos, self.data.y['positive'])
-            likelihood += self.weights['positive'] * L
-
-        if 'dead' in self.data.y and self.weights['dead'] > 0:
-            model_dead = model_data.y['dead'].sum(axis=-1)
-            L = get_one_likelihood(model_dead, self.data.y['dead'])
-            likelihood += self.weights['dead'] * L
-
-        if 'critical' in self.data.y and self.weights['critical'] > 0:
-            critical_ICU_ratio = parameters.pop('critical_ICU_ratio')
-            model_crit = (critical_ICU_ratio
-                          * model_data.y['critical'].sum(axis=-1))
-            L = get_one_likelihood(model_crit, self.data.y['critical'])
-            likelihood += self.weights['critical'] * L
+        for compartment, weight in self.weights.items():
+            if weight > 0:
+                L = get_one_likelihood(
+                    model_data.y[compartment].sum(axis=-1),
+                    self.data.y[compartment]
+                )
+                likelihood += weight * L
 
         return likelihood
 

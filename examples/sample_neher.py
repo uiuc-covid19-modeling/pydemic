@@ -60,9 +60,7 @@ if __name__ == "__main__":
 
     from pydemic.models.neher import NeherModelEstimator
     estimator = NeherModelEstimator(
-        fit_parameters, fixed_values, data,
-        fit_cumulative=True,
-        weights={'dead': 1, 'positive': 0, 'critical': 0}
+        fit_parameters, fixed_values, data, {'dead': 1}, fit_cumulative=True,
     )
 
     from multiprocessing import Pool
