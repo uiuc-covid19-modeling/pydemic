@@ -23,22 +23,45 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import matplotlib as mpl
+mpl.use('agg')
+import matplotlib.pyplot as plt
 
 from pydemic import TrackedSimulation
+from pydemic import days_to_dates
 
 
 
 if __name__ == "__main__":
 
+    tspan = (55., 120.)
 
-    simulation = TrackedSimulation(dt=1.)
+    ## FIXME: doing a naive study of dt=1., 0.5, 0.25, 0.1, 0.05, 0.025, 0.01
+    ##        suggests that 0.05 is sufficient, but a more systematic study
+    ##        is probably worthwhile. it might also be possible to automatically
+    ##        translate some reactions into passive "after the fact" translations
+    simulation = TrackedSimulation(tspan, dt=0.05)
+    
+    y0 = [ ] ## FIXME: actually use y0
+    import time
+    then = time.time()
+    result = simulation(tspan, y0)
+    now = time.time()
+    print(now - then)
 
+    plt.figure(figsize=(8,6))
+    ax1 = plt.subplot(1,1,1)
 
+    for key in result.track_names:
+        ax1.plot(days_to_dates(result.t), result.y[key], label=key)
 
+    ax1.legend()
 
-    tspan = (55., 70.)
-    y0 = [ 0., 0., 0. ]
-    simulation(tspan, y0)
+    ax1.set_yscale('log')
+    ax1.set_ylim(ymin=0.8, ymax=2.e6)
+
+    plt.savefig('alexei_example.png')
+
 
 
     """

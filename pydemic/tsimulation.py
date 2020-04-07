@@ -90,7 +90,11 @@ __doc__ = """
 #         return sum(val.sum() for val in self.y.values())
 
 
-# class StateLogger:
+
+# _default_quantiles = (0.0455, 0.3173, 0.5, 0.6827, 0.9545)
+
+
+# class QuantileLogger:
 #     """
 #     Used to log simulation results returned by
 #     :meth:`Simulation.__call__`.
@@ -106,51 +110,35 @@ __doc__ = """
 #         The time axis is the first axis of the :class:`numpy.ndarray`'s.
 #     """
 
-#     def __init__(self, chunk_length=1000):
+#     def __init__(self, chunk_length=1000, quantiles=_default_quantiles):
+#         self.quantiles = quantiles
 #         self.chunk_length = chunk_length
 #         self.t = np.zeros(shape=(self.chunk_length,))
 #         self.slice = 0
-#         self.quantile_data = None
 
 #     def initialize_with_state(self, state):
+#         self.y_samples = {}
 #         self.t[0] = state.t
 #         self.compartments = state.compartments.copy()
-#         self.y = {}
-#         for key in state.compartments:
+#         for key in self.compartments:
 #             val = state.y[key]
 #             ary = np.zeros(shape=(self.chunk_length,)+val.shape)
 #             ary[0] = val
-#             self.y[key] = ary
-#         self.slice = 1
+#             self.y_samples[key] = ary
 
 #     def __call__(self, state):
+#         self.slice += 1
 #         if self.slice == self.t.shape[0]:
 #             self.add_chunk()
 
 #         self.t[self.slice] = state.t
-#         for key in state.compartments:
-#             self.y[key][self.slice] = state.__getattr__(key)
-#         self.slice += 1
+#         for key in self.compartments:
+#             self.y_samples[key][self.slice] = state.__getattr__(key)
 
-#     def add_chunk(self):
-#         self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
-#         for key, val in self.y.items():
-#             shape = (self.chunk_length,)+val.shape[1:]
-#             self.y[key] = np.concatenate([val, np.zeros(shape=shape)])
 
-#     def cleanup(self, flatten_first_axis_if_unit=True):
-#         self.trim(flatten_first_axis_if_unit=flatten_first_axis_if_unit)
 
-#     def trim(self, flatten_first_axis_if_unit=True):
-#         self.t = self.t[:self.slice]
-#         for key in self.y.keys():
-#             if self.y[key].ndim > 1:
-#                 if flatten_first_axis_if_unit and self.y[key].shape[1] == 1:
-#                     self.y[key] = self.y[key][:self.slice, 0, ...]
-#                 else:
-#                     self.y[key] = self.y[key][:self.slice, ...]
-#             else:
-#                 self.y[key] = self.y[key][:self.slice]
+
+
 
 #     def __repr__(self):
 #         text = "{0:s} with\n".format(str(type(self)))
@@ -200,103 +188,89 @@ __doc__ = """
 #         fp.close()
 
 
-# _default_quantiles = (0.0455, 0.3173, 0.5, 0.6827, 0.9545)
+class TrackedStateLogger:
+    """
+    Used to log simulation results returned by
+    :meth:`Simulation.__call__`.
+
+    .. attribute:: t
+
+        A :class:`numpy.ndarray` of output times.
+
+    .. attribute:: y
+
+        A :class:`dict` whose values are :class:`numpy.ndarray`'s of the
+        timeseries for each key (each of :attr:`Simulation.compartments`).
+        The time axis is the first axis of the :class:`numpy.ndarray`'s.
+    """
+
+    def __init__(self, chunk_length=1000):
+        self.chunk_length = chunk_length
+        self.t = np.zeros(shape=(self.chunk_length,))
+        self.slice = 0
+
+    def initialize_with_state(self, state):
+        self.t[0] = state.t
+        self.track_names = state.tracks.keys()
+        self.y = {}
+        for key in self.track_names:
+            val = state.tracks[key]
+            ary = np.zeros(shape=(self.chunk_length,)+val.shape[:-1])  # FIXME: I think this should always force the last dimension (time) to be collapsed
+            self.y[key] = ary
+            self.y[key][self.slice] = state.tracks[key].sum(axis=-1)
+        self.slice = 1
 
 
-# class QuantileLogger:
-#     """
-#     Used to log simulation results returned by
-#     :meth:`Simulation.__call__`.
+    def __call__(self, state):
+        #print(state.t)
+        #print(state.tracks)
+        #print(self.track_names)
+        if self.slice == self.t.shape[0]:
+            self.add_chunk()
+        self.t[self.slice] = state.t
+        for key in state.tracks:
+            self.y[key][self.slice] = state.tracks[key].sum(axis=-1)
+        self.slice += 1
+        """
+        if self.slice == self.t.shape[0]:
+            self.add_chunk()
 
-#     .. attribute:: t
+        self.t[self.slice] = state.t
+        for key in state.compartments:
+            self.y[key][self.slice] = state.__getattr__(key)
+        self.slice += 1
+        """
 
-#         A :class:`numpy.ndarray` of output times.
+    def add_chunk(self):
+        self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
+        for key, val in self.y.items():
+            shape = (self.chunk_length,)+val.shape[1:]
+            self.y[key] = np.concatenate([val, np.zeros(shape=shape)])
 
-#     .. attribute:: y
+    def cleanup(self, flatten_first_axis_if_unit=True):
+        self.trim(flatten_first_axis_if_unit=flatten_first_axis_if_unit)
 
-#         A :class:`dict` whose values are :class:`numpy.ndarray`'s of the
-#         timeseries for each key (each of :attr:`Simulation.compartments`).
-#         The time axis is the first axis of the :class:`numpy.ndarray`'s.
-#     """
+    def trim(self, flatten_first_axis_if_unit=True):
+        self.t = self.t[:self.slice]
+        for key in self.y.keys():
+            if self.y[key].ndim > 1:
+                if flatten_first_axis_if_unit and self.y[key].shape[1] == 1:
+                    self.y[key] = self.y[key][:self.slice, 0, ...]
+                else:
+                    self.y[key] = self.y[key][:self.slice, ...]
+            else:
+                self.y[key] = self.y[key][:self.slice]
 
-#     def __init__(self, chunk_length=1000, quantiles=_default_quantiles):
-#         self.quantiles = quantiles
-#         self.chunk_length = chunk_length
-#         self.t = np.zeros(shape=(self.chunk_length,))
-#         self.slice = 0
 
-#     def initialize_with_state(self, state):
-#         self.y_samples = {}
-#         self.t[0] = state.t
-#         self.compartments = state.compartments.copy()
-#         for key in self.compartments:
-#             val = state.y[key]
-#             ary = np.zeros(shape=(self.chunk_length,)+val.shape)
-#             ary[0] = val
-#             self.y_samples[key] = ary
-
-#     def __call__(self, state):
-#         self.slice += 1
-#         if self.slice == self.t.shape[0]:
-#             self.add_chunk()
-
-#         self.t[self.slice] = state.t
-#         for key in self.compartments:
-#             self.y_samples[key][self.slice] = state.__getattr__(key)
-
-#     def cleanup(self, flatten_first_axis_if_unit=True):
-#         self.trim(flatten_first_axis_if_unit=flatten_first_axis_if_unit)
-#         self.quantile_data = {}
-#         for key in self.y_samples:
-#             # FIXME: this will not work for Gillespie direct
-#             self.quantile_data[key] = np.array(
-#                 [np.quantile(self.y_samples[key], quantile, axis=1)
-#                  for quantile in self.quantiles]
-#             )
-
-#     def add_chunk(self):
-#         self.t = np.concatenate([self.t, np.zeros(shape=(self.chunk_length,))])
-#         for key, val in self.y_samples.items():
-#             shape = (self.chunk_length,)+val.shape[1:]
-#             self.y_samples[key] = np.concatenate([val, np.zeros(shape=shape)])
-
-#     def trim(self, flatten_first_axis_if_unit=True):
-#         self.t = self.t[:self.slice]
-#         for key in self.y_samples.keys():
-#             if flatten_first_axis_if_unit and self.y_samples[key].shape[1] == 1:
-#                 self.y_samples[key] = self.y_samples[key][:self.slice, 0, ...]
-#             else:
-#                 self.y_samples[key] = self.y_samples[key][:self.slice, ...]
 
 class TrackedSimulationState:
 
-    def __init__(self, t):
+    def __init__(self, time, tracks):
         """
         :arg t: The current time.
         """
-
-        self.t = t
-
-        """
-        self.y = {**compartments, **hidden_compartments}
-        self.compartments = list(compartments.keys())
-        self.hidden_compartments = list(hidden_compartments.keys())
-
-        self.sum_compartments = {}
-        for item in self.compartments:
-            self.sum_compartments[item] = [item]
-            for full_key in self.hidden_compartments:
-                if item == full_key.split(':')[0]:
-                    self.sum_compartments[item].append(full_key)
-                    """
-
-    """
-    def __getattr__(self, item):
-        return sum(self.y[key] for key in self.sum_compartments[item])
-
-    def sum(self):
-        :returns: The total population across all summed compartments.
-        """
+        self.t = time
+        self.tracks = tracks
 
 
 class TrackedSimulation:
@@ -313,55 +287,114 @@ class TrackedSimulation:
         of :class:`Reaction`'s.
     """
 
-    def __init__(self, dt=1.):
+    def __init__(self, tspan, dt=1.):
 
         self.dt = dt
-
         n_demographics = 1
 
+        from scipy.stats import gamma
+
+        n_bins = int((tspan[1] - tspan[0]) / dt + 1)
+        print(n_bins)
+
+        ## parameters used below from Alexei's post "relevant-delays-for-our-model" on March 30th.
+
+        ## generate times for interval generation
+        ts = np.arange(0, n_bins) * dt
+
+        ## parameters for serial interval
+        R0 = 2.7
+        serial_k = 1.5       # shape    1.5 -> 2.
+        serial_theta = 4.   # scale     4 -> 5
+
+        ## parameters for incubation time
+        p_symptomatic = 0.8  # the percentage of people who become symptomatic
+        incubation_k = 3     # 3+ from alexei
+        incubation_theta = 5 # FIXME: confirm it should be this and not 1/this  (5 -> 6)
+
+        ## parameters for testing positive
+        p_confirmed = 0.8  # percentage of people who become symptomatic who end up testing positive
+        positive_k = 1
+        positive_theta = 5.  # 5 -> 10 from Alexei
+
+        ## parameters for those who follow the symptomatic -> ICU -> death track
+        p_dead = 0.05    # percentage of symptomatic individuals who die
+        icu_k = 1.
+        icu_theta = 9    # 9 -> 11 from Alexei
+        dead_k = 1       # 
+        dead_theta = 7   # 7 -> 8 from Alexei
+
+        ## in principle we have another set of distributions for those
+        ## who should go from onset -> hospital (including ICU?) -> recovered, but we don't have
+        ## numbers for those values. we can "fake" this by changing the ratios in the above class
+        ## of individuals who go to the ICU but don't die?
+
+        ## FIXME: can also change "population", "susceptible", and "dead" into non-time series
+        ## arrays that just directly accumulate. one might call them "observer" tracks?
+
+        self.kernels = [
+            gamma.pdf(ts, serial_k, scale=serial_theta), 
+            gamma.pdf(ts, incubation_k, scale=incubation_theta),
+            gamma.pdf(ts, icu_k, scale=icu_theta),
+            gamma.pdf(ts, dead_k, scale=dead_theta),
+        ]
+
         self.tracks = {
-            "infected": np.zeros((n_demographics, 100)),
-            "hospitalized": np.zeros((n_demographics, 100))
+            "susceptible": np.zeros((n_demographics, 1)),
+            "infected": np.zeros((n_demographics, n_bins)),
+            "symptomatic": np.zeros((n_demographics, n_bins)),
+            "critical_dead": np.zeros((n_demographics, n_bins)),
+            "dead": np.zeros((n_demographics, n_bins)),
+            "population": np.zeros((n_demographics, 1))
         }
 
+        def update_infected(t, y):
+            dinfected = R0*(y['infected']*self.kernels[0]).sum() * y['susceptible']/y['population'] * dt
+            y['susceptible'] -= dinfected  # FIXME: yes please fix this
+            return dinfected
+
+        def update_symptomatic(t, y):
+            symptomatic_source = p_symptomatic * (y['infected']*self.kernels[1]).sum() * dt
+            return symptomatic_source
+
+        def update_icu_dead(t, y):
+            icu_dead_source = p_dead * (y['symptomatic']*self.kernels[2]).sum() * dt
+            return icu_dead_source
+
+        def update_dead(t, y):
+            dead_source = (y['critical_dead']*self.kernels[3]).sum() * dt
+            return dead_source
+
         self.sources = {
-            "infected": [
-                (0, lambda t, y: t/100.)
+            "susceptible": [
             ],
-            "hospitalized": [
+            "infected": [
+                (0, lambda t, y: update_infected(t, y))
+            ],
+            "symptomatic": [
+                (0, lambda t, y: update_symptomatic(t, y))
+            ],
+            "critical_dead": [
+                (0, lambda t, y: update_icu_dead(t, y))
+            ],
+            "dead": [
+                (0, lambda t, y: update_dead(t, y))
+            ],
+            "population": [
             ]
         }
 
-        #self.tracks = ["infected", "hospitalized", ""]
-        #self.readouts = ["positive", "dead"]
 
-
-        pass
-
-
-    def step(self, t, state):
+    def step(self, state):
 
         for track in self.tracks:
-
-            print(self.tracks[track])
 
             self.tracks[track] = np.roll(self.tracks[track], 1, axis=-1)
 
             for source in self.sources[track]:
                 # FIXME: this doesn't feel particularly efficient
-                print(source)
-
                 # FIXME: I'm not sure that I'm using the ... correctly here
-                self.tracks[track][...,source[0]] = source[1](t, state)
-
-
-
-
-            #data = self.tracks[track]
-            #data[1:] = data[:-1]
-
-            
-
+                self.tracks[track][...,source[0]] = source[1](state.t, state.tracks)
 
 
     def __call__(self, tspan, y0):
@@ -374,90 +407,30 @@ class TrackedSimulation:
         :returns: A :class:`~pydemic.simulation.StateLogger`. FIXME: maybe not?
         """
 
-
-
-
-
         start_time, end_time = tspan
 
-        state = TrackedSimulationState(time, self.tracks)
-        state.tracks
+        state = TrackedSimulationState(start_time, self.tracks)
+        state.tracks["infected"][0,0] = 1.
+        state.tracks["population"][0,0] = 1.e6
+        state.tracks["susceptible"][0,0] = 1.e6 - 1.
 
+        result = TrackedStateLogger()
+        result.initialize_with_state(state)
         
-        while state.time < end_time:
-
+        while state.t < end_time:
             self.step(state)
+            state.t += self.dt
+            result(state)
+            print("t = {0:g}".format(state.t))
 
-            state.time += self.dt
+        result.cleanup()
 
-            print(time)
-
-        pass
+        return result
 
 
 
-    # def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None,
-    #              logger=None):
-    #     """
-    #     :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
-    #     :arg y0: A :class:`dict` with the initial values
-    #         (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
 
-    #     :arg dt: The (initial) timestep to use.
-
-    #     :arg stochastic_method: A :class:`string` specifying whether to use
-    #         direct Gillespie stepping (`'direct'`) or :math:`\\tau`-leaing
-    #         (`'tau_leap'`).
-    #         Defaults to *None*, i.e., a deterministic evolution.
-
-    #     :arg samples: The number of stochastic samples to simulate simultaneously.
-    #         Defaults to ``1``.
-
-    #     :arg seed: The value with which to seed :mod:`numpy`'s random number.
-    #         Defaults to *None*, in which case no seed is passed.
-
-    #     :returns: A :class:`~pydemic.simulation.StateLogger`.
-    #     """
-
-    # def __init__(self, reactions):
-    #     """
-    #     :arg reactions: A :class:`list` of :class:`Reaction`'s
-    #         (or subclasses thereof) used to specify the dynamics of the
-    #         compartmental model.
-    #     """
-
-    #     def flatten(items):
-    #         for i in items:
-    #             if isinstance(i, (list, tuple)):
-    #                 for j in flatten(i):
-    #                     yield j
-    #             else:
-    #                 yield i
-
-    #     rhs_keys = []
-    #     lhs_keys = []
-    #     passive_compartments = []
-    #     for reaction in reactions:
-    #         from pydemic.reactions import PassiveReaction
-    #         if not isinstance(reaction, PassiveReaction):
-    #             lhs_keys.append(reaction.lhs)
-    #             rhs_keys.append(reaction.rhs)
-    #         else:
-    #             passive_compartments.extend([reaction.lhs, reaction.rhs])
-
-    #     lhs_keys = set(flatten(lhs_keys))
-    #     rhs_keys = set(flatten(rhs_keys))
-    #     self.compartments = list((lhs_keys | rhs_keys) - set([None]))
-    #     self.passive_compartments = list(set(passive_compartments) - set([None]))
-    #     self.evolved_compartments = self.compartments + self.passive_compartments
-
-    #     self._network = tuple(react for reaction in reactions
-    #                           for react in reaction.get_reactions())
-
-    #     all_lhs = set(x.lhs for x in self._network) - set([None])
-    #     all_rhs = set(x.rhs for x in self._network) - set([None])
-    #     self.hidden_compartments = list((all_lhs | all_rhs) - set(self.compartments))
 
     # def print_network(self):
     #     for reaction in self._network:
@@ -550,59 +523,6 @@ class TrackedSimulation:
 
     #     state = SimulationState(time, compartment_vals, hidden_compartment_vals)
     #     return state
-
-    # def __call__(self, tspan, y0, dt, stochastic_method=None, samples=1, seed=None,
-    #              logger=None):
-    #     """
-    #     :arg tspan: A :class:`tuple` specifying the initiala and final times.
-
-    #     :arg y0: A :class:`dict` with the initial values
-    #         (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
-
-    #     :arg dt: The (initial) timestep to use.
-
-    #     :arg stochastic_method: A :class:`string` specifying whether to use
-    #         direct Gillespie stepping (`'direct'`) or :math:`\\tau`-leaing
-    #         (`'tau_leap'`).
-    #         Defaults to *None*, i.e., a deterministic evolution.
-
-    #     :arg samples: The number of stochastic samples to simulate simultaneously.
-    #         Defaults to ``1``.
-
-    #     :arg seed: The value with which to seed :mod:`numpy`'s random number.
-    #         Defaults to *None*, in which case no seed is passed.
-
-    #     :returns: A :class:`~pydemic.simulation.StateLogger`.
-    #     """
-
-    #     if seed is not None:
-    #         np.random.seed(seed)
-    #     else:
-    #         np.random.seed()
-
-    #     start_time, end_time = tspan
-    #     state = self.initialize_full_state(start_time, y0, samples)
-
-    #     if logger is None:
-    #         result = StateLogger()
-    #     else:
-    #         result = logger
-
-    #     result.initialize_with_state(state)
-
-    #     time = start_time
-    #     while time < end_time:
-    #         if stochastic_method in [None, "tau_leap"]:
-    #             dt = self.step(time, state, dt, stochastic_method=stochastic_method)
-    #         elif stochastic_method in ["direct"]:
-    #             dt = self.step_gillespie_direct(time, state, dt)
-    #         time += dt
-    #         state.t = time
-    #         result(state)
-
-    #     result.cleanup()
-
-    #     return result
 
     # def step_deterministic(self, t, y):
     #     dy = np.zeros_like(y)
