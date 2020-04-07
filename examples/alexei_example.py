@@ -29,7 +29,7 @@ mpl.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pydemic import TrackedSimulation
+from pydemic import NonMarkovianSimulation
 from pydemic import days_to_dates
 
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # suggests that 0.05 is sufficient, but a more systematic study
     # is probably worthwhile. it might also be possible to automatically
     # translate some reactions into passive "after the fact" translations
-    simulation = TrackedSimulation(tspan, dt=0.05)
+    simulation = NonMarkovianSimulation(tspan, dt=0.05)
     y0 = simulation.get_y0(population=1.e6, infected=1.)
 
     then = time.time()
@@ -55,6 +55,7 @@ if __name__ == "__main__":
     data['symptomatic'] = np.cumsum(result.tracks['symptomatic'].sum(axis=0))
     data['critical_dead'] = np.cumsum(result.tracks['critical_dead'].sum(axis=0))
     data['dead'] = np.cumsum(result.tracks['dead'].sum(axis=0))
+    data['positive'] = np.cumsum(result.tracks['positive'].sum(axis=0))
 
     # plotting
     plt.figure(figsize=(8, 6))
@@ -65,7 +66,7 @@ if __name__ == "__main__":
 
     ax1.legend()
     ax1.set_yscale('log')
-    ax1.set_ylim(ymin=0.8, ymax=2.e6)
+    ax1.set_ylim(ymin=0.8, ymax=2.e7)
 
     plt.savefig('alexei_example.png')
 
