@@ -248,16 +248,16 @@ class TrackedSimulation:
             "susceptible": [
             ],
             "infected": [
-                (0, lambda t, y: update_infected(t, y))
+                lambda t, y: update_infected(t, y)
             ],
             "symptomatic": [
-                (0, lambda t, y: update_symptomatic(t, y))
+                lambda t, y: update_symptomatic(t, y)
             ],
             "critical_dead": [
-                (0, lambda t, y: update_icu_dead(t, y))
+                lambda t, y: update_icu_dead(t, y)
             ],
             "dead": [
-                (0, lambda t, y: update_dead(t, y))
+                lambda t, y: update_dead(t, y)
             ],
             "population": [
             ]
@@ -278,7 +278,7 @@ class TrackedSimulation:
                 #print(track, update.shape, self.tracks[track].shape, dy.shape)
                 #update[:,...] = dy
                 #print("update for", track, "has shape", update.shape, "versus", update_base.shape)
-                self.tracks[track][...,0] = source[1](state.t, state.tracks)[...,0]
+                self.tracks[track][...,0] = source(state.t, state.tracks)[...,0]
 
 
     def __call__(self, tspan, y0):
