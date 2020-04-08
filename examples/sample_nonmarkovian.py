@@ -3,7 +3,7 @@ os.environ["OMP_NUM_THREADS"] = '1'
 import numpy as np
 
 pool_size = 4
-walkers = 8
+walkers = 16
 steps = 500
 discard = 200
 thin = 20
@@ -24,6 +24,12 @@ import corner
 fit_parameters = [
     SampleParameter('r0', (0.5, 8), 3, .2),
     SampleParameter('start_day', (20, 60), 50, 2),
+    SampleParameter('p_positive', (0.05, 0.95), 0.5, 0.2),
+    SampleParameter('p_dead', (0.001, 0.1), 0.005, 0.001),
+    SampleParameter('mitigation_factor_1', (.01, 1), .5, .1),
+    SampleParameter('mitigation_factor_2', (.01, 1), .5, .1),
+    SampleParameter('mitigation_factor_3', (.01, 1), .5, .1),
+    SampleParameter('mitigation_factor_4', (.01, 1), .5, .1),
     #SampleParameter('mitigation_factor', (.01, 1), .9, .1),
     #SampleParameter('mitigation_day', (70, 95), 80, 2),
     #SampleParameter('mitigation_width', (.05, 20), 10, 2),
@@ -32,12 +38,26 @@ fit_parameters = [
 
 fixed_values = dict(
     end_day=data.t[-1] + 2,
+    mitigation_t=([70, 75, 80, 85, 90]),
+    mitigation_factor_0=1,
     #population=population,
     #age_dist_pop=age_dist_pop,
     #initial_cases=10.,
     #imports_per_day=1.1,
     #length_ICU_stay=14,
 )
+
+if False:
+    # just plot a model
+    best_fit = { 
+        'r0': 3.25,
+        'start_day': 50.5
+    }
+    fig = plot_deaths_and_positives(data, best_fit, fixed_values)
+    fig.savefig("imgs/nonmarkovian-example.png", bbox_inches='tight')
+    exit()
+
+
 
 estimator = NonMarkovianModelEstimator(
     fit_parameters, fixed_values, data, {'dead': 1, 'positive': 0},

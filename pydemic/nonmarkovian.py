@@ -57,7 +57,7 @@ class NonMarkovianSimulation:
         of :class:`Reaction`'s.
     """
 
-    def __init__(self, tspan, dt=1.,
+    def __init__(self, tspan, mitigation, dt=1.,
                  r0=3.2, serial_k=1.5, serial_theta=4.,
                  p_symptomatic=0.8, incubation_k=3., incubation_theta=5.,
                  p_positive=0.8, positive_k=1., positive_theta=5.,
@@ -84,6 +84,8 @@ class NonMarkovianSimulation:
 
 
         """
+
+        self._mitigation = mitigation
 
         self.dt = dt
         demo_shape = (1,)
@@ -132,6 +134,7 @@ class NonMarkovianSimulation:
                 state.tracks['infected'][..., count::-1],
                 self.kernels[0][:count+1]
             )
+            update *= self._mitigation(state.t[count])
             update *= self.dt
 
             # FIXME: does it make sense to update here?

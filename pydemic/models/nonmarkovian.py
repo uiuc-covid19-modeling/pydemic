@@ -180,8 +180,17 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
 
         # return sim.dense_to_logger(result, t)
 
+        mitigation_keys = sorted([key for key in kwargs.keys()
+                                  if key.startswith('mitigation_factor')])
+        factors = np.array([kwargs.pop(key) for key in mitigation_keys])
+        from pydemic.containment import MitigationModel
+        mitigation = MitigationModel(
+            start_time, end_time, kwargs.pop('mitigation_t'), factors
+        )
+        
+
         tspan = (start_time, end_time)
-        sim = NonMarkovianSimulation(tspan, dt=0.05, **kwargs)
+        sim = NonMarkovianSimulation(tspan, mitigation, dt=0.05, **kwargs)
         y0 = sim.get_y0(population=1.e7, infected=10.)
         result = sim(tspan, y0)
 

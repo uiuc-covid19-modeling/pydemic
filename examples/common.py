@@ -39,7 +39,16 @@ def get_data(Estimator=None, **kwargs):
 all_labels = {
     'r0': r'$R_0$',
     'start_day': 'start day',
+    'mitigation_factor': 'mitigation factor',
+    'mitigation_day': 'mitigation day',
+    'mitigation_width': 'mitigation width',
+    'fraction_hospitalized': 'hospitalization fraction',
+    'p_positive': 'positive test %',
+    'p_dead': 'ifr'
 }
+for i in range(20):
+    all_labels['mitigation_factor_%d' % i] = r'$M_{%d}$' % i
+
 
 
 def plot_deaths_and_positives(data, best_fit, fixed_values, labels=None):
