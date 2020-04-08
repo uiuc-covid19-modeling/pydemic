@@ -258,16 +258,13 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         )
         fraction_hospitalized = kwargs.pop('fraction_hospitalized')
 
-        from scipy.interpolate import interp1d
-        mit_t = np.array(kwargs.pop('mitigation_t'))
-        mitigation_t = np.insert(mit_t, [0, -1], [start_time - 10, end_time + 10])
-
         mitigation_keys = sorted([key for key in kwargs.keys()
                                   if key.startswith('mitigation_factor')])
         factors = np.array([kwargs.pop(key) for key in mitigation_keys])
-        mitigation_factors = np.insert(factors, [0, -1], [factors[0], factors[-1]])
-
-        mitigation = interp1d(mitigation_t, mitigation_factors)
+        from pydemic.containment import MitigationModel
+        mitigation = MitigationModel(
+            start_time, end_time, kwargs.pop('mitigation_t'), factors
+        )
 
         from pydemic.models import NeherModelSimulation
         sim = NeherModelSimulation(

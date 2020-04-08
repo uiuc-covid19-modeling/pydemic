@@ -23,9 +23,28 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-
+import numpy as np
 from pydemic import map_to_days_if_needed
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, CubicSpline
+
+
+class SmoothPiecewiseCurve(CubicSpline):
+    def __init__(self, x, y, refinement=10, window_length=5, polyorder=2, **kwargs):
+        from scipy.signal import savgol_filter
+        # from scipy.interpolate import interp1d
+
+        piecewise = interp1d(x, y)
+        _x = np.linspace(x[0], x[-1], refinement * len(x))
+        _y = piecewise(_x)
+        _y = savgol_filter(_y, window_length, polyorder)
+        super().__init__(_x, _y, **kwargs)
+
+
+class MitigationModel(SmoothPiecewiseCurve):
+    def __init__(self, t0, tf, t, factors):
+        all_t = np.insert(t, [0, -1], [t0 - 10, tf + 10])
+        factors = np.insert(factors, [0, -1], [factors[0], factors[-1]])
+        super().__init__(all_t, factors)
 
 
 class ContainmentModel:
