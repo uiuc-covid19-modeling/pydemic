@@ -2,10 +2,10 @@ import os
 os.environ["OMP_NUM_THREADS"] = '1'
 import numpy as np
 
-pool_size = 4
-walkers = 16
-steps = 500
-discard = 200
+pool_size = 72
+walkers = 144
+steps = 5000
+discard = 500
 thin = 20
 population = "USA-Illinois"
 age_dist_pop = "United States of America"
@@ -60,7 +60,7 @@ if False:
 
 
 estimator = NonMarkovianModelEstimator(
-    fit_parameters, fixed_values, data, {'dead': 1, 'positive': 0},
+    fit_parameters, fixed_values, data, {'dead': 1, 'positive': 1},
     fit_cumulative=fit_cumulative
 )
 
