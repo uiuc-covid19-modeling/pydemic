@@ -29,7 +29,7 @@ from scipy.interpolate import interp1d, CubicSpline
 
 
 class SmoothPiecewiseCurve(CubicSpline):
-    def __init__(self, x, y, refinement=10, window_length=5, polyorder=2, **kwargs):
+    def __init__(self, x, y, refinement=20, window_length=5, polyorder=2, **kwargs):
         from scipy.signal import savgol_filter
         # from scipy.interpolate import interp1d
 
@@ -41,10 +41,13 @@ class SmoothPiecewiseCurve(CubicSpline):
 
 
 class MitigationModel(SmoothPiecewiseCurve):
-    def __init__(self, t0, tf, t, factors):
-        all_t = np.insert(t, [0, -1], [t0 - 10, tf + 10])
-        factors = np.insert(factors, [0, -1], [factors[0], factors[-1]])
-        super().__init__(all_t, factors)
+    def __init__(self, t0, tf, t, factors, **kwargs):
+        t = np.insert(t, 0, min(t0, t[0]) - 10)
+        t = np.append(t, max(tf, t[-1]) + 10)
+
+        factors = np.insert(factors, 0, factors[0])
+        factors = np.append(factors, factors[-1])
+        super().__init__(t, factors, **kwargs)
 
 
 class ContainmentModel:
