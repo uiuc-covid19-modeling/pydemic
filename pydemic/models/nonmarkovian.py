@@ -24,7 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from pydemic import NonMarkovianSimulation, map_to_days_if_needed
+from pydemic import NonMarkovianSimulation
 from pydemic.sampling import LikelihoodEstimatorBase
 from scipy.interpolate import interp1d
 
@@ -180,8 +180,6 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
 
         # return sim.dense_to_logger(result, t)
 
-
-
         tspan = (start_time, end_time)
         sim = NonMarkovianSimulation(tspan, dt=0.05, **kwargs)
         y0 = sim.get_y0(population=1.e7, infected=10.)
@@ -189,7 +187,7 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
 
         data = {}
         for track in result.tracks:
-            if track not in [ "susceptible", "population" ]:
+            if track not in ["susceptible", "population"]:
                 data[track] = np.cumsum(result.tracks[track], axis=1)
             else:
                 data[track] = result.tracks[track]
@@ -205,5 +203,3 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
             logger.y[track] = func(t).T
 
         return logger
-
-

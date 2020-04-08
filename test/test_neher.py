@@ -150,9 +150,9 @@ def test_neher_estimator():
         initial_cases=10.,
         imports_per_day=1.1,
         age_distribution=age_distribution,
-        mitigation_factor=1,
-        mitigation_day=80,
-        mitigation_width=.05,
+        mitigation_factor_0=1,
+        mitigation_factor_1=1,
+        mitigation_t=([79, 80]),
         fraction_hospitalized=1.,
     )
     estimator = NeherModelEstimator(

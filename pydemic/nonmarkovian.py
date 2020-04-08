@@ -23,7 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from datetime import datetime, timedelta
 from scipy.stats import gamma
 import numpy as np
 
@@ -58,7 +57,7 @@ class NonMarkovianSimulation:
         of :class:`Reaction`'s.
     """
 
-    def __init__(self, tspan, dt=1., 
+    def __init__(self, tspan, dt=1.,
                  r0=3.2, serial_k=1.5, serial_theta=4.,
                  p_symptomatic=0.8, incubation_k=3., incubation_theta=5.,
                  p_positive=0.8, positive_k=1., positive_theta=5.,
@@ -92,8 +91,8 @@ class NonMarkovianSimulation:
 
         # FIXME: in principle we have another set of distributions for those
         # who should go from onset -> hospital (including ICU?) -> recovered,
-        # but we don't have numbers for those values. we can "fake" this by 
-        # changing the ratios in the above class of individuals who go to the 
+        # but we don't have numbers for those values. we can "fake" this by
+        # changing the ratios in the above class of individuals who go to the
         # ICU but don't die?
 
         # FIXME: can also change "population", "susceptible", and "dead"

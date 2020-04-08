@@ -15,7 +15,6 @@ fit_cumulative = False
 
 
 from pydemic.sampling import SampleParameter
-from pydemic import days_to_dates
 from pydemic.models.nonmarkovian import NonMarkovianModelEstimator
 from multiprocessing import Pool
 from common import all_labels, plot_deaths_and_positives
@@ -48,7 +47,7 @@ estimator = NonMarkovianModelEstimator(
 
 pool = Pool(pool_size)
 sampler = estimator.sample_emcee(
-    steps, walkers=walkers, #pool=pool,
+    steps, walkers=walkers,  # pool=pool,
     backend_filename="nonmarkovian.h5"
 )
 pool.close()
@@ -71,5 +70,3 @@ best_parameters = {**best_fit, **estimator.fixed_values}
 
 fig = plot_deaths_and_positives(data, best_fit, fixed_values)
 fig.savefig("imgs/nonmarkovian-best-fit.png", bbox_inches='tight')
-
-
