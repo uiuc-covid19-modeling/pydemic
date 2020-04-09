@@ -59,9 +59,9 @@ class NonMarkovianSimulation:
 
     def __init__(self, tspan, mitigation, dt=1.,
                  r0=3.2, serial_k=1.5, serial_mean=4.,
-                 p_symptomatic=0.8, incubation_k=3., incubation_mean=5.,
-                 p_positive=0.8, positive_k=1., positive_mean=5.,
-                 p_dead=0.05, icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.):
+                 p_symptomatic=1.0, incubation_k=3., incubation_mean=5.,
+                 p_positive=1.0, positive_k=1., positive_mean=5.,
+                 p_dead=1., icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.):
         """
 
             parameters used below from Alexei's post:
@@ -90,6 +90,15 @@ class NonMarkovianSimulation:
         self.dt = dt
         demo_shape = (9,)
         n_bins = int((tspan[1] - tspan[0]) / dt + 2)
+
+        # custom severity model following Neher's data from China. in particular:
+        #   p_symptomatic = 1.
+        #   p_positive = confirmed
+        #   p_dead = confirmed * severe * critical * fatal
+        #
+        p_positive = np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]) / 100. * p_positive
+        p_symptomatic = np.ones(demo_shape) * p_symptomatic
+        p_dead = np.array([7.5e-6, 4.5e-5, 9.e-5, 2.025e-4, 7.2e-4, 2.5e-3, 1.05e-2, 3.15e-2, 6.875e-2]) * p_dead
 
         # FIXME: in principle we have another set of distributions for those
         # who should go from onset -> hospital (including ICU?) -> recovered,

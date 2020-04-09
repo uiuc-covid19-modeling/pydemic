@@ -26,7 +26,7 @@ fit_parameters = [
     SampleParameter('r0', (0.5, 8), 3, .2),
     SampleParameter('start_day', (20, 60), 50, 2),
     SampleParameter('p_positive', (0.05, 0.95), 0.5, 0.2),
-    SampleParameter('p_dead', (0.001, 0.1), 0.005, 0.001),
+    SampleParameter('p_dead', (0., 1.), 0.5, 0.1),
     SampleParameter('mitigation_factor_1', (.01, 1), .5, .1),
     SampleParameter('mitigation_factor_2', (.01, 1), .5, .1),
     SampleParameter('mitigation_factor_3', (.01, 1), .5, .1),
@@ -48,7 +48,7 @@ best_fit = {
     'r0': 2.,
     'start_day': 50.,
     'p_positive': 0.1,
-    'p_dead': 0.005,
+    'p_dead': 1.0,
     'mitigation_factor_1': 1.,
     'mitigation_factor_2': 1.,
     'mitigation_factor_3': 1.,
@@ -91,15 +91,15 @@ def set_all_after(index, value, d):
 # p_dead
 fig, ax = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=False)
 ax = ax.T
-best_fit['p_dead'] = 0.01
+best_fit['p_dead'] = 0.1
 fig = plot_deaths_and_positives_with_ax(fig, ax, data, best_fit, fixed_values, fmt='k')
-best_fit['p_dead'] = 0.02
+best_fit['p_dead'] = 0.25
 fig = plot_deaths_and_positives_with_ax(fig, ax, data, best_fit, fixed_values, fmt='r')
-best_fit['p_dead'] = 0.03
+best_fit['p_dead'] = 0.5
 fig = plot_deaths_and_positives_with_ax(fig, ax, data, best_fit, fixed_values, fmt='g')
-best_fit['p_dead'] = 0.04
+best_fit['p_dead'] = 1.0
 fig = plot_deaths_and_positives_with_ax(fig, ax, data, best_fit, fixed_values, fmt='b')
-best_fit['p_dead'] = 0.01
+best_fit['p_dead'] = 1.0
 ax[0,0].set_ylim(0.8, 100)
 ax[1,0].set_ylim(0.8, 800)
 ax[0,1].set_ylim(0.8, 2000)
