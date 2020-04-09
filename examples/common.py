@@ -47,7 +47,8 @@ all_labels = {
     'p_dead': 'death ratio',
     'positive_mean': 'positive delay',
     'icu_mean': 'icu delay',
-    'dead_mean': 'death delay'
+    'dead_mean': 'death delay',
+    'dead_k': 'death k'
 }
 for i in range(20):
     all_labels['mitigation_factor_%d' % i] = r'$M_{%d}$' % i

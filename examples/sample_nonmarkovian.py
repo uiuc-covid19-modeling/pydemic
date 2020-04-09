@@ -29,6 +29,7 @@ fit_parameters = [
     SampleParameter('positive_mean', (4., 11.), 7.5, 1.),
     SampleParameter('icu_mean', (8., 10.), 10., 0.2),
     SampleParameter('dead_mean', (7., 15.), 11, 1.),
+    SampleParameter('dead_k', (1., 4.), 2.5, 0.4),
     SampleParameter('mitigation_factor_1', (.01, 1), .5, .1),
     SampleParameter('mitigation_factor_2', (.01, 1), .5, .1),
     SampleParameter('mitigation_factor_3', (.01, 1), .5, .1),
