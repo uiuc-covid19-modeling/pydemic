@@ -96,8 +96,8 @@ class LikelihoodEstimatorBase:
 
         return np.array(values), np.array(likelihoods)
 
-    def sample_emcee(self, steps, walkers=None, pool=None, moves=None,
-                     init_method='normal', backend_filename=None, progress=True):
+    def sample_emcee(self, steps, walkers=None, pool=None, moves=None, progress=True,
+                     init_method='normal', backend=None, backend_filename=None):
         if pool is None:
             from multiprocessing import Pool
             pool = Pool()
@@ -106,14 +106,24 @@ class LikelihoodEstimatorBase:
 
         import emcee
 
-        initial_positions = self.get_initial_positions(walkers, method=init_method)
-        ndim = initial_positions.shape[-1]
-
-        if backend_filename is not None:
-            backend = emcee.backends.HDFBackend(backend_filename)
-            backend.reset(walkers, ndim)
+        if backend is not None:
+            is_initialized = backend.initialized
+        elif backend_filename is not None:
+            from pydemic.hdf import HDFBackend
+            backend = HDFBackend(backend_filename, self.fit_parameters,
+                                 self.fixed_values, self.data)
+            is_initialized = False
         else:
-            backend = None
+            is_initialized = False
+
+        if not is_initialized:
+            initial_positions = self.get_initial_positions(
+                walkers, method=init_method
+            )
+            ndim = initial_positions.shape[-1]
+        else:
+            initial_positions = None
+            walkers, ndim = backend.shape
 
         sampler = emcee.EnsembleSampler(walkers, ndim, self, moves=moves,
                                         backend=backend, pool=pool)
