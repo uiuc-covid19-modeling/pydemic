@@ -31,6 +31,8 @@ class HDFBackend(emcee.backends.HDFBackend):
     def __init__(self, filename, fit_parameters=None, fixed_values=None, data=None,
                  **kwargs):
         super().__init__(filename, **kwargs)
+        import h5py
+        string_dt = h5py.string_dtype(encoding='ascii')
 
         with self.open('a') as f:
             if fixed_values is not None:
@@ -41,7 +43,7 @@ class HDFBackend(emcee.backends.HDFBackend):
             if fit_parameters is not None:
                 f.create_group('fit_parameters')
                 f['fit_parameters/names'] = np.array(
-                    [par.name for par in fit_parameters], dtype="S10"
+                    [par.name for par in fit_parameters], dtype=string_dt
                 )
                 f['fit_parameters/guess'] = [par.guess for par in fit_parameters]
                 f['fit_parameters/bounds'] = [par.bounds for par in fit_parameters]
@@ -55,7 +57,7 @@ class HDFBackend(emcee.backends.HDFBackend):
                 f.create_group('data/y')
                 for key, val in data.y.items():
                     if np.array(val).dtype.char in ('S', 'U'):
-                        f['data/y'][key] = np.array(val, dtype="S10")
+                        f['data/y'][key] = np.array(val, dtype=string_dt)
                     else:
                         f['data/y'][key] = val
 
@@ -68,7 +70,7 @@ class HDFBackend(emcee.backends.HDFBackend):
     def fit_parameters(self):
         from pydemic.sampling import SampleParameter
         with self.open() as f:
-            names = f['fit_parameters/names'][:]
+            names = [name.decode('utf-8') for name in f['fit_parameters/names'][:]]
             pars = []
             for i, name in enumerate(names):
                 pars.append(
