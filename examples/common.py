@@ -45,7 +45,9 @@ all_labels = {
     'fraction_hospitalized': 'hospitalization fraction',
     'p_positive': 'positive test ratio',
     'p_dead': 'death ratio',
-    'positive_mean': 'positive delay'
+    'positive_mean': 'positive delay',
+    'icu_mean': 'icu delay',
+    'dead_mean': 'death delay'
 }
 for i in range(20):
     all_labels['mitigation_factor_%d' % i] = r'$M_{%d}$' % i
