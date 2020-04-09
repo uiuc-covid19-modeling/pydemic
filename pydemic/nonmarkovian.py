@@ -58,10 +58,10 @@ class NonMarkovianSimulation:
     """
 
     def __init__(self, tspan, mitigation, dt=1.,
-                 r0=3.2, serial_k=1.5, serial_theta=4.,
-                 p_symptomatic=0.8, incubation_k=3., incubation_theta=5.,
-                 p_positive=0.8, positive_k=1., positive_theta=5.,
-                 p_dead=0.05, icu_k=1., icu_theta=9., dead_k=1., dead_theta=7.):
+                 r0=3.2, serial_k=1.5, serial_mean=4.,
+                 p_symptomatic=0.8, incubation_k=3., incubation_mean=5.,
+                 p_positive=0.8, positive_k=1., positive_mean=5.,
+                 p_dead=0.05, icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.):
         """
 
             parameters used below from Alexei's post:
@@ -69,18 +69,18 @@ class NonMarkovianSimulation:
 
             default suggested ranges are:
                 serial_k            1.5 ->  2
-                serial_theta        4   ->  5
+                serial_mean         4   ->  5
                 p_symptomatic       ??
                 incubation_k        3+
-                incubation_theta    5   ->  6
+                incubation_mean     5   ->  6
                 p_positive          ??
                 positive_k          1
-                positive_theta      5   -> 10
+                positive_mean       5   -> 10
                 p_dead              ??
                 icu_k               1
-                icu_theta           9   -> 11
+                icu_mean            9   -> 11
                 dead_k              1
-                dead_theta          7   ->  8
+                dead_mean           7   ->  8
 
 
         """
@@ -110,11 +110,11 @@ class NonMarkovianSimulation:
 
         ts = np.arange(0, n_bins) * dt
         self.kernels = [
-            gamma.pdf(ts, serial_k, scale=serial_theta),
-            gamma.pdf(ts, incubation_k, scale=incubation_theta),
-            gamma.pdf(ts, icu_k, scale=icu_theta),
-            gamma.pdf(ts, dead_k, scale=dead_theta),
-            gamma.pdf(ts, positive_k, scale=positive_theta),
+            gamma.pdf(ts, serial_k, scale=serial_mean/serial_k),
+            gamma.pdf(ts, incubation_k, scale=incubation_mean/incubation_k),
+            gamma.pdf(ts, icu_k, scale=icu_mean/icu_k),
+            gamma.pdf(ts, dead_k, scale=dead_mean/dead_k),
+            gamma.pdf(ts, positive_k, scale=positive_mean/positive_k),
         ]
 
         self.tracks = {

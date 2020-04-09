@@ -2,11 +2,11 @@ import os
 os.environ["OMP_NUM_THREADS"] = '1'
 import numpy as np
 
-pool_size = 72
-walkers = 144
-steps = 5000
-discard = 500
-thin = 20
+pool_size = 4
+walkers = 16
+steps = 200
+discard = 50
+thin = 10
 population = "USA-Illinois"
 age_dist_pop = "United States of America"
 from pydemic.data import united_states
@@ -30,15 +30,11 @@ fit_parameters = [
     SampleParameter('mitigation_factor_2', (.01, 1), .5, .1),
     SampleParameter('mitigation_factor_3', (.01, 1), .5, .1),
     SampleParameter('mitigation_factor_4', (.01, 1), .5, .1),
-    #SampleParameter('mitigation_factor', (.01, 1), .9, .1),
-    #SampleParameter('mitigation_day', (70, 95), 80, 2),
-    #SampleParameter('mitigation_width', (.05, 20), 10, 2),
-    #SampleParameter('fraction_hospitalized', (.05, 10), 5, 3),
 ]
 
 fixed_values = dict(
     end_day=data.t[-1] + 2,
-    mitigation_t=([70, 75, 80, 85, 90]),
+    mitigation_t=([60, 67, 74, 81, 88]),
     mitigation_factor_0=1,
     #population=population,
     #age_dist_pop=age_dist_pop,
@@ -47,23 +43,10 @@ fixed_values = dict(
     #length_ICU_stay=14,
 )
 
-if False:
-    # just plot a model
-    best_fit = { 
-        'r0': 3.25,
-        'start_day': 50.5
-    }
-    fig = plot_deaths_and_positives(data, best_fit, fixed_values)
-    fig.savefig("imgs/nonmarkovian-example.png", bbox_inches='tight')
-    exit()
-
-
-
 estimator = NonMarkovianModelEstimator(
     fit_parameters, fixed_values, data, {'dead': 1, 'positive': 1},
     fit_cumulative=fit_cumulative
 )
-
 
 pool = Pool(pool_size)
 sampler = estimator.sample_emcee(
