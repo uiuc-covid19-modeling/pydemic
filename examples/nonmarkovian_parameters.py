@@ -37,11 +37,10 @@ fixed_values = dict(
     end_day=data.t[-1] + 2,
     mitigation_t=([60, 67, 74, 81, 88]),
     mitigation_factor_0=1,
-    #population=population,
-    #age_dist_pop=age_dist_pop,
-    #initial_cases=10.,
-    #imports_per_day=1.1,
-    #length_ICU_stay=14,
+    population=population,
+    age_dist_pop=age_dist_pop,
+    initial_cases=10.,
+    imports_per_day=1.1, # FIXME: currently doesn't do anything
 )
 
 # just plot a model
@@ -77,7 +76,7 @@ import matplotlib.pyplot as plt
 # plot_with_quantiles(ax[0, 0], days_to_dates(diff.t), dead, False)
 # ax[0, 0].set_ylabel("daily new deaths")
 
-if False:
+if True:
     # simple
     fig = plot_deaths_and_positives(data, best_fit, fixed_values)
     fig.savefig('imgs/explorations.png')

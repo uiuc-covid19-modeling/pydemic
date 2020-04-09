@@ -122,24 +122,21 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
         start_time = kwargs.pop('start_day')
         end_time = kwargs.pop('end_day')
 
-        # FIXME: population, initial cases, imports per day, age distribution
+        from pydemic.data import get_population_model, get_age_distribution_model
+        pop_name = kwargs.pop('population')
+        population = get_population_model(pop_name)
+        if 'population_served' in kwargs:
+            population.population_served = kwargs.pop('population_served')
+        if 'initial_cases' in kwargs:
+            population.initial_cases = kwargs.pop('initial_cases')
+        if 'imports_per_day' in kwargs:
+            population.imports_per_day = kwargs.pop('imports_per_day')
+        population.ICU_beds = 1e10
+        population.hospital_beds = 1e10
 
-        # from pydemic.data import get_population_model, get_age_distribution_model
-        # pop_name = kwargs.pop('population')
-        # population = get_population_model(pop_name)
-        # if 'population_served' in kwargs:
-        #     population.population_served = kwargs.pop('population_served')
-        # if 'initial_cases' in kwargs:
-        #     population.initial_cases = kwargs.pop('initial_cases')
-        # if 'imports_per_day' in kwargs:
-        #     population.imports_per_day = kwargs.pop('imports_per_day')
-        # population.ICU_beds = 1e10
-        # population.hospital_beds = 1e10
-
-        # age_dist_pop = kwargs.pop('age_dist_pop', pop_name)
-        # age_distribution = get_age_distribution_model(age_dist_pop)
-        # age_distribution = kwargs.pop('age_distribution', age_distribution)
-        # n_age_groups = len(age_distribution.counts)
+        age_dist_pop = kwargs.pop('age_dist_pop', pop_name)
+        age_distribution = get_age_distribution_model(age_dist_pop)
+        n_age_groups = len(age_distribution.counts)
 
         # from pydemic import SeverityModel, EpidemiologyModel, ContainmentModel
         # severity = SeverityModel(
@@ -191,7 +188,7 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
 
         tspan = (start_time, end_time)
         sim = NonMarkovianSimulation(tspan, mitigation, dt=0.05, **kwargs)
-        y0 = sim.get_y0(population=1.e7, infected=10.)
+        y0 = sim.get_y0(population, age_distribution)
         result = sim(tspan, y0)
 
         data = {}

@@ -88,7 +88,7 @@ class NonMarkovianSimulation:
         self._mitigation = mitigation
 
         self.dt = dt
-        demo_shape = (1,)
+        demo_shape = (9,)
         n_bins = int((tspan[1] - tspan[0]) / dt + 2)
 
         # FIXME: in principle we have another set of distributions for those
@@ -208,9 +208,7 @@ class NonMarkovianSimulation:
 
         start_time, end_time = tspan
         n_steps = int((end_time-start_time)/self.dt + 2)
-
         times = np.linspace(start_time, end_time, n_steps)
-
         state = NonMarkovianSimulationState(times, self.tracks)
 
         for key in y0:
@@ -228,15 +226,25 @@ class NonMarkovianSimulation:
 
         return state
 
-    def get_y0(self, population, infected):
-        # FIXME: set these shapes by n_demographics
+    def get_y0(self, population, age_distribution):
+        """
+        :arg population: FIXME: document
+
+        :arg age_distribution: A :class:`dict` with key counts
+            (as :class:`numpy.ndarray`'s) FIXME: document
+
+        :returns: FIXME: document
+        """
+
+        n_demographics = len(age_distribution.counts)
+        population_scale = population.population_served / sum(age_distribution.counts)
 
         y0 = {}
         for key in self.tracks:
-            y0[key] = np.array([0.])
+            y0[key] = np.zeros((n_demographics))
 
-        y0['population'][...] = population
-        y0['susceptible'][...] = population - infected
-        y0['infected'][...] = infected
+        y0['population'][...] = np.array(age_distribution.counts) * population_scale
+        y0['infected'][...] = population.initial_cases / n_demographics
+        y0['susceptible'][...] = y0['population'] - y0['infected']
 
         return y0
