@@ -25,7 +25,7 @@ import corner
 fit_parameters = [
     SampleParameter('r0', (0.5, 8), 3, .2),
     SampleParameter('start_day', (20, 60), 50, 2),
-    SampleParameter('p_positive', (0.05, 0.95), 0.5, 0.2),
+    SampleParameter('p_positive', (0., 1.), 0.5, 0.1),
     SampleParameter('p_dead', (0., 1.), 0.5, 0.1),
     SampleParameter('mitigation_factor_1', (.01, 1), .5, .1),
     SampleParameter('mitigation_factor_2', (.01, 1), .5, .1),
