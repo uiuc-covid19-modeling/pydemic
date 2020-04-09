@@ -43,8 +43,9 @@ all_labels = {
     'mitigation_day': 'mitigation day',
     'mitigation_width': 'mitigation width',
     'fraction_hospitalized': 'hospitalization fraction',
-    'p_positive': 'positive test %',
-    'p_dead': 'ifr'
+    'p_positive': 'positive test ratio',
+    'p_dead': 'death ratio',
+    'positive_mean': 'positive delay'
 }
 for i in range(20):
     all_labels['mitigation_factor_%d' % i] = r'$M_{%d}$' % i
