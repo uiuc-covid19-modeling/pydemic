@@ -46,9 +46,13 @@ all_labels = {
     'p_positive': 'positive test ratio',
     'p_dead': 'death ratio',
     'positive_mean': 'positive delay',
+    'positive_k': 'positive k',
     'icu_mean': 'icu delay',
+    'icu_k': 'icu k',
     'dead_mean': 'death delay',
-    'dead_k': 'death k'
+    'dead_k': 'death k',
+    'incubation_mean': 'incubation delay',
+    'incubation_k': 'incubation k'
 }
 for i in range(20):
     all_labels['mitigation_factor_%d' % i] = r'$M_{%d}$' % i
