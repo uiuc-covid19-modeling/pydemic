@@ -44,6 +44,7 @@ class LikelihoodEstimatorBase:
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
         self.data = data.copy()
+        self._original_data = data
 
         if norm is None:
             self.norm = l2_log_norm
@@ -111,7 +112,7 @@ class LikelihoodEstimatorBase:
         elif backend_filename is not None:
             from pydemic.hdf import HDFBackend
             backend = HDFBackend(backend_filename, self.fit_parameters,
-                                 self.fixed_values, self.data)
+                                 self.fixed_values, self._original_data)
             is_initialized = False
         else:
             is_initialized = False
