@@ -62,6 +62,14 @@ class ItalyDataParser(DataParser):
     def translate(self, key):
         return self.translation[key]
 
+    def parse_case_data(self):
+        region_data_series = super().parse_case_data()
+        for region, data in region_data_series.items():
+            import numpy as np
+            data['positive'] = [int(x) for x in np.cumsum(data['new_positive'])]
+
+        return region_data_series
+
     def convert_to_date(self, string):
         return tuple(map(int, string[:10].split('-')))
 

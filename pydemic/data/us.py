@@ -46,9 +46,6 @@ class UnitedStatesDataParser(DataParser):
         'in_icu_currently': 'critical',
     }
 
-    def translate(self, key):
-        return self.translation.get(key, key)
-
     def __init__(self):
         super().__init__()
 

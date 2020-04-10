@@ -65,6 +65,7 @@ class DataParser:
     _agedata_filename = os.path.join(
         cwd, "../../assets/country_age_distribution.json"
     )
+    translation = {}
 
     def __init__(self):
         import os.path
@@ -72,7 +73,7 @@ class DataParser:
             self.scrape_case_data()
 
     def translate(self, key):
-        return key
+        return self.translation.get(key, key)
 
     def convert_to_date(self, num):
         year = num // 10000
@@ -80,7 +81,7 @@ class DataParser:
         day = (num - 10000 * year - 100 * month)
         return (year, month, day)
 
-    def scrape_case_data(self):
+    def parse_case_data(self):
         import requests
         r = requests.get(self.data_url)
         all_data = json.loads(r.text)
@@ -113,6 +114,11 @@ class DataParser:
                 data_series[key] = [x.get(key) for x in sorted_data]
 
             region_data_series[region] = data_series
+
+        return region_data_series
+
+    def scrape_case_data(self):
+        region_data_series = self.parse_case_data()
 
         with open(self._casedata_filename, 'w') as f:
             json.dump(region_data_series, f)
