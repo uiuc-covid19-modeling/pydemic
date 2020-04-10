@@ -166,10 +166,6 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
     def get_log_likelihood(self, parameters):
         if not self.check_within_bounds(list(parameters.values())):
             return -np.inf
-        if 'mitigation_day' in parameters and 'start_day' in parameters:
-            # FIXME: doesn't check if either is fixed
-            if parameters['mitigation_day'] < parameters['start_day']:
-                return -np.inf
 
         # get model data at daily values
         # when computing diffs, datasets were prepended with 0, so there is no need
@@ -178,6 +174,8 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         model_data = self.get_model_data(
             t_eval, **parameters, **self.fixed_values
         )
+        if model_data == -np.inf:
+            return -np.inf
         data_t_indices = np.isin(t_eval, self.data.t)
 
         def get_one_likelihood(_model, data):
@@ -258,13 +256,21 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         )
         fraction_hospitalized = kwargs.pop('fraction_hospitalized')
 
-        mitigation_keys = sorted([key for key in kwargs.keys()
-                                  if key.startswith('mitigation_factor')])
-        factors = np.array([kwargs.pop(key) for key in mitigation_keys])
+        factor_keys = sorted([key for key in kwargs.keys()
+                              if key.startswith('mitigation_factor')])
+        factors = np.array([kwargs.pop(key) for key in factor_keys])
+
+        time_keys = sorted([key for key in kwargs.keys()
+                            if key.startswith('mitigation_t')])
+        times = np.array([kwargs.pop(key) for key in time_keys])
+        # ensure times are ordered
+        if (np.diff(times, prepend=start_time, append=end_time) < 0).any():
+            return -np.inf
+        if (np.diff(times) < kwargs.get('min_mitigation_spacing', 5)).any():
+            return -np.inf
+
         from pydemic.containment import MitigationModel
-        mitigation = MitigationModel(
-            start_time, end_time, kwargs.pop('mitigation_t'), factors
-        )
+        mitigation = MitigationModel(start_time, end_time, times, factors)
 
         from pydemic.models import NeherModelSimulation
         sim = NeherModelSimulation(
