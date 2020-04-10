@@ -177,14 +177,30 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
 
         # return sim.dense_to_logger(result, t)
 
-        mitigation_keys = sorted([key for key in kwargs.keys()
+        if False:
+            mitigation_keys = sorted([key for key in kwargs.keys()
+                                      if key.startswith('mitigation_factor')])
+            factors = np.array([kwargs.pop(key) for key in mitigation_keys])
+            from pydemic.containment import MitigationModel
+            mitigation = MitigationModel(
+                start_time, end_time, kwargs.pop('mitigation_t'), factors
+            )
+
+        if True:
+            factor_keys = sorted([key for key in kwargs.keys()
                                   if key.startswith('mitigation_factor')])
-        factors = np.array([kwargs.pop(key) for key in mitigation_keys])
-        from pydemic.containment import MitigationModel
-        mitigation = MitigationModel(
-            start_time, end_time, kwargs.pop('mitigation_t'), factors
-        )
-        
+            factors = np.array([kwargs.pop(key) for key in factor_keys])
+
+            time_keys = sorted([key for key in kwargs.keys()
+                                if key.startswith('mitigation_t')])
+            times = np.array([kwargs.pop(key) for key in time_keys])
+            # ensure times are ordered
+            if (np.diff(times, prepend=start_time, append=end_time) < 0).any():
+                return -np.inf
+            if (np.diff(times) < kwargs.get('min_mitigation_spacing', 5)).any():
+                return -np.inf
+            from pydemic.containment import MitigationModel
+            mitigation = MitigationModel(start_time, end_time, times, factors)
 
         tspan = (start_time, end_time)
         sim = NonMarkovianSimulation(tspan, mitigation, dt=0.05, **kwargs)
