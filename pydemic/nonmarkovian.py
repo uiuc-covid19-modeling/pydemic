@@ -59,6 +59,7 @@ class NonMarkovianSimulation:
 
     def __init__(self, tspan, mitigation, dt=1.,
                  r0=3.2, serial_k=1.5, serial_mean=4.,
+                 p_hospitalized=1.0,
                  p_symptomatic=1.0, incubation_k=3., incubation_mean=5.,
                  p_positive=1.0, positive_k=1., positive_mean=5.,
                  p_dead=1., icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.):
@@ -164,6 +165,12 @@ class NonMarkovianSimulation:
         demo_shape = (9,)
         n_bins = int((tspan[1] - tspan[0]) / dt + 2)
 
+        # FIXME: find another way to implement this?
+        # custom hospitalized model to track current number of hospitalized persons
+        p_hospitalized = 1.
+        hospital_removed_k = 6.      #
+        hospital_removed_mean = 12.  # corresponds to mean ~ 12, std ~ 4.9
+
         # custom severity model following Neher's data from China. in particular:
         #   p_symptomatic = 1.
         #   p_positive = confirmed
@@ -172,6 +179,7 @@ class NonMarkovianSimulation:
         p_positive = np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]) / 100. * p_positive
         p_symptomatic = np.ones(demo_shape) * p_symptomatic
         p_dead = np.array([7.5e-6, 4.5e-5, 9.e-5, 2.025e-4, 7.2e-4, 2.5e-3, 1.05e-2, 3.15e-2, 6.875e-2]) * p_dead
+        p_hospitalized_given_positive = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1.]) * p_hospitalized
 
         # FIXME: in principle we have another set of distributions for those
         # who should go from onset -> hospital (including ICU?) -> recovered,
@@ -197,12 +205,14 @@ class NonMarkovianSimulation:
             gamma.pdf(ts, icu_k, scale=icu_mean/icu_k),
             gamma.pdf(ts, dead_k, scale=dead_mean/dead_k),
             gamma.pdf(ts, positive_k, scale=positive_mean/positive_k),
+            gamma.pdf(ts, hospital_removed_k, scale=hospital_removed_mean/hospital_removed_k)
         ]
 
         self.tracks = {
             "susceptible": np.zeros(demo_shape+(n_bins,)),
             "infected": np.zeros(demo_shape+(n_bins,)),
             "symptomatic": np.zeros(demo_shape+(n_bins,)),
+            "hospital_removed": np.zeros(demo_shape+(n_bins,)),
             "positive": np.zeros(demo_shape+(n_bins,)),
             "critical_dead": np.zeros(demo_shape+(n_bins,)),
             "dead": np.zeros(demo_shape+(n_bins,)),
@@ -244,6 +254,12 @@ class NonMarkovianSimulation:
                 self.kernels[3][:count+1])
             return dead_source
 
+        def update_removed_from_hospital(state, count):
+            removed_source = p_hospitalized_given_positive * self.dt * np.dot(
+                state.tracks['positive'][..., count::-1],
+                self.kernels[5][:count+1])
+            return removed_source
+
         def update_positive(state, count):
             positive_source = p_positive * self.dt * np.dot(
                 state.tracks['symptomatic'][..., count::-1],
@@ -259,6 +275,9 @@ class NonMarkovianSimulation:
             ],
             "positive": [
                 update_positive
+            ],
+            "hospital_removed": [
+                update_removed_from_hospital
             ],
             "symptomatic": [
                 update_symptomatic
