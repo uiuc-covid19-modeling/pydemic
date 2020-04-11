@@ -55,17 +55,26 @@ def poisson_norm(model, data):
 
 
 class LikelihoodEstimatorBase:
-    def __init__(self, fit_parameters, fixed_values, data, norm=None):
+    def __init__(self, fit_parameters, fixed_values, data, weights, norm=None,
+                 fit_cumulative=False):
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
         self.data = data.copy()
         self._original_data = data
+        self.fit_cumulative = fit_cumulative
+        self.weights = weights
 
-        if norm is None:
-            self.norm = l2_log_norm
-        else:
-            self.norm = norm
+        if self.fit_cumulative and norm is None:
+            self.norm = clipped_l2_log_norm
+        elif norm is None:
+            self.norm = poisson_norm
+
+        if not self.fit_cumulative:
+            self.data.y = {
+                key: np.diff(self.data.y[key], prepend=0)
+                for key in self.weights
+            }
 
     def check_within_bounds(self, theta):
         for par, value in zip(self.fit_parameters, theta):
@@ -82,6 +91,55 @@ class LikelihoodEstimatorBase:
             return self.get_log_likelihood(parameters)
 
     def get_log_likelihood(self, parameters):
+        if not self.check_within_bounds(list(parameters.values())):
+            return -np.inf
+
+        # get model data at daily values
+        # when computing diffs, datasets were prepended with 0, so there is no need
+        # to evaluate at an extra data point on day earlier
+        t_eval = np.arange(self.data.t[0], self.data.t[-1]+2)
+        model_data = self.get_model_data(
+            t_eval, **parameters, **self.fixed_values
+        )
+        if model_data == -np.inf:
+            return -np.inf
+        data_t_indices = np.isin(t_eval, self.data.t)
+
+        def get_one_likelihood(_model, data):
+            if not self.fit_cumulative:
+                model = np.diff(_model, prepend=0)
+            else:
+                model = _model
+
+            # slice to match data time coordinates
+            model = model[data_t_indices]
+            # ensure no model data is smaller than .1
+            model = np.maximum(.1, model)
+            # only compare data points whose values are >= 1
+            data_nonzero = data > .9
+
+            if self.fit_cumulative:
+                sigma = np.power(model, .5)
+                return self.norm(model[data_nonzero],
+                                 data[data_nonzero],
+                                 sigma[data_nonzero])
+            else:
+                return self.norm(model[data_nonzero],
+                                 data[data_nonzero])
+
+        likelihood = 0
+        for compartment, weight in self.weights.items():
+            if weight > 0:
+                L = get_one_likelihood(
+                    model_data.y[compartment].sum(axis=-1),
+                    self.data.y[compartment]
+                )
+                likelihood += weight * L
+
+        return likelihood
+
+    @classmethod
+    def get_model_data(cls, t, **kwargs):
         raise NotImplementedError
 
     def get_initial_positions(self, walkers, method='normal'):

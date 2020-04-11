@@ -57,109 +57,115 @@ class NonMarkovianSimulation:
         of :class:`Reaction`'s.
     """
 
-    def __init__(self, tspan, mitigation, dt=1.,
+    def __init__(self, tspan, mitigation=None, dt=1.,
                  r0=3.2, serial_k=1.5, serial_mean=4.,
                  p_hospitalized=1.0,
                  p_symptomatic=1.0, incubation_k=3., incubation_mean=5.,
                  p_positive=1.0, positive_k=1., positive_mean=5.,
                  p_dead=1., icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.):
         """
+        # given k, theta, translate to mean, std
+        # k = 9.0
+        # theta = 1.0
+        mean = k * theta
+        std = np.sqrt(k*theta*theta)
 
-            # given k, theta, translate to mean, std
-            # k = 9.0
-            # theta = 1.0
-            mean = k * theta
-            std = np.sqrt(k*theta*theta)
+        # given mean, std, translate to k, theta
+        # mean = 10.
+        # std = 1.
+        theta = std*std/mean
+        k = mean / theta
 
-            # given mean, std, translate to k, theta
-            # mean = 10.
-            # std = 1.
-            theta = std*std/mean
-            k = mean / theta
+        # given mean, k, translate to k, theta
+        # mean = 10.
+        # k = 25.
+        theta = mean / k
+        std = np.sqrt(mean * theta)
 
-            # given mean, k, translate to k, theta
-            # mean = 10.
-            # k = 25.
-            theta = mean / k
-            std = np.sqrt(mean * theta)
+        parameters used below from Alexei's post:
+        "relevant-delays-for-our-model" on March 30th.
 
-            parameters used below from Alexei's post:
-            "relevant-delays-for-our-model" on March 30th.
+            default suggested ranges are:
+                serial_k            1.5 ->  2
+                serial_mean         4   ->  5
+                p_symptomatic       ??
+                incubation_k        3+
+                incubation_mean     5   ->  6
+                p_positive          ??
+                positive_k          1
+                positive_mean       5   -> 10
+                p_dead              ??
+                icu_k               1
+                icu_mean            9   -> 11
+                dead_k              1
+                dead_mean           7   ->  8
 
-                default suggested ranges are:
-                    serial_k            1.5 ->  2
-                    serial_mean         4   ->  5
-                    p_symptomatic       ??
-                    incubation_k        3+
-                    incubation_mean     5   ->  6
-                    p_positive          ??
-                    positive_k          1
-                    positive_mean       5   -> 10
-                    p_dead              ??
-                    icu_k               1
-                    icu_mean            9   -> 11
-                    dead_k              1
-                    dead_mean           7   ->  8
+        new notes from Alexei's post:
+        "Refining parameters of the model" on April 9th.
 
-            new notes from Alexei's post:
-            "Refining parameters of the model" on April 9th.
+            Infection -> onset (incubation)
+                mean ~ 5-6 and sd ~ 2
+                Alexei suggests using lognormal here. Data from the link
+                Alexei posted are
+                Log-normal: 1.621 (1.504-1.755) and 0.418 (0.271-0.542)
+                Gamma: 5.807 (3.585-13.865) and 0.948 (0.368-1.696)
+                Weibull: 2.453 (1.917-4.171) and 6.258 (5.355-7.260)
+                Erlang: 6 (3-11) and 0.880 (0.484-1.895)
+                FOR our gamma kernel, suggested to use
+                    mean ~ 5.5, theta ~ 0.72, k = 7.563
 
-                Infection -> onset (incubation)
-                    mean ~ 5-6 and sd ~ 2
-                    Alexei suggests using lognormal here. Data from the link Alexei posted are
-                    Log-normal: 1.621 (1.504-1.755) and 0.418 (0.271-0.542)
-                    Gamma: 5.807 (3.585-13.865) and 0.948 (0.368-1.696)
-                    Weibull: 2.453 (1.917-4.171) and 6.258 (5.355-7.260)
-                    Erlang: 6 (3-11) and 0.880 (0.484-1.895)
-                    FOR our gamma kernel, suggested to use
-                        mean ~ 5.5, theta ~ 0.72, k = 7.563
+            Onset -> ICU
+                mean ~ 10, k=4-6
+                Alexei notes: literature claims 10-12 days as mean/median
+                and distribution
+                is narrow. This is dependent on onset-to-death curve.
+                The k=4-6 value comes
+                from estimates of onset->death distributions and knowledge of below
+                ICU -> death.
 
-                Onset -> ICU
-                    mean ~ 10, k=4-6
-                    Alexei notes: literature claims 10-12 days as mean/median and distribution
-                    is narrow. This is dependent on onset-to-death curve. The k=4-6 value comes
-                    from estimates of onset->death distributions and knowledge of below
-                    ICU -> death.
+            ICU -> death
+                time constant ~ 7-8 days
+                death probability ~ 50-75%, so to recover ICU
+                (for patients who do not die),
+                we need to modify slightly. Also note timescale for
+                non-terminal patients
+                may be longer.
 
-                ICU -> death
-                    time constant ~ 7-8 days
-                    death probability ~ 50-75%, so to recover ICU (for patients who do not die),
-                    we need to modify slightly. Also note timescale for non-terminal patients
-                    may be longer.
+            * onset -> hospitalization
+                "typically 5-7 days" with high latency which suggests
+                relatively high k.
+                I'm going to use mean ~ 6 and k ~ 36  [6 + 1]
+                alternatively could use ~ 6 and k ~ 9
 
-                * onset -> hospitalization
-                    "typically 5-7 days" with high latency which suggests relatively high k.
-                    I'm going to use mean ~ 6 and k ~ 36  [6 + 1]
-                    alternatively could use ~ 6 and k ~ 9
+            * bureaucratic delays
+                about 3 days for reporting, Alexei suggests a form factor 2
 
-                * bureaucratic delays
-                    about 3 days for reporting, Alexei suggests a form factor 2
+            4+5 well-described by gamma with mean ~ 11 and SD ~ 1
+                theta ~ 0.09, k ~ 121
 
-                4+5 well-described by gamma with mean ~ 11 and SD ~ 1
-                    theta ~ 0.09, k ~ 121
+        notes from the "Parameter estimates" spreadsheet shared by the Cobey lab
 
-            notes from the "Parameter estimates" spreadsheet shared by the Cobey lab
+            incubation time: mean ~ 5.1 - 6.8 with CI ~ pm 0.5 - 1.0, this
+                is roughly consistent with the above fits by Alexei
 
-                incubation time: mean ~ 5.1 - 6.8 with CI ~ pm 0.5 - 1.0, this
-                    is roughly consistent with the above fits by Alexei
+            onset -> icu:
+                Zhou(Wuhan) ~ 12 and 8-15  (mean, error)
+                Gaythorpe(Hong Kong+Japan), 5.76 & 4.22   (mean, error)
+                Wang(Wuhan), 7, 4-8
+                Wang+Zhu(5, 4-7
 
-                onset -> icu:
-                    Zhou(Wuhan) ~ 12 and 8-15  (mean, error)
-                    Gaythorpe(Hong Kong+Japan), 5.76 & 4.22   (mean, error)
-                    Wang(Wuhan), 7, 4-8
-                    Wang+Zhu(5, 4-7
+            icu -> death
+                Yang 7, 3-11
+                Bhatraju ~ 6.6, std = 3.4
 
-                icu -> death
-                    Yang 7, 3-11
-                    Bhatraju ~ 6.6, std = 3.4
-
-                onset -> hospitalization
-                    many different values...
-
-
+            onset -> hospitalization
+                many different values...
         """
 
-        self._mitigation = mitigation
+        if mitigation is not None:
+            self._mitigation = mitigation
+        else:
+            self._mitigation = lambda t: 1
 
         self.dt = dt
 
@@ -181,10 +187,17 @@ class NonMarkovianSimulation:
         #   p_positive = confirmed
         #   p_dead = confirmed * severe * critical * fatal
         #
-        p_positive = np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]) / 100. * p_positive
+        p_positive = (
+            np.array([5., 5., 10., 15., 20., 25., 30., 40., 50.]) / 100. * p_positive
+        )
         p_symptomatic = np.ones(demo_shape) * p_symptomatic
-        p_dead = np.array([7.5e-6, 4.5e-5, 9.e-5, 2.025e-4, 7.2e-4, 2.5e-3, 1.05e-2, 3.15e-2, 6.875e-2]) * p_dead
-        p_hospitalized_given_positive = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1.]) * p_hospitalized
+        p_dead = (
+            p_dead * np.array([7.5e-6, 4.5e-5, 9.e-5, 2.025e-4, 7.2e-4, 2.5e-3,
+                               1.05e-2, 3.15e-2, 6.875e-2])
+        )
+        p_hospitalized_given_positive = (
+            np.array([1., 1., 1., 1., 1., 1., 1., 1., 1.]) * p_hospitalized
+        )
 
         # FIXME: in principle we have another set of distributions for those
         # who should go from onset -> hospital (including ICU?) -> recovered,
@@ -210,7 +223,8 @@ class NonMarkovianSimulation:
             gamma.pdf(ts, icu_k, scale=icu_mean/icu_k),
             gamma.pdf(ts, dead_k, scale=dead_mean/dead_k),
             gamma.pdf(ts, positive_k, scale=positive_mean/positive_k),
-            gamma.pdf(ts, hospital_removed_k, scale=hospital_removed_mean/hospital_removed_k)
+            gamma.pdf(ts, hospital_removed_k,
+                      scale=hospital_removed_mean/hospital_removed_k)
         ]
 
         self.tracks = {
@@ -336,7 +350,9 @@ class NonMarkovianSimulation:
         """
 
         n_demographics = len(age_distribution.counts)
-        population_scale = population.population_served / sum(age_distribution.counts)
+        population_scale = (
+            population.population_served / sum(age_distribution.counts)
+        )
 
         y0 = {}
         for key in self.tracks:
