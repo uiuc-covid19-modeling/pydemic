@@ -269,7 +269,7 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
         for compartment, weight in self.weights.items():
             if weight > 0:
                 L = get_one_likelihood(
-                    model_data.y[compartment],
+                    model_data.y[compartment].sum(axis=-1),
                     self.data.y[compartment]
                 )
                 likelihood += weight * L
@@ -299,7 +299,7 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
         y = {}
         from scipy.interpolate import interp1d
         for key, val in result.y.items():
-            y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t)
+            y[key] = interp1d(result.t, val, axis=0)(t)
 
         from pydemic.data import CaseData
         result = CaseData(t, y)
