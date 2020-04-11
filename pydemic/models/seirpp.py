@@ -58,7 +58,7 @@ class SEIRPlusPlusSimulation:
                  p_positive=1.0, positive_k=1., positive_mean=5.,
                  p_dead=1., icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.,
                  p_hospitalized=1., hospital_removed_k=6.,
-                 hospital_removed_mean=12., # corresponds to mean ~ 12, std ~ 4.9
+                 hospital_removed_mean=12.,  # corresponds to mean ~ 12, std ~ 4.9
                  **kwargs):
         self.mitigation = mitigation
         self.distribution_params = {
