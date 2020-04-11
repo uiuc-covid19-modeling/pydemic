@@ -52,6 +52,10 @@ class SEIRPlusPlusSimulation:
             for key, (shape, scale) in self.distribution_params.items()
         }
 
+    def seasonal_forcing(self, t):
+        phase = 2 * np.pi * (t - self.peak_day) / 365
+        return (1 + self.seasonal_forcing_amp * np.cos(phase))
+
     def __init__(self, mitigation,
                  r0=3.2, serial_k=1.5, serial_mean=4.,
                  p_symptomatic=1.0, incubation_k=3., incubation_mean=5.,
@@ -59,6 +63,7 @@ class SEIRPlusPlusSimulation:
                  p_dead=1., icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.,
                  p_hospitalized=1., hospital_removed_k=6.,
                  hospital_removed_mean=12.,  # corresponds to mean ~ 12, std ~ 4.9
+                 seasonal_forcing_amp=.2, peak_day=15,
                  **kwargs):
         self.mitigation = mitigation
         self.distribution_params = {
@@ -70,6 +75,8 @@ class SEIRPlusPlusSimulation:
             'hospital_removed': (hospital_removed_k,
                                  hospital_removed_mean/hospital_removed_k),
         }
+        self.seasonal_forcing_amp = seasonal_forcing_amp
+        self.peak_day = peak_day
 
         p_positive = p_positive * np.array([5, 5, 10, 15, 20, 25, 30, 40, 50]) / 100
         p_symptomatic = p_symptomatic * np.ones_like(p_positive)
@@ -80,7 +87,7 @@ class SEIRPlusPlusSimulation:
         def update_infected(state, count, dt):
             fraction = (state.y['susceptible'][..., count-1]
                         / state.y['population'][..., 0])
-            update = fraction * r0 * np.dot(
+            update = self.seasonal_forcing(t) * fraction * r0 * np.dot(
                 state.y['infected'][..., count::-1],
                 self.kernels['serial'][:count+1]
             )
