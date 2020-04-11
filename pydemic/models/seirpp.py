@@ -87,11 +87,12 @@ class SEIRPlusPlusSimulation:
         def update_infected(state, count, dt):
             fraction = (state.y['susceptible'][..., count-1]
                         / state.y['population'][..., 0])
-            update = self.seasonal_forcing(state.t[count]) * fraction * r0 * np.dot(
-                state.y['infected'][..., count::-1],
-                self.kernels['serial'][:count+1]
+            update = fraction * r0 * np.dot(
+                state.y['infected'][..., count-1::-1],
+                self.kernels['serial'][:count]
             )
             update *= dt * self.mitigation(state.t[count])
+            update *= self.seasonal_forcing(state.t[count])
 
             # FIXME: does it make sense to update here?
             state.y['susceptible'][..., count] = (
@@ -101,34 +102,34 @@ class SEIRPlusPlusSimulation:
 
         def update_symptomatic(state, count, dt):
             symptomatic_source = p_symptomatic * dt * np.dot(
-                state.y['infected'][..., count::-1],
-                self.kernels['incubation'][:count+1]
+                state.y['infected'][..., count-1::-1],
+                self.kernels['incubation'][:count]
             )
             return symptomatic_source
 
         def update_icu_dead(state, count, dt):
             icu_dead_source = dt * p_dead * np.dot(
-                state.y['symptomatic'][..., count::-1],
-                self.kernels['icu'][:count+1]
+                state.y['symptomatic'][..., count-1::-1],
+                self.kernels['icu'][:count]
             )
             return icu_dead_source
 
         def update_dead(state, count, dt):
             dead_source = dt * np.dot(
-                state.y['critical_dead'][..., count::-1],
-                self.kernels['dead'][:count+1])
+                state.y['critical_dead'][..., count-1::-1],
+                self.kernels['dead'][:count])
             return dead_source
 
         def update_removed_from_hospital(state, count, dt):
             removed_source = dt * p_hospitalized_given_positive * np.dot(
-                state.y['positive'][..., count::-1],
-                self.kernels['hospital_removed'][:count+1])
+                state.y['positive'][..., count-1::-1],
+                self.kernels['hospital_removed'][:count])
             return removed_source
 
         def update_positive(state, count, dt):
             positive_source = dt * p_positive * np.dot(
-                state.y['symptomatic'][..., count::-1],
-                self.kernels['positive'][:count+1]
+                state.y['symptomatic'][..., count-1::-1],
+                self.kernels['positive'][:count]
             )
             return positive_source
 
@@ -161,7 +162,7 @@ class SEIRPlusPlusSimulation:
         start_time, end_time = tspan
         times = np.arange(start_time, end_time + dt, dt)
         n_steps = times.shape[0]  # pylint: disable=
-        self.set_kernels(times - start_time)
+        self.set_kernels(times[1:] - start_time)
 
         y0_all_t = {}
         for key in y0:
