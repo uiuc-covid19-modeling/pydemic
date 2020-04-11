@@ -87,7 +87,7 @@ class SEIRPlusPlusSimulation:
         def update_infected(state, count, dt):
             fraction = (state.y['susceptible'][..., count-1]
                         / state.y['population'][..., 0])
-            update = self.seasonal_forcing(t) * fraction * r0 * np.dot(
+            update = self.seasonal_forcing(state.t[count]) * fraction * r0 * np.dot(
                 state.y['infected'][..., count::-1],
                 self.kernels['serial'][:count+1]
             )
