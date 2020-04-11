@@ -162,8 +162,13 @@ class NonMarkovianSimulation:
         self._mitigation = mitigation
 
         self.dt = dt
+
+        start_time, end_time = tspan
+        times = np.arange(start_time, end_time + dt, dt)
+        n_steps = times.shape[0]  # pylint: disable=
+
         demo_shape = (9,)
-        n_bins = int((tspan[1] - tspan[0]) / dt + 2)
+        n_bins = n_steps
 
         # FIXME: find another way to implement this?
         # custom hospitalized model to track current number of hospitalized persons
@@ -198,7 +203,7 @@ class NonMarkovianSimulation:
         # FIXME: it might be possible to take integrated values from the cdf
         # here instead of point sampling the pdf to achieve faster convergence
 
-        ts = np.arange(0, n_bins) * dt
+        ts = times - start_time
         self.kernels = [
             gamma.pdf(ts, serial_k, scale=serial_mean/serial_k),
             gamma.pdf(ts, incubation_k, scale=incubation_mean/incubation_k),
@@ -308,21 +313,14 @@ class NonMarkovianSimulation:
         """
 
         start_time, end_time = tspan
-        n_steps = int((end_time-start_time)/self.dt + 2)
-        times = np.linspace(start_time, end_time, n_steps)
+        times = np.arange(start_time, end_time + self.dt, self.dt)
+        n_steps = times.shape[0]  # pylint: disable=
         state = NonMarkovianSimulationState(times, self.tracks)
 
         for key in y0:
             state.tracks[key][..., 0] = y0[key]
 
-        count = 0
-        time = start_time
-        while time < end_time:
-
-            # this ordering is correct!
-            # state[0] corresponds to start_time
-            count += 1
-            time += self.dt
+        for count in range(1, n_steps):
             self.step(state, count)
 
         return state
