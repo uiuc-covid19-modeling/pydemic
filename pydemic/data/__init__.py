@@ -143,6 +143,11 @@ class DataParser:
         bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
         return AgeDistribution(bin_edges=bin_edges, counts=age_data)
 
+    def get_age_distribution(self, name):
+        model = self.get_age_distribution_model(name)
+        counts = np.array(model.counts)
+        return counts / np.sum(counts)
+
 
 from pydemic.data.us import UnitedStatesDataParser
 united_states = UnitedStatesDataParser()

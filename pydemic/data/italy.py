@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 import os
+import numpy as np
 from pydemic.data import DataParser
 
 cwd = os.path.dirname(os.path.abspath(__file__))
@@ -34,7 +35,7 @@ class ItalyDataParser(DataParser):
         cwd, "../../assets/italy_case_counts.json"
     )
     # info: https://github.com/pcm-dpc/COVID-19
-    data_url  = "https://raw.github.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json"  # noqa
+    data_url = "https://raw.github.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json"  # noqa
     region_specifier = 'region'
 
     translation = {
@@ -65,7 +66,6 @@ class ItalyDataParser(DataParser):
     def parse_case_data(self):
         region_data_series = super().parse_case_data()
         for region, data in region_data_series.items():
-            import numpy as np
             data['positive'] = [int(x) for x in np.cumsum(data['new_positive'])]
 
         return region_data_series
@@ -80,3 +80,8 @@ class ItalyDataParser(DataParser):
 
     def get_age_distribution_model(self):
         return super().get_age_distribution_model('Italy')
+
+    def get_age_distribution(self):
+        model = self.get_age_distribution_model()
+        counts = np.array(model.counts)
+        return counts / np.sum(counts)

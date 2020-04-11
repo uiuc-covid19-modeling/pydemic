@@ -25,6 +25,7 @@ THE SOFTWARE.
 
 import os
 import json
+import numpy as np
 from pydemic.data import DataParser
 
 cwd = os.path.dirname(os.path.abspath(__file__))
@@ -89,3 +90,8 @@ class UnitedStatesDataParser(DataParser):
 
     def get_age_distribution_model(self):
         return super().get_age_distribution_model('United States of America')
+
+    def get_age_distribution(self):
+        model = self.get_age_distribution_model()
+        counts = np.array(model.counts)
+        return counts / np.sum(counts)
