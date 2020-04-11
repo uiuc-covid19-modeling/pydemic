@@ -25,21 +25,11 @@ THE SOFTWARE.
 
 import numpy as np
 from pydemic import Reaction, PassiveReaction, Simulation, map_to_days_if_needed
-from pydemic.sampling import LikelihoodEstimatorBase
+from pydemic.sampling import (LikelihoodEstimatorBase, clipped_l2_log_norm,
+                              poisson_norm)
 
 
 class NeherModelSimulation(Simulation):
-    """
-    Each compartment has n=9 age bins (demographics)
-    ["0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"]
-
-    Interactions between compartments are according to equations
-    [TODO FIXME src/ref] in the pdf
-    and are encapsulated in the reactions definition below.
-
-    TODO Current model does not implement hospital overflow.
-    """
-
     def beta(self, t, y):
         phase = 2 * np.pi * (t - self.peak_day) / 365
         return self.avg_infection_rate * (1 + self.seasonal_forcing * np.cos(phase))
@@ -126,22 +116,6 @@ class NeherModelSimulation(Simulation):
         t_start = map_to_days_if_needed(t_span[0])
         t_end = map_to_days_if_needed(t_span[1])
         return super().solve_deterministic((t_start, t_end), y0, **kwargs)
-
-
-def clipped_l2_log_norm(model, data, model_uncert):
-    model = np.maximum(model, .1)
-    sig = np.log(model_uncert / model)
-    sig += 0.05
-
-    top = np.power(np.log(data)-np.log(model), 2.)
-    bot = np.power(sig, 2.)
-
-    return - 1/2 * np.sum(top / bot)
-
-
-def poisson_norm(model, data):
-    from scipy.special import gammaln  # pylint: disable=E0611
-    return np.sum(- model - gammaln(data) + data * np.log(model))
 
 
 class NeherModelEstimator(LikelihoodEstimatorBase):

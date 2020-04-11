@@ -25,24 +25,9 @@ THE SOFTWARE.
 
 import numpy as np
 from pydemic import NonMarkovianSimulation
-from pydemic.sampling import LikelihoodEstimatorBase
+from pydemic.sampling import (LikelihoodEstimatorBase, clipped_l2_log_norm,
+                              poisson_norm)
 from scipy.interpolate import interp1d
-
-
-def clipped_l2_log_norm(model, data, model_uncert):
-    model = np.maximum(model, .1)
-    sig = np.log(model_uncert / model)
-    sig += 0.05
-
-    top = np.power(np.log(data)-np.log(model), 2.)
-    bot = np.power(sig, 2.)
-
-    return - 1/2 * np.sum(top / bot)
-
-
-def poisson_norm(model, data):
-    from scipy.special import gammaln  # pylint: disable=E0611
-    return np.sum(- model - gammaln(data) + data * np.log(model))
 
 
 class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
@@ -68,12 +53,6 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
         if not self.check_within_bounds(list(parameters.values())):
             return -np.inf
 
-        # FIXME: add new mitigation functionality
-        # if 'mitigation_day' in parameters and 'start_day' in parameters:
-        #     # FIXME: doesn't check if either is fixed
-        #     if parameters['mitigation_day'] < parameters['start_day']:
-        #         return -np.inf
-
         # get model data at daily values
         # when computing diffs, datasets were prepended with 0, so there is no need
         # to evaluate at an extra data point on day earlier
@@ -81,6 +60,8 @@ class NonMarkovianModelEstimator(LikelihoodEstimatorBase):
         model_data = self.get_model_data(
             t_eval, **parameters, **self.fixed_values
         )
+        if model_data == -np.inf:
+            return -np.inf
         data_t_indices = np.isin(t_eval, self.data.t)
 
         def get_one_likelihood(_model, data):

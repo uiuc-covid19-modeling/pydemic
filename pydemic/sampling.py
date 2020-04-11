@@ -38,6 +38,22 @@ def l2_log_norm(a, b):
     return -1/2 * np.sum(np.power(np.log(a)-np.log(b), 2.))
 
 
+def clipped_l2_log_norm(model, data, model_uncert):
+    model = np.maximum(model, .1)
+    sig = np.log(model_uncert / model)
+    sig += 0.05
+
+    top = np.power(np.log(data)-np.log(model), 2.)
+    bot = np.power(sig, 2.)
+
+    return - 1/2 * np.sum(top / bot)
+
+
+def poisson_norm(model, data):
+    from scipy.special import gammaln  # pylint: disable=E0611
+    return np.sum(- model - gammaln(data) + data * np.log(model))
+
+
 class LikelihoodEstimatorBase:
     def __init__(self, fit_parameters, fixed_values, data, norm=None):
         self.fit_parameters = fit_parameters

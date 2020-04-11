@@ -115,26 +115,26 @@ class NonMarkovianSimulation:
 
                 Onset -> ICU
                     mean ~ 10, k=4-6
-                    Alexei notes: literature claims 10-12 days as mean/median and distribution 
-                    is narrow. This is dependent on onset-to-death curve. The k=4-6 value comes 
-                    from estimates of onset->death distributions and knowledge of below 
+                    Alexei notes: literature claims 10-12 days as mean/median and distribution
+                    is narrow. This is dependent on onset-to-death curve. The k=4-6 value comes
+                    from estimates of onset->death distributions and knowledge of below
                     ICU -> death.
 
                 ICU -> death
                     time constant ~ 7-8 days
-                    death probability ~ 50-75%, so to recover ICU (for patients who do not die), 
-                    we need to modify slightly. Also note timescale for non-terminal patients 
-                    may be longer. 
+                    death probability ~ 50-75%, so to recover ICU (for patients who do not die),
+                    we need to modify slightly. Also note timescale for non-terminal patients
+                    may be longer.
 
                 * onset -> hospitalization
-                    "typically 5-7 days" with high latency which suggests relatively high k. 
+                    "typically 5-7 days" with high latency which suggests relatively high k.
                     I'm going to use mean ~ 6 and k ~ 36  [6 + 1]
                     alternatively could use ~ 6 and k ~ 9
 
                 * bureaucratic delays
                     about 3 days for reporting, Alexei suggests a form factor 2
-                
-                4+5 well-described by gamma with mean ~ 11 and SD ~ 1 
+
+                4+5 well-described by gamma with mean ~ 11 and SD ~ 1
                     theta ~ 0.09, k ~ 121
 
             notes from the "Parameter estimates" spreadsheet shared by the Cobey lab
