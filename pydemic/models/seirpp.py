@@ -58,9 +58,9 @@ class SEIRPlusPlusSimulation:
 
     def __init__(self, mitigation,
                  r0=3.2, serial_k=1.5, serial_mean=4.,
-                 p_symptomatic=1.0, incubation_k=3., incubation_mean=5.,
-                 p_positive=1.0, positive_k=1., positive_mean=5.,
-                 p_dead=1., icu_k=1., icu_mean=9., dead_k=1., dead_mean=7.,
+                 p_symptomatic=1.0, incubation_k=7.6, incubation_mean=5.5,
+                 p_positive=1.0, positive_k=10., positive_mean=7.,
+                 p_dead=1., icu_k=5., icu_mean=10., dead_k=1., dead_mean=7.5,
                  p_hospitalized=1., hospital_removed_k=6.,
                  hospital_removed_mean=12.,  # corresponds to mean ~ 12, std ~ 4.9
                  seasonal_forcing_amp=.2, peak_day=15,
