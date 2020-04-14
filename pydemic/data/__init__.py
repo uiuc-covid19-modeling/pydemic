@@ -45,6 +45,14 @@ class CaseData:
         y_copy = {key: val.copy() for key, val in self.y.items()}
         return CaseData(self.t.copy(), y_copy)
 
+    def __repr__(self):
+        text = "{0:s} with\n".format(str(type(self)))
+        text += "  - t from {0:g} to {1:g}\n".format(self.t[0], self.t[-1])
+        for key in self.y:
+            text += "  - {0:s} {1:s}\n".format(key,
+                                               str(self.y[key].shape))
+        return text[:-1]
+
 
 def dict_to_case_data(data_dict):
     from pydemic import days_from
