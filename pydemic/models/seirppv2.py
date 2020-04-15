@@ -60,7 +60,7 @@ class SEIRPlusPlusSimulationV2:
 
     Tracks are thus then called:
         population (constant)
-        susceptible 
+        susceptible
         infected
         observed  (= p_observed * symptomatic)
         dead
