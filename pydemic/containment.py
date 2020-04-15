@@ -40,6 +40,29 @@ class SmoothPiecewiseCurve(CubicSpline):
         super().__init__(_x, _y, **kwargs)
 
 
+class LinearMitigationModel:
+    def __init__(self, t0, tf, t, factors):
+        self.times = t
+        self.factors = factors
+        t = np.insert(t, 0, min(t0, t[0]) - 10)
+        t = np.append(t, max(tf, t[-1]) + 10)
+        factors = np.insert(factors, 0, factors[0])
+        factors = np.append(factors, factors[-1])
+        self.func = interp1d(t, factors)
+    @classmethod
+    def init_from_kwargs(cls, t0, tf, **kwargs):
+        factor_keys = sorted([key for key in kwargs.keys()
+                              if key.startswith('mitigation_factor')])
+        factors = np.array([kwargs.pop(key) for key in factor_keys])
+
+        time_keys = sorted([key for key in kwargs.keys()
+                            if key.startswith('mitigation_t')])
+        times = np.array([kwargs.pop(key) for key in time_keys])
+
+        return cls(t0, tf, times, factors)
+    def __call__(self, x):
+        return self.func(x)
+
 class MitigationModel(SmoothPiecewiseCurve):
     def __init__(self, t0, tf, t, factors, **kwargs):
         self.times = t
