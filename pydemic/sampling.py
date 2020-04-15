@@ -38,7 +38,9 @@ def l2_log_norm(a, b):
     return -1/2 * np.sum(np.power(np.log(a)-np.log(b), 2.))
 
 
-def clipped_l2_log_norm(model, data, model_uncert):
+def clipped_l2_log_norm(model, data, model_uncert=None):
+    if model_uncert is None:
+        model_uncert = model**.5
     model = np.maximum(model, .1)
     sig = np.log(model_uncert / model)
     sig += 0.05
@@ -50,31 +52,78 @@ def clipped_l2_log_norm(model, data, model_uncert):
 
 
 def poisson_norm(model, data):
+    # ensure no model data is smaller than .1
+    model = np.maximum(.1, model)
+    # only compare data points whose values are >= 1
+    data_nonzero = data > .9
+    model = model[data_nonzero]
+    data = data[data_nonzero]
     from scipy.special import gammaln  # pylint: disable=E0611
     return np.sum(- model - gammaln(data) + data * np.log(model))
 
 
+def poisson_norm_diff(model, data):
+    model = np.diff(model, prepend=0)
+    data = np.diff(data, prepend=0)
+    return poisson_norm(model, data)
+
+
 class LikelihoodEstimatorBase:
-    def __init__(self, fit_parameters, fixed_values, data, weights, norm=None,
-                 fit_cumulative=False):
+    def __init__(self, fit_parameters, fixed_values, data, norms={}, weights=None,
+                 norm=None, fit_cumulative=None):
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
         self.data = data.copy()
-        self._original_data = data
-        self.fit_cumulative = fit_cumulative
-        self.weights = weights
+        self._original_data = self.data
 
-        if self.fit_cumulative and norm is None:
-            self.norm = clipped_l2_log_norm
-        elif norm is None:
-            self.norm = poisson_norm
+        if norm is not None:
+            from warnings import warn
+            warn("Passing norm is deprecated. "
+                 "Pass custom norm functions to norms instead.",
+                 DeprecationWarning, stacklevel=2)
 
-        if not self.fit_cumulative:
-            self.data.y = {
-                key: np.diff(self.data.y[key], prepend=0)
-                for key in self.weights
-            }
+        if weights is not None:
+            from warnings import warn
+            warn("Passing weights is deprecated. "
+                 "Pass custom norm functions to norms instead.",
+                 DeprecationWarning, stacklevel=2)
+            if len(norms) == 0:
+                norms = weights
+
+        if fit_cumulative is not None:
+            from warnings import warn
+            warn("Passing fit_cumulative is deprecated. "
+                 "Pass 'L2' or a custom norm function to norms instead.",
+                 DeprecationWarning, stacklevel=2)
+
+        if len(norms) == 0:
+            raise ValueError('Must fit over at least one dataset.')
+
+        self.norms = {}
+        for key, norm in norms.items():
+            if norm == 'poisson_diff':
+                self.norms[key] = poisson_norm_diff
+            elif norm == 'poisson':
+                self.norms[key] = poisson_norm
+            elif norm == 'L2':
+                self.norms[key] = clipped_l2_log_norm
+            elif not callable(norm):
+                from warnings import warn
+                warn("Passing weights is deprecated. "
+                     "Pass norm functions (or 'poisson'/'l2') to norms instead. "
+                     "This will raise an exception in future versions.",
+                     DeprecationWarning, stacklevel=2)
+                if norm != 1.:
+                    raise ValueError(
+                        'weights not equal to one must be implemented manualy'
+                    )
+                if fit_cumulative:
+                    self.norms[key] = clipped_l2_log_norm
+                else:
+                    self.norms[key] = poisson_norm_diff
+            else:
+                self.norms[key] = norm
 
     def check_within_bounds(self, theta):
         for par, value in zip(self.fit_parameters, theta):
@@ -105,36 +154,19 @@ class LikelihoodEstimatorBase:
             return -np.inf
         data_t_indices = np.isin(t_eval, self.data.t)
 
-        def get_one_likelihood(_model, data):
-            if not self.fit_cumulative:
-                model = np.diff(_model, prepend=0)
-            else:
-                model = _model
-
+        def get_one_likelihood(model, data, norm):
             # slice to match data time coordinates
             model = model[data_t_indices]
-            # ensure no model data is smaller than .1
-            model = np.maximum(.1, model)
-            # only compare data points whose values are >= 1
-            data_nonzero = data > .9
-
-            if self.fit_cumulative:
-                sigma = np.power(model, .5)
-                return self.norm(model[data_nonzero],
-                                 data[data_nonzero],
-                                 sigma[data_nonzero])
-            else:
-                return self.norm(model[data_nonzero],
-                                 data[data_nonzero])
+            return norm(model, data)
 
         likelihood = 0
-        for compartment, weight in self.weights.items():
-            if weight > 0:
-                L = get_one_likelihood(
-                    model_data.y[compartment].sum(axis=-1),
-                    self.data.y[compartment]
-                )
-                likelihood += weight * L
+        for compartment, norm in self.norms.items():
+            L = get_one_likelihood(
+                model_data.y[compartment].sum(axis=-1),
+                self.data.y[compartment],
+                norm
+            )
+            likelihood += L
 
         return likelihood
 

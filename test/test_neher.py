@@ -158,7 +158,7 @@ def test_neher_estimator():
         min_mitigation_spacing=0,
     )
     estimator = NeherModelEstimator(
-        fit_parameters, fixed_values, data, {'dead': 1}, fit_cumulative=True
+        fit_parameters, fixed_values, data, {'dead': 'L2'}
     )
 
     test_L = estimator([2.7, 53.8])
