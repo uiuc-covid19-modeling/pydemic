@@ -24,6 +24,10 @@ THE SOFTWARE.
 """
 
 import numpy as np
+from scipy.special import gammaln
+from warnings import warn
+from itertools import product
+import emcee
 
 
 class SampleParameter:
@@ -58,7 +62,6 @@ def poisson_norm(model, data):
     data_nonzero = data > .9
     model = model[data_nonzero]
     data = data[data_nonzero]
-    from scipy.special import gammaln  # pylint: disable=E0611
     return np.sum(- model - gammaln(data) + data * np.log(model))
 
 
@@ -78,13 +81,11 @@ class LikelihoodEstimatorBase:
         self._original_data = self.data
 
         if norm is not None:
-            from warnings import warn
             warn("Passing norm is deprecated. "
                  "Pass custom norm functions to norms instead.",
                  DeprecationWarning, stacklevel=2)
 
         if weights is not None:
-            from warnings import warn
             warn("Passing weights is deprecated. "
                  "Pass custom norm functions to norms instead.",
                  DeprecationWarning, stacklevel=2)
@@ -92,7 +93,6 @@ class LikelihoodEstimatorBase:
                 norms = weights
 
         if fit_cumulative is not None:
-            from warnings import warn
             warn("Passing fit_cumulative is deprecated. "
                  "Pass 'L2' or a custom norm function to norms instead.",
                  DeprecationWarning, stacklevel=2)
@@ -109,7 +109,6 @@ class LikelihoodEstimatorBase:
             elif norm == 'L2':
                 self.norms[key] = clipped_l2_log_norm
             elif not callable(norm):
-                from warnings import warn
                 warn("Passing weights is deprecated. "
                      "Pass norm functions (or 'poisson'/'l2') to norms instead. "
                      "This will raise an exception in future versions.",
@@ -192,7 +191,7 @@ class LikelihoodEstimatorBase:
             for par in self.fit_parameters
         }
 
-        from itertools import product
+        
         all_value_sets = product(*[sample for sample in samples.values()])
         values = [values for values in all_value_sets]
 
@@ -210,8 +209,6 @@ class LikelihoodEstimatorBase:
             pool = Pool()
         if walkers is None:
             walkers = pool._processes
-
-        import emcee
 
         if backend is not None:
             is_initialized = backend.initialized
