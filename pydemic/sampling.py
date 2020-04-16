@@ -24,10 +24,9 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from scipy.special import gammaln
+from scipy.special import gammaln  # pylint: disable=E0611
 from warnings import warn
 from itertools import product
-import emcee
 
 
 class SampleParameter:
@@ -191,7 +190,6 @@ class LikelihoodEstimatorBase:
             for par in self.fit_parameters
         }
 
-        
         all_value_sets = product(*[sample for sample in samples.values()])
         values = [values for values in all_value_sets]
 
@@ -229,6 +227,7 @@ class LikelihoodEstimatorBase:
             initial_positions = None
             walkers, ndim = backend.shape
 
+        import emcee
         sampler = emcee.EnsembleSampler(walkers, ndim, self, moves=moves,
                                         backend=backend, pool=pool)
 

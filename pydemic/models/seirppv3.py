@@ -53,10 +53,11 @@ class SEIRPlusPlusSimulationV3:
     A fraction of the symptomatic people are observed according to
         p_observed
 
-    In the second (v3) model, some fraction of observed individuals end up in the icu after
+    In the second (v3) model, some fraction of observed individuals end up
+        in the icu after
         icu_mean=11., icu_std=5.
         with probability roughly proportional to ccdphcd deaths and scaled by
-        p_icu_prefactor 
+        p_icu_prefactor
 
     In this second (v3) model, some fraction of icu individuals die after
         dead_mean=7.5, dead_std=7.5.
@@ -68,7 +69,7 @@ class SEIRPlusPlusSimulationV3:
         susceptible
         infected
         observed  (= p_observed * symptomatic)
-        icu 
+        icu
         dead
 
 
@@ -98,11 +99,15 @@ class SEIRPlusPlusSimulationV3:
                  **kwargs):
 
         self.mitigation = mitigation
+
+        def mean_std_to_k_theta(mean, std):
+            return (mean**2 / std**2, std**2 / mean)
+
         self.distribution_params = {
-            'serial': (serial_mean*serial_mean/serial_std/serial_std, serial_std*serial_std/serial_mean),
-            'incubation': (incubation_mean*incubation_mean/incubation_std/incubation_std, incubation_std*incubation_std/incubation_mean),
-            'icu': (icu_mean*icu_mean/icu_std/icu_std, icu_std*icu_std/icu_mean),
-            'dead': (dead_mean*dead_mean/dead_std/dead_std, dead_std*dead_std/dead_mean),
+            'serial': mean_std_to_k_theta(serial_mean, serial_std),
+            'incubation': mean_std_to_k_theta(incubation_mean, incubation_std),
+            'icu': mean_std_to_k_theta(icu_mean, icu_std),
+            'dead': mean_std_to_k_theta(dead_mean, dead_std),
         }
         self.seasonal_forcing_amp = seasonal_forcing_amp
         self.peak_day = peak_day
