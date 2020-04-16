@@ -71,6 +71,7 @@ class SEIRPlusPlusSimulationV3:
         observed  (= p_observed * symptomatic)
         icu
         dead
+        recovered  (from icu)
 
 
     .. automethod:: __init__
@@ -94,6 +95,7 @@ class SEIRPlusPlusSimulationV3:
                  p_observed=1.,
                  icu_mean=11., icu_std=5., p_icu=1., p_icu_prefactor=1.,
                  dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1.,
+                 recovered_mean=15, recovered_std=7.5, 
                  # original onset->death: mean=18, std=8
                  seasonal_forcing_amp=.2, peak_day=15,
                  **kwargs):
@@ -108,6 +110,7 @@ class SEIRPlusPlusSimulationV3:
             'incubation': mean_std_to_k_theta(incubation_mean, incubation_std),
             'icu': mean_std_to_k_theta(icu_mean, icu_std),
             'dead': mean_std_to_k_theta(dead_mean, dead_std),
+            'recovered': mean_std_to_k_theta(recovered_mean, recovered_std)
         }
         self.seasonal_forcing_amp = seasonal_forcing_amp
         self.peak_day = peak_day
@@ -125,6 +128,7 @@ class SEIRPlusPlusSimulationV3:
         p_observed = np.array(p_observed)
         p_icu = np.array(p_icu) * p_icu_prefactor
         p_dead = np.array(p_dead) * p_dead_prefactor
+        p_recovered = np.ones(p_dead.shape) - p_dead
 
         def update_infected(state, count, dt):
             fraction = (state.y['susceptible'][..., count-1]
@@ -160,12 +164,19 @@ class SEIRPlusPlusSimulationV3:
                 self.kernels['dead'][:count])
             return update
 
+        def update_recovered(state, count, dt):
+            update = p_recovered * dt * np.dot(
+                state.y['icu'][..., count-1::-1],
+                self.kernels['recovered'][:count])
+            return update
+
         self.sources = {
             "susceptible": [],
             "infected": [update_infected],
             "observed": [update_observed],
             "icu": [update_icu],
             "dead": [update_dead],
+            "recovered": [update_recovered],
             "population": []
         }
 
@@ -204,6 +215,7 @@ class SEIRPlusPlusSimulationV3:
                 state.y[key] = np.cumsum(val, axis=1).T
             else:
                 state.y[key] = val.T
+        state.y["instantaneous_icu"] = state.y["icu"] - state.y["dead"] - state.y["recovered"]
 
         return state
 
