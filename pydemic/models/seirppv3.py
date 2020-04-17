@@ -98,6 +98,7 @@ class SEIRPlusPlusSimulationV3:
                  recovered_mean=7.5, recovered_std=7.5, 
                  # original onset->death: mean=18, std=8
                  seasonal_forcing_amp=.2, peak_day=15,
+                 age_distribution=np.array([0.24789492, 0.13925591, 0.13494838, 0.12189751, 0.12724997, 0.11627754, 0.07275651, 0.03971926]),
                  **kwargs):
 
         self.mitigation = mitigation
@@ -133,12 +134,10 @@ class SEIRPlusPlusSimulationV3:
         p_dead = np.array(p_dead) * p_dead_prefactor
         p_recovered = np.ones(p_dead.shape) - p_dead
 
-        # FIXME: this should not be usa-specific
         # FIXME: this is a kludge-y way to set the target ifr (infection, not just symptomatic)
         target_ifr = 0.003
-        usa_age_dist = np.array([0.24789492, 0.13925591, 0.13494838, 0.12189751, 0.12724997, 0.11627754, 0.07275651, 0.03971926])
         p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
-        synthetic_ifr = (p_dead_all * usa_age_dist).sum()
+        synthetic_ifr = (p_dead_all * age_distribution).sum()
         p_symptomatic *= target_ifr / synthetic_ifr
 
         def update_infected(state, count, dt):
@@ -269,13 +268,15 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
         if any(np.diff(mitigation.times, prepend=t0, append=tf) < 0):
             return -np.inf
         if any(np.diff(mitigation.times) < kwargs.get('min_mitigation_spacing', 5)):
+            # FIXME: ideally I'd like some check on this for manual models
             #raise ValueError("mitigation point spacing < min_mitigation_spacing")
             return -np.inf
 
-        sim = SEIRPlusPlusSimulationV3(mitigation=mitigation, **kwargs)
+        age_distribution = kwargs.pop('age_distribution')
+        sim = SEIRPlusPlusSimulationV3(mitigation=mitigation, age_distribution=age_distribution, **kwargs)
         y0 = sim.get_y0(kwargs.pop('total_population'),
                         kwargs.pop('initial_cases'),
-                        kwargs.pop('age_distribution'))
+                        age_distribution)
         result = sim((t0, tf), y0)
 
         y = {}
