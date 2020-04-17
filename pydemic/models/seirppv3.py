@@ -94,8 +94,8 @@ class SEIRPlusPlusSimulationV3:
                  incubation_mean=5.5, incubation_std=2., p_symptomatic=1.,
                  p_observed=1.,
                  icu_mean=11., icu_std=5., p_icu=1., p_icu_prefactor=1.,
-                 dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1.,
-                 recovered_mean=15, recovered_std=7.5, 
+                 dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1., dead_force_exp=False,
+                 recovered_mean=7.5, recovered_std=7.5, 
                  # original onset->death: mean=18, std=8
                  seasonal_forcing_amp=.2, peak_day=15,
                  **kwargs):
@@ -104,6 +104,9 @@ class SEIRPlusPlusSimulationV3:
 
         def mean_std_to_k_theta(mean, std):
             return (mean**2 / std**2, std**2 / mean)
+
+        if dead_force_exp:
+            dead_std = dead_mean
 
         self.distribution_params = {
             'serial': mean_std_to_k_theta(serial_mean, serial_std),
@@ -129,6 +132,14 @@ class SEIRPlusPlusSimulationV3:
         p_icu = np.array(p_icu) * p_icu_prefactor
         p_dead = np.array(p_dead) * p_dead_prefactor
         p_recovered = np.ones(p_dead.shape) - p_dead
+
+        # FIXME: this should not be usa-specific
+        # FIXME: this is a kludge-y way to set the target ifr (infection, not just symptomatic)
+        target_ifr = 0.003
+        usa_age_dist = np.array([0.24789492, 0.13925591, 0.13494838, 0.12189751, 0.12724997, 0.11627754, 0.07275651, 0.03971926])
+        p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
+        synthetic_ifr = (p_dead_all * usa_age_dist).sum()
+        p_symptomatic *= target_ifr / synthetic_ifr
 
         def update_infected(state, count, dt):
             fraction = (state.y['susceptible'][..., count-1]
