@@ -228,7 +228,7 @@ class SEIRPlusPlusSimulationV3:
                 state.y[key] = np.cumsum(val, axis=1).T
             else:
                 state.y[key] = val.T
-        state.y["instantaneous_icu"] = state.y["icu"] - state.y["dead"] - state.y["recovered"]
+        state.y["critical"] = state.y["icu"] - state.y["dead"] - state.y["recovered"]
 
         return state
 
