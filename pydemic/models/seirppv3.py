@@ -281,7 +281,8 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
 
         y = {}
         for key, val in result.y.items():
-            y[key] = interp1d(result.t, val, axis=0)(t)
+            # FIXME: maybe deal with bounds error differently? need this for the forecasting thing.
+            y[key] = interp1d(result.t, val, axis=0, bounds_error=False)(t)
 
         from pydemic.data import CaseData
         result = CaseData(t, y)
