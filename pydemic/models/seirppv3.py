@@ -91,7 +91,9 @@ class SEIRPlusPlusSimulationV3:
 
     def __init__(self, mitigation,
                  serial_mean=4., serial_std=3.25, r0=3.2,
-                 incubation_mean=5.5, incubation_std=2., p_symptomatic=1.,
+                 incubation_mean=5.5, incubation_std=2., 
+                 #p_symptomatic=1.,
+                 ifr=0.003,
                  p_observed=1.,
                  icu_mean=11., icu_std=5., p_icu=1., p_icu_prefactor=1.,
                  dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1., dead_force_exp=False,
@@ -119,6 +121,7 @@ class SEIRPlusPlusSimulationV3:
         self.seasonal_forcing_amp = seasonal_forcing_amp
         self.peak_day = peak_day
 
+        p_symptomatic = 1.
         if type(p_symptomatic) != list and type(p_symptomatic) != np.ndarray:
             p_symptomatic = p_symptomatic * np.ones(8)
         if type(p_observed) != list and type(p_observed) != np.ndarray:
@@ -135,7 +138,7 @@ class SEIRPlusPlusSimulationV3:
         p_recovered = np.ones(p_dead.shape) - p_dead
 
         # FIXME: this is a kludge-y way to set the target ifr (infection, not just symptomatic)
-        target_ifr = 0.003
+        target_ifr = ifr
         p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
         synthetic_ifr = (p_dead_all * age_distribution).sum()
         p_symptomatic *= target_ifr / synthetic_ifr
