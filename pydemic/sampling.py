@@ -36,6 +36,12 @@ class SampleParameter:
         self.guess = guess
         self.uncertainty = uncertainty
 
+    def __repr__(self):
+        text  = "SampleParameter<"
+        text += "{0:s} {1:s} ".format(str(self.name), str(self.bounds))
+        text += "{0:s} {1:s}>".format(str(self.guess), str(self.uncertainty))
+        return text
+
 
 def l2_log_norm(a, b):
     return -1/2 * np.sum(np.power(np.log(a)-np.log(b), 2.))

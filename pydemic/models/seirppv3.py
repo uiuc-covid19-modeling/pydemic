@@ -271,8 +271,10 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
         if any(np.diff(mitigation.times, prepend=t0, append=tf) < 0):
             return -np.inf
         if any(np.diff(mitigation.times) < kwargs.get('min_mitigation_spacing', 5)):
-            # FIXME: ideally I'd like some check on this for manual models
-            #raise ValueError("mitigation point spacing < min_mitigation_spacing")
+            # FIXME: Since get_model_data is effectively a wrapper, it'd be nice
+            # to be able to force computing a trajectory out of bounds (especially
+            # before) for aggregate plotting purposes. Handled manually now.
+            raise ValueError("mitigation point spacing < min_mitigation_spacing")
             return -np.inf
 
         age_distribution = kwargs.pop('age_distribution')
