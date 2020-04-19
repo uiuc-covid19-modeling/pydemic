@@ -96,11 +96,12 @@ class SEIRPlusPlusSimulationV3:
                  ifr=0.003,
                  p_observed=1.,
                  icu_mean=11., icu_std=5., p_icu=1., p_icu_prefactor=1.,
-                 dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1., dead_force_exp=False,
+                 dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1.,
+                 dead_force_exp=False,
                  recovered_mean=7.5, recovered_std=7.5,
                  # original onset->death: mean=18, std=8
                  seasonal_forcing_amp=.2, peak_day=15,
-                 age_distribution=np.array([0.24789492, 0.13925591, 0.13494838, 0.12189751, 0.12724997, 0.11627754, 0.07275651, 0.03971926]),
+                 age_distribution=None,
                  **kwargs):
 
         self.mitigation = mitigation
@@ -121,6 +122,11 @@ class SEIRPlusPlusSimulationV3:
         self.seasonal_forcing_amp = seasonal_forcing_amp
         self.peak_day = peak_day
 
+        if age_distribution is None:
+            age_distribution = np.array([0.24789492, 0.13925591, 0.13494838,
+                                         0.12189751, 0.12724997, 0.11627754,
+                                         0.07275651, 0.03971926])
+
         p_symptomatic = 1.
         if type(p_symptomatic) != list and type(p_symptomatic) != np.ndarray:
             p_symptomatic = p_symptomatic * np.ones(8)
@@ -137,7 +143,8 @@ class SEIRPlusPlusSimulationV3:
         p_dead = np.array(p_dead) * p_dead_prefactor
         p_recovered = np.ones(p_dead.shape) - p_dead
 
-        # FIXME: this is a kludge-y way to set the target ifr (infection, not just symptomatic)
+        # FIXME: this is a kludge-y way to set the target ifr
+        # (infection, not just symptomatic)
         target_ifr = ifr
         p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
         synthetic_ifr = (p_dead_all * age_distribution).sum()
@@ -277,7 +284,9 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
             return -np.inf
 
         age_distribution = kwargs.pop('age_distribution')
-        sim = SEIRPlusPlusSimulationV3(mitigation=mitigation, age_distribution=age_distribution, **kwargs)
+        sim = SEIRPlusPlusSimulationV3(
+            mitigation=mitigation, age_distribution=age_distribution, **kwargs
+        )
         y0 = sim.get_y0(kwargs.pop('total_population'),
                         kwargs.pop('initial_cases'),
                         age_distribution)
@@ -285,8 +294,7 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
 
         y = {}
         for key, val in result.y.items():
-            # FIXME: maybe deal with bounds error differently? need this for the forecasting thing.
-            y[key] = interp1d(result.t, val, axis=0, bounds_error=False)(t)
+            y[key] = interp1d(result.t, val, axis=0)(t)
 
         from pydemic.data import CaseData
         result = CaseData(t, y)

@@ -38,9 +38,9 @@ class SampleParameter:
         self.sigma = sigma
 
     def __repr__(self):
-        text  = "SampleParameter<"
-        text += "{0:s} {1:s} ".format(str(self.name), str(self.bounds))
-        text += "{0:s} {1:s}>".format(str(self.guess), str(self.uncertainty))
+        text = "SampleParameter<"
+        text += "{0:s}, {1:s}, ".format(str(self.name), str(self.bounds))
+        text += "{0:s}, {1:s}>".format(str(self.guess), str(self.uncertainty))
         return text
 
 
