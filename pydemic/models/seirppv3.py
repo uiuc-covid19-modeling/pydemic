@@ -91,13 +91,13 @@ class SEIRPlusPlusSimulationV3:
 
     def __init__(self, mitigation,
                  serial_mean=4., serial_std=3.25, r0=3.2,
-                 incubation_mean=5.5, incubation_std=2., 
+                 incubation_mean=5.5, incubation_std=2.,
                  #p_symptomatic=1.,
                  ifr=0.003,
                  p_observed=1.,
                  icu_mean=11., icu_std=5., p_icu=1., p_icu_prefactor=1.,
                  dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1., dead_force_exp=False,
-                 recovered_mean=7.5, recovered_std=7.5, 
+                 recovered_mean=7.5, recovered_std=7.5,
                  # original onset->death: mean=18, std=8
                  seasonal_forcing_amp=.2, peak_day=15,
                  age_distribution=np.array([0.24789492, 0.13925591, 0.13494838, 0.12189751, 0.12724997, 0.11627754, 0.07275651, 0.03971926]),
@@ -274,7 +274,6 @@ class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
             # FIXME: Since get_model_data is effectively a wrapper, it'd be nice
             # to be able to force computing a trajectory out of bounds (especially
             # before) for aggregate plotting purposes. Handled manually now.
-            raise ValueError("mitigation point spacing < min_mitigation_spacing")
             return -np.inf
 
         age_distribution = kwargs.pop('age_distribution')
