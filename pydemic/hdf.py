@@ -76,16 +76,14 @@ class HDFBackend(emcee.backends.HDFBackend):
         from pydemic.sampling import SampleParameter
         with self.open() as f:
             def denanify(x):
-                # FIXME: I'm not sure if this is right. 
-                # Should it (instead) return None if ANY x is nan?
-                return x if np.isfinite(x).any() else None
+                return x if np.isfinite(x) else None
 
             names = [name.decode('utf-8') for name in f['fit_parameters/names'][:]]
             pars = []
             for i, name in enumerate(names):
                 args = [denanify(f['fit_parameters'][key][i])
-                        for key in ('bounds', 'guess', 'uncertainty', 'sigma')]
-                pars.append(SampleParameter(name, *args))
+                        for key in ('guess', 'uncertainty', 'sigma')]
+                pars.append(SampleParameter(name, f['fit_parameters/guess'], *args))
             return pars
 
     @property
