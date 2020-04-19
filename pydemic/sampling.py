@@ -30,11 +30,12 @@ from itertools import product
 
 
 class SampleParameter:
-    def __init__(self, name, bounds, guess, uncertainty):
+    def __init__(self, name, bounds, guess=None, uncertainty=None, sigma=None):
         self.name = name
         self.bounds = bounds
         self.guess = guess
         self.uncertainty = uncertainty
+        self.sigma = sigma
 
     def __repr__(self):
         text  = "SampleParameter<"
@@ -129,24 +130,29 @@ class LikelihoodEstimatorBase:
             else:
                 self.norms[key] = norm
 
-    def check_within_bounds(self, theta):
+    def get_log_prior(self, theta):
+        log_prior = 0
         for par, value in zip(self.fit_parameters, theta):
             bounds = par.bounds
             if not bounds[0] <= value <= bounds[1]:
-                return False
-        return True
+                log_prior += - np.inf
+            elif par.sigma is not None and par.guess is not None:
+                guess = par.guess
+                sigma = par.sigma
+                log_prior += (- np.log(2 * np.pi * sigma**2)
+                              - (value - guess)**2 / 2 / sigma**2)
+
+        return log_prior
 
     def __call__(self, theta):
-        if not self.check_within_bounds(theta):
+        log_prior = self.get_log_prior(theta)
+        if not np.isfinite(log_prior):
             return -np.inf
         else:
             parameters = dict(zip(self.fit_names, theta))
-            return self.get_log_likelihood(parameters)
+            return log_prior + self.get_log_likelihood(parameters)
 
     def get_log_likelihood(self, parameters):
-        if not self.check_within_bounds(list(parameters.values())):
-            return -np.inf
-
         # get model data at daily values
         # when computing diffs, datasets were prepended with 0, so there is no need
         # to evaluate at an extra data point on day earlier

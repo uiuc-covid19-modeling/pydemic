@@ -41,15 +41,20 @@ class HDFBackend(emcee.backends.HDFBackend):
                     f['fixed_values'][key] = value
 
             if fit_parameters is not None:
+                def nanify(x):
+                    return x if x is not None else np.nan
+
                 f.create_group('fit_parameters')
                 f['fit_parameters/names'] = np.array(
                     [par.name for par in fit_parameters], dtype=string_dt
                 )
-                f['fit_parameters/guess'] = [par.guess for par in fit_parameters]
                 f['fit_parameters/bounds'] = [par.bounds for par in fit_parameters]
-                f['fit_parameters/uncertainty'] = [
-                    par.uncertainty for par in fit_parameters
-                ]
+                f['fit_parameters/guess'] = [nanify(par.guess)
+                                             for par in fit_parameters]
+                f['fit_parameters/uncertainty'] = [nanify(par.uncertainty)
+                                                   for par in fit_parameters]
+                f['fit_parameters/sigma'] = [nanify(par.sigma)
+                                             for par in fit_parameters]
 
             if data is not None:
                 f.create_group('data')
@@ -70,15 +75,15 @@ class HDFBackend(emcee.backends.HDFBackend):
     def fit_parameters(self):
         from pydemic.sampling import SampleParameter
         with self.open() as f:
+            def denanify(x):
+                return x if np.isfinite(x) else None
+
             names = [name.decode('utf-8') for name in f['fit_parameters/names'][:]]
             pars = []
             for i, name in enumerate(names):
-                pars.append(
-                    SampleParameter(name,
-                                    f['fit_parameters/bounds'][i],
-                                    f['fit_parameters/guess'][i],
-                                    f['fit_parameters/uncertainty'][i])
-                )
+                args = [denanify(f['fit_parameters'][key])
+                        for key in ('bounds', 'guess', 'uncertainty', 'sigma')]
+                pars.append(SampleParameter(name, *args))
             return pars
 
     @property
