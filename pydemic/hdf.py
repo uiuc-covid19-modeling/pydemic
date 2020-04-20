@@ -81,9 +81,10 @@ class HDFBackend(emcee.backends.HDFBackend):
             names = [name.decode('utf-8') for name in f['fit_parameters/names'][:]]
             pars = []
             for i, name in enumerate(names):
-                args = [denanify(f['fit_parameters'][key][i])
-                        for key in ('guess', 'uncertainty', 'sigma')]
-                pars.append(SampleParameter(name, f['fit_parameters/guess'], *args))
+                args = [f['fit_parameters/bounds'][i]]
+                args += [denanify(f['fit_parameters'][key][i])
+                         for key in ('guess', 'uncertainty', 'sigma')]
+                pars.append(SampleParameter(name, *args))
             return pars
 
     @property
