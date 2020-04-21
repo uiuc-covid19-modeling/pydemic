@@ -25,7 +25,6 @@ THE SOFTWARE.
 
 import numpy as np
 from pydemic import Reaction, PassiveReaction, Simulation
-from pydemic.sampling import LikelihoodEstimatorBase
 
 
 def map_to_days_if_needed(time):
@@ -331,8 +330,6 @@ class NeherModelSimulation(Simulation):
         t_end = map_to_days_if_needed(t_span[1])
         return super().solve_deterministic((t_start, t_end), y0, **kwargs)
 
-
-class NeherModelEstimator(LikelihoodEstimatorBase):
     @classmethod
     def get_model_data(cls, t, **kwargs):
         start_time = kwargs.pop('start_day')

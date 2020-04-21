@@ -204,11 +204,6 @@ class SEIRPlusPlusSimulation:
 
         return y0
 
-
-from pydemic.sampling import LikelihoodEstimatorBase
-
-
-class SEIRPlusPlusEstimator(LikelihoodEstimatorBase):
     @classmethod
     def get_model_data(cls, t, **kwargs):
         t0 = kwargs.pop('start_day')

@@ -77,14 +77,15 @@ def poisson_norm_diff(model, data):
     return poisson_norm(model, data)
 
 
-class LikelihoodEstimatorBase:
-    def __init__(self, fit_parameters, fixed_values, data, norms={}, weights=None,
-                 norm=None, fit_cumulative=None):
+class LikelihoodEstimator:
+    def __init__(self, fit_parameters, fixed_values, data, simulator,
+                 norms={}, weights=None, norm=None, fit_cumulative=None):
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
         self.data = data.copy()
         self._original_data = self.data
+        self.simulator = simulator
 
         if norm is not None:
             warn("Passing norm is deprecated. "
@@ -157,7 +158,7 @@ class LikelihoodEstimatorBase:
         # when computing diffs, datasets were prepended with 0, so there is no need
         # to evaluate at an extra data point on day earlier
         t_eval = np.arange(self.data.t[0], self.data.t[-1]+2)
-        model_data = self.get_model_data(
+        model_data = self.simulator.get_model_data(
             t_eval, **parameters, **self.fixed_values
         )
         if model_data == -np.inf:
