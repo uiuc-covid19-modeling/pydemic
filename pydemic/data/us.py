@@ -51,7 +51,10 @@ class UnitedStatesDataParser(DataParser):
             df = pd.read_hdf(self._filename, 'covid_tracking_info')
         except:  # noqa
             df = pd.read_json(self.info_url)
-            df.to_hdf(self._filename, 'covid_tracking_info')
+            try:
+                df.to_hdf(self._filename, 'covid_tracking_info')
+            except:  # noqa
+                pass  # pytables isn't installed
 
         self.abbreviations = dict(zip(df.name, df.state))
         self.inverse_abbreviations = dict(zip(df.state, df.name))

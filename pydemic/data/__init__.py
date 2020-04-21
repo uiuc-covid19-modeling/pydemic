@@ -80,11 +80,6 @@ class DataParser:
     )
     translation = {}
 
-    def __init__(self):
-        import os.path
-        if not os.path.isfile(self._filename):
-            self.scrape_case_data()
-
     def translate(self, key):
         _key = camel_to_snake(key)
         return self.translation.get(_key, _key)
@@ -99,7 +94,11 @@ class DataParser:
         df.to_hdf(self._filename, 'covid_tracking_data')
 
     def get_case_data(self, region, return_df=False):
+        import os.path
+        if not os.path.isfile(self._filename):
+            self.scrape_case_data()
         df = pd.read_hdf(self._filename, 'covid_tracking_data')
+
         df = df[df[self.region_specifier] == region]
         df.date = pd.to_datetime(df.date.astype(str)).dt.normalize()
         df = df.set_index('date')
