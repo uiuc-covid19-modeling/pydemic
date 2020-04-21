@@ -52,8 +52,6 @@ def test_direct_vs_tau_leap(plot=False):
         stochastic_results.append(sresult)
 
     if plot:
-        import matplotlib as mpl
-        mpl.use('agg')
         import matplotlib.pyplot as plt
 
         colors = 'r', 'g', 'b', 'm'

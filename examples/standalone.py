@@ -3,8 +3,6 @@
 import numpy as np
 from pydemic.models.neher import (NeherModelSimulation, PopulationModel,
                                   AgeDistribution, SeverityModel, EpidemiologyModel)
-import matplotlib as mpl
-mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
