@@ -24,8 +24,223 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from pydemic import Reaction, PassiveReaction, Simulation, map_to_days_if_needed
+from pydemic import Reaction, PassiveReaction, Simulation
 from pydemic.sampling import LikelihoodEstimatorBase
+
+
+def map_to_days_if_needed(time):
+    if isinstance(time, (tuple, list)):
+        from pydemic import days_from
+        return days_from(time)
+    else:
+        return time
+
+
+class AttrDict(dict):
+    expected_kwargs = set()
+
+    def __init__(self, *args, **kwargs):
+        if not self.expected_kwargs.issubset(set(kwargs.keys())):
+            raise ValueError
+
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+    def __getattr__(self, name):
+        # This method is implemented to avoid pylint 'no-member' errors for
+        # attribute access.
+        raise AttributeError(
+            "'%s' object has no attribute '%s'" % (self.__class__.__name__, name)
+        )
+
+
+class AgeDistribution(AttrDict):
+    """
+    .. attribute:: bin_edges
+
+        A :class:`numpy.ndarray` specifying the lower end of each of the age ranges
+        represented in :attr:`counts`.
+        I.e., the age group ``[bin_edges[i], bin_edges[i+1])``
+        has count ``counts[i]``.
+        Has the same length as :attr:`counts`, i.e., the final bin is
+        ``[bin_edges[-1], inf]``.
+
+    .. attribute:: counts
+
+        A :class:`numpy.ndarray` of the total population of the age groups specified
+        by :attr:`bin_edges`.
+    """
+
+    expected_kwargs = {
+        'bin_edges',
+        'counts'
+    }
+
+
+class PopulationModel(AttrDict):
+    """
+    .. attribute:: country
+
+        A :class:`string` with the name of the country.
+
+    .. attribute:: cases
+
+    .. attribute:: population_served
+
+        The total population.
+
+    .. attribute:: population_served
+
+    .. attribute:: hospital_beds
+
+    .. attribute:: ICU_beds
+
+    .. attribute:: initial_cases
+
+    .. attribute:: imports_per_day
+    """
+
+    expected_kwargs = {
+        'country',
+        'cases',
+        'population_served',
+        'hospital_beds',
+        'ICU_beds',
+        'initial_cases',
+        'imports_per_day'
+    }
+
+
+class EpidemiologyModel(AttrDict):
+    """
+    .. attribute:: r0
+
+        The average number of infections caused by an individual who is infected
+        themselves.
+
+    .. attribute:: incubation_time
+
+        The number of days of incubation.
+
+    .. attribute:: infectious_period
+
+        The number of days an individual remains infections.
+
+    .. attribute:: length_hospital_stay
+
+        The average amount of time a patient remains in the hospital.
+
+    .. attribute:: length_ICU_stay
+
+        The average amount of time a critical patient remains in the ICU.
+
+    .. attribute:: seasonal_forcing
+
+        The amplitude of the seasonal modulation to the
+        :meth:`Simulation.infection_rate`.
+
+    .. attribute:: peak_month
+
+        The month (as an integer in ``[0, 12)``) of peak
+        :meth:`Simulation.infection_rate`.
+
+    .. attribute:: overflow_severity
+
+        The factor by which the :attr:`Simulation.overflow_death_rate`
+        exceeds the ICU :attr:`Simulation.death_rate`
+    """
+
+    expected_kwargs = {
+        'r0',
+        'incubation_time',
+        'infectious_period',
+        'length_hospital_stay',
+        'length_ICU_stay',
+        'seasonal_forcing',
+        'peak_month',
+        'overflow_severity'
+    }
+
+
+class SeverityModel(AttrDict):
+    """
+    .. attribute:: id
+
+    .. attribute:: age_group
+
+    .. attribute:: isolated
+
+    .. attribute:: confirmed
+
+    .. attribute:: severe
+
+    .. attribute:: critical
+
+    .. attribute:: fatal
+    """
+
+    expected_kwargs = {
+        'id',
+        'age_group',
+        'isolated',
+        'confirmed',
+        'severe',
+        'critical',
+        'fatal'
+    }
+
+
+class ContainmentModel:
+    def __init__(self, start_time, end_time):
+        self._events = [
+            ['start', map_to_days_if_needed(start_time), 1],
+            ['end', map_to_days_if_needed(end_time)]
+        ]
+        self.sort_times()
+        self._regenerate()
+
+    def add_sharp_event(self, time, factor, dt_days=0.05):
+        self._events.append(['sharp', map_to_days_if_needed(time), factor, dt_days])
+        # regenerate list
+        self.sort_times()
+        self._regenerate()
+
+    def sort_times(self):
+        self._events = sorted(self._events, key=lambda x: x[1])
+        c_factor = 1.
+        times = []
+        factors = []
+        for event in self._events:
+            if event[0] == "start":
+                times.append(event[1])
+                factors.append(c_factor)
+            elif event[0] == "end":
+                times.append(event[1])
+                factors.append(factors[-1])
+            elif event[0] == "sharp":
+                times.append(event[1]-event[3])
+                factors.append(factors[-1])
+                times.append(event[1])
+                factors.append(event[2])
+        self.times, self.factors = (
+            list(l) for l in zip(*sorted(zip(times, factors)))
+        )
+
+    def _regenerate(self):
+        from scipy.interpolate import interp1d
+        self._interp = interp1d(self.times, self.factors)
+
+    def get_dictionary(self):
+        obj = {}
+        from datetime import datetime
+        dts = [datetime.utcfromtimestamp(x//1000) for x in self.times]
+        obj['times'] = [[x.year, x.month, x.day, x.hour, x.minute, x.second]
+                        for x in dts]
+        obj['factors'] = self.factors
+        return obj
+
+    def __call__(self, time):
+        return self._interp(time)
 
 
 class NeherModelSimulation(Simulation):
@@ -140,7 +355,6 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         age_distribution = kwargs.pop('age_distribution', age_distribution)
         n_age_groups = len(age_distribution.counts)
 
-        from pydemic import SeverityModel, EpidemiologyModel
         severity = SeverityModel(
             id=np.array([0, 2, 4, 6, 8, 10, 12, 14, 16]),
             age_group=np.arange(0., 90., 10),
@@ -179,7 +393,6 @@ class NeherModelEstimator(LikelihoodEstimatorBase):
         from pydemic.containment import MitigationModel
         mitigation = MitigationModel(start_time, end_time, times, factors)
 
-        from pydemic.models import NeherModelSimulation
         sim = NeherModelSimulation(
             epidemiology, severity, population.imports_per_day,
             n_age_groups, mitigation,

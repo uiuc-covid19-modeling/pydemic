@@ -23,28 +23,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from pydemic.nonmarkovian import (NonMarkovianSimulation)
 from pydemic.simulation import (Simulation, SimulationState, StateLogger,
                                 QuantileLogger)
 from pydemic.reactions import Reaction, PassiveReaction, ErlangProcess, GammaProcess
-
-
-class AttrDict(dict):
-    expected_kwargs = set()
-
-    def __init__(self, *args, **kwargs):
-        if not self.expected_kwargs.issubset(set(kwargs.keys())):
-            raise ValueError
-
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-    def __getattr__(self, name):
-        # This method is implemented to avoid pylint 'no-member' errors for
-        # attribute access.
-        raise AttributeError(
-            "'%s' object has no attribute '%s'" % (self.__class__.__name__, name)
-        )
 
 
 def date_to_ms(date):
@@ -107,168 +88,15 @@ def days_to_dates(days, relative_to=(2020, 1, 1)):
     return [datetime(*relative_to) + timedelta(float(x)) for x in days]
 
 
-def map_to_days_if_needed(time):
-    if isinstance(time, (tuple, list)):
-        return days_from(time)
-    else:
-        return time
-
-
-from pydemic.containment import ContainmentModel
-
-
-class AgeDistribution(AttrDict):
-    """
-    .. attribute:: bin_edges
-
-        A :class:`numpy.ndarray` specifying the lower end of each of the age ranges
-        represented in :attr:`counts`.
-        I.e., the age group ``[bin_edges[i], bin_edges[i+1])``
-        has count ``counts[i]``.
-        Has the same length as :attr:`counts`, i.e., the final bin is
-        ``[bin_edges[-1], inf]``.
-
-    .. attribute:: counts
-
-        A :class:`numpy.ndarray` of the total population of the age groups specified
-        by :attr:`bin_edges`.
-    """
-
-    expected_kwargs = {
-        'bin_edges',
-        'counts'
-    }
-
-
-class PopulationModel(AttrDict):
-    """
-    .. attribute:: country
-
-        A :class:`string` with the name of the country.
-
-    .. attribute:: cases
-
-    .. attribute:: population_served
-
-        The total population.
-
-    .. attribute:: population_served
-
-    .. attribute:: hospital_beds
-
-    .. attribute:: ICU_beds
-
-    .. attribute:: initial_cases
-
-    .. attribute:: imports_per_day
-    """
-
-    expected_kwargs = {
-        'country',
-        'cases',
-        'population_served',
-        'hospital_beds',
-        'ICU_beds',
-        'initial_cases',
-        'imports_per_day'
-    }
-
-
-class EpidemiologyModel(AttrDict):
-    """
-    .. attribute:: r0
-
-        The average number of infections caused by an individual who is infected
-        themselves.
-
-    .. attribute:: incubation_time
-
-        The number of days of incubation.
-
-    .. attribute:: infectious_period
-
-        The number of days an individual remains infections.
-
-    .. attribute:: length_hospital_stay
-
-        The average amount of time a patient remains in the hospital.
-
-    .. attribute:: length_ICU_stay
-
-        The average amount of time a critical patient remains in the ICU.
-
-    .. attribute:: seasonal_forcing
-
-        The amplitude of the seasonal modulation to the
-        :meth:`Simulation.infection_rate`.
-
-    .. attribute:: peak_month
-
-        The month (as an integer in ``[0, 12)``) of peak
-        :meth:`Simulation.infection_rate`.
-
-    .. attribute:: overflow_severity
-
-        The factor by which the :attr:`Simulation.overflow_death_rate`
-        exceeds the ICU :attr:`Simulation.death_rate`
-    """
-
-    expected_kwargs = {
-        'r0',
-        'incubation_time',
-        'infectious_period',
-        'length_hospital_stay',
-        'length_ICU_stay',
-        'seasonal_forcing',
-        'peak_month',
-        'overflow_severity'
-    }
-
-
-class SeverityModel(AttrDict):
-    """
-    .. attribute:: id
-
-    .. attribute:: age_group
-
-    .. attribute:: isolated
-
-    .. attribute:: confirmed
-
-    .. attribute:: severe
-
-    .. attribute:: critical
-
-    .. attribute:: fatal
-    """
-
-    expected_kwargs = {
-        'id',
-        'age_group',
-        'isolated',
-        'confirmed',
-        'severe',
-        'critical',
-        'fatal'
-    }
-
-
 __all__ = [
-    "AttrDict",
     "Simulation",
     "Reaction",
     "PassiveReaction",
     "ErlangProcess",
     "GammaProcess",
-    "NonMarkovianSimulation",
     "Simulation",
     "SimulationState",
     "StateLogger",
-    "AgeDistribution",
-    "PopulationModel",
-    "EpidemiologyModel",
-    "SeverityModel",
-    "ContainmentModel",
     "QuantileLogger",
     "date_to_ms",
 ]

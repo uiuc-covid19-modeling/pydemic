@@ -25,14 +25,14 @@ THE SOFTWARE.
 
 
 import numpy as np
-from pydemic import AttrDict
+from pydemic.models.neher import AttrDict
 
 
 _2020_01_01 = 1577836800000
 _ms_per_day = 86400000
 
 
-from pydemic.containment import ContainmentModel
+from pydemic.models.neher import ContainmentModel
 
 
 class NeherContainmentModel(ContainmentModel):

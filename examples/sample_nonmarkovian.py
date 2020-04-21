@@ -45,7 +45,7 @@ fixed_values = dict(
     population=population,
     age_dist_pop=age_dist_pop,
     initial_cases=10.,
-    imports_per_day=1.1, # FIXME: currently doesn't do anything
+    imports_per_day=1.1,  # FIXME: currently doesn't do anything
     #length_ICU_stay=14,
 )
 

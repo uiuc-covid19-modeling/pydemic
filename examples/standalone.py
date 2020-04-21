@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel)
-from pydemic.models import NeherModelSimulation
+from pydemic.models.neher import (NeherModelSimulation, PopulationModel,
+                                  AgeDistribution, SeverityModel, EpidemiologyModel)
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
-from pydemic import ContainmentModel
+from pydemic.models.neher import ContainmentModel
 from pydemic.data import united_states
 
 

@@ -25,8 +25,9 @@ THE SOFTWARE.
 
 import numpy as np
 import pytest
-from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel, date_to_ms)
+from pydemic.models.neher import (PopulationModel, AgeDistribution, SeverityModel,
+                                  EpidemiologyModel)
+from pydemic import date_to_ms
 from neher_port import NeherPortSimulation
 from pydemic.models import NeherModelSimulation
 
@@ -73,7 +74,7 @@ epidemiology = EpidemiologyModel(
 
 @pytest.mark.parametrize("fraction_hospitalized", [.5, .005])
 def test_neher(fraction_hospitalized):
-    from pydemic import ContainmentModel
+    from pydemic.models.neher import ContainmentModel
     containment = ContainmentModel(start_date, (2021, 1, 1))
     containment.add_sharp_event(containment_date, containment_factor)
 

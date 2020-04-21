@@ -3,9 +3,9 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 
-from pydemic import (PopulationModel, AgeDistribution, SeverityModel,
-                     EpidemiologyModel, ContainmentModel)
-from pydemic.models import NeherModelSimulation
+from pydemic.models.neher import (PopulationModel, AgeDistribution, SeverityModel,
+                                  EpidemiologyModel, ContainmentModel)
+from pydemic.models.neher import NeherModelSimulation
 from pydemic.plot import plot_deterministic
 
 if __name__ == "__main__":

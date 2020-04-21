@@ -147,7 +147,7 @@ class DataParser:
             age_data = json.load(f)
 
         age_data = list(age_data[name].values())
-        from pydemic import AgeDistribution
+        from pydemic.models.neher import AgeDistribution
         bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
         return AgeDistribution(bin_edges=bin_edges, counts=age_data)
 
@@ -185,7 +185,7 @@ def get_population_model(name):
             key2 = camel_to_snake(key)
         data_translated[key2] = val
 
-    from pydemic import PopulationModel
+    from pydemic.models.neher import PopulationModel
     return PopulationModel(**data_translated)
 
 
@@ -194,7 +194,7 @@ def get_age_distribution_model(name):
         age_data = json.load(f)
 
     age_data = list(age_data[name].values())
-    from pydemic import AgeDistribution
+    from pydemic.models.neher import AgeDistribution
     bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
     return AgeDistribution(bin_edges=bin_edges, counts=age_data)
 

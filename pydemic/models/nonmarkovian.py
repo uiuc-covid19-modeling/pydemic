@@ -24,7 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
-from pydemic import NonMarkovianSimulation
+from pydemic.nonmarkovian import NonMarkovianSimulation
 from pydemic.sampling import LikelihoodEstimatorBase
 from scipy.interpolate import interp1d
 
