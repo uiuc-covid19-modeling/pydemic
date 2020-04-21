@@ -49,6 +49,10 @@ def days_from(date, relative_to=(2020, 1, 1)):
     :returns: A :class:`float`.
     """
 
+    from warnings import warn
+    warn("days_from is deprecated. Use pandas instead.",
+         DeprecationWarning, stacklevel=2)
+
     return int(date_to_ms(date) - date_to_ms(relative_to)) // _ms_per_day
 
 
@@ -64,6 +68,10 @@ def date_from(days, relative_to=(2020, 1, 1)):
 
     :returns: A :class:`tuple` ``(year, month, day)``
     """
+
+    from warnings import warn
+    warn("date_from is deprecated. Use pandas instead.",
+         DeprecationWarning, stacklevel=2)
 
     from datetime import datetime, timedelta
     full_date = datetime(*relative_to) + timedelta(days)
@@ -84,6 +92,11 @@ def days_to_dates(days, relative_to=(2020, 1, 1)):
     :returns: A :class:`tuple` of datetime objects for each day in the
         passed array.
     """
+
+    from warnings import warn
+    warn("days_to_dates is deprecated. Use pandas instead.",
+         DeprecationWarning, stacklevel=2)
+
     from datetime import datetime, timedelta
     return [datetime(*relative_to) + timedelta(float(x)) for x in days]
 
