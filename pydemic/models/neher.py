@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import pandas as pd
 from pydemic import Reaction, PassiveReaction, Simulation
 
 
@@ -332,6 +333,11 @@ class NeherModelSimulation(Simulation):
 
     @classmethod
     def get_model_data(cls, t, **kwargs):
+        if isinstance(t, pd.DatetimeIndex):
+            t_eval = (t - pd.to_datetime('2020-01-01')).days
+        else:
+            t_eval = t
+
         start_time = kwargs.pop('start_day')
         end_time = kwargs.pop('end_day')
 
@@ -399,4 +405,8 @@ class NeherModelSimulation(Simulation):
 
         result = sim.solve_deterministic((start_time, end_time), y0)
 
-        return sim.dense_to_logger(result, t)
+        logger = sim.dense_to_logger(result, t_eval)
+        y = {key: val.sum(axis=-1) for key, val in logger.y.items()}
+
+        _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
+        return pd.DataFrame(y, index=_t)

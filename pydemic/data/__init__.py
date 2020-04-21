@@ -39,6 +39,9 @@ def camel_to_snake(name):
 
 class CaseData:
     def __init__(self, t, y):
+        from warnings import warn
+        warn("CaseData is deprecated. Use pandas.DataFrame instead.",
+             DeprecationWarning, stacklevel=2)
         self.t = t
         self.y = y
 
@@ -56,11 +59,17 @@ class CaseData:
 
 
 def case_data_to_df(case_data, origin='2020-01-01'):
+    from warnings import warn
+    warn("CaseData is deprecated. Use pandas.DataFrame instead.",
+         DeprecationWarning, stacklevel=2)
     t = pd.to_datetime(case_data.t, origin=origin, unit='D')
     return pd.DataFrame(index=t, data=case_data.y)
 
 
 def df_to_case_data(df, origin='2020-01-01'):
+    from warnings import warn
+    warn("CaseData is deprecated. Use pandas.DataFrame instead.",
+         DeprecationWarning, stacklevel=2)
     t = (df.index - pd.to_datetime(origin)).days
     y = {col: np.nan_to_num(df[col].to_numpy()) for col in df.columns}
     for col in df.columns:
@@ -93,7 +102,7 @@ class DataParser:
         df = self.parse_case_data()
         df.to_hdf(self._filename, 'covid_tracking_data')
 
-    def get_case_data(self, region, return_df=False):
+    def get_case_data(self, region, return_df=True):
         import os.path
         if not os.path.isfile(self._filename):
             self.scrape_case_data()

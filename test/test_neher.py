@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import pandas as pd
 import pytest
 from pydemic.models.neher import (PopulationModel, AgeDistribution, SeverityModel,
                                   EpidemiologyModel)
@@ -128,10 +129,10 @@ def test_neher(fraction_hospitalized):
 
 def test_neher_estimator():
     from pydemic.sampling import LikelihoodEstimator
-    from pydemic.data import CaseData
     t = np.array([78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90])
     y = {'dead': np.array([4,  5,  6,  9, 12, 16, 19, 26, 34, 47, 65, 73, 99])}
-    data = CaseData(t, y)
+    dates = pd.to_datetime(t, origin='2020-01-01', unit='D')
+    data = pd.DataFrame(index=dates, data=y)
     # the values from here are all overwritten
     population = "USA-Illinois"
     age_dist_pop = "United States of America"
@@ -144,7 +145,7 @@ def test_neher_estimator():
     ]
 
     fixed_values = dict(
-        end_day=data.t[-1] + 2,
+        end_day=t[-1] + 2,
         population=population,
         age_dist_pop=age_dist_pop,
         population_served=12659682,

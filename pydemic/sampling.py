@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import pandas as pd
 from scipy.special import gammaln  # pylint: disable=E0611
 from warnings import warn
 from itertools import product
@@ -157,27 +158,17 @@ class LikelihoodEstimator:
         # get model data at daily values
         # when computing diffs, datasets were prepended with 0, so there is no need
         # to evaluate at an extra data point on day earlier
-        t_eval = np.arange(self.data.t[0], self.data.t[-1]+2)
         model_data = self.simulator.get_model_data(
-            t_eval, **parameters, **self.fixed_values
+            self.data.index, **parameters, **self.fixed_values
         )
-        if model_data == -np.inf:
-            return -np.inf
-        data_t_indices = np.isin(t_eval, self.data.t)
-
-        def get_one_likelihood(model, data, norm):
-            # slice to match data time coordinates
-            model = model[data_t_indices]
-            return norm(model, data)
+        if not isinstance(model_data, pd.DataFrame):
+            if model_data == -np.inf:
+                return -np.inf
 
         likelihood = 0
-        for compartment, norm in self.norms.items():
-            L = get_one_likelihood(
-                model_data.y[compartment].sum(axis=-1),
-                self.data.y[compartment],
-                norm
-            )
-            likelihood += L
+        for key, norm in self.norms.items():
+            likelihood += norm(model_data[key].to_numpy(),
+                               self.data[key].to_numpy())
 
         return likelihood
 

@@ -59,6 +59,11 @@ class HDFBackend(emcee.backends.HDFBackend):
 
             from pydemic.data import CaseData
             if isinstance(data, CaseData):
+                from warnings import warn
+                warn("Passing data=CaseData(...) deprecated. "
+                     "Use pandas.DataFrame instead.",
+                     DeprecationWarning, stacklevel=2)
+
                 f.create_group('data')
                 f['data/t'] = data.t
                 f.create_group('data/y')
@@ -96,6 +101,10 @@ class HDFBackend(emcee.backends.HDFBackend):
         with self.open() as f:
             if 'data' in f.keys():
                 from pydemic.data import CaseData
+                from warnings import warn
+                warn("Passing data=CaseData(...) deprecated. "
+                     "Use pandas.DataFrame instead.",
+                     DeprecationWarning, stacklevel=2)
                 t = f['data/t'][()]
                 y = {key: val[()] for key, val in f['data/y'].items()}
                 return CaseData(t=t, y=y)

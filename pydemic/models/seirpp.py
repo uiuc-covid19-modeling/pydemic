@@ -24,6 +24,8 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import pandas as pd
+from scipy.interpolate import interp1d
 
 __doc__ = """
 .. currentmodule:: pydemic
@@ -206,6 +208,11 @@ class SEIRPlusPlusSimulation:
 
     @classmethod
     def get_model_data(cls, t, **kwargs):
+        if isinstance(t, pd.DatetimeIndex):
+            t_eval = (t - pd.to_datetime('2020-01-01')).days
+        else:
+            t_eval = t
+
         t0 = kwargs.pop('start_day')
         tf = kwargs.pop('end_day')
 
@@ -225,10 +232,8 @@ class SEIRPlusPlusSimulation:
         result = sim((t0, tf), y0)
 
         y = {}
-        from scipy.interpolate import interp1d
         for key, val in result.y.items():
-            y[key] = interp1d(result.t, val, axis=0)(t)
+            y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
 
-        from pydemic.data import CaseData
-        result = CaseData(t, y)
-        return result
+        _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
+        return pd.DataFrame(y, index=_t)
