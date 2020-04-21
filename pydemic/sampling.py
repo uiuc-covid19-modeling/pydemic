@@ -84,7 +84,7 @@ class LikelihoodEstimator:
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
-        self.data = data.copy()
+        self.data = data.copy().fillna(0)
         self._original_data = self.data
         self.simulator = simulator
 
