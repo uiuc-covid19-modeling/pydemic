@@ -24,6 +24,7 @@ THE SOFTWARE.
 """
 
 import numpy as np
+import pandas as pd
 import emcee
 
 
@@ -56,15 +57,18 @@ class HDFBackend(emcee.backends.HDFBackend):
                 f['fit_parameters/sigma'] = [nanify(par.sigma)
                                              for par in fit_parameters]
 
-            if data is not None:
+            from pydemic.data import CaseData
+            if isinstance(data, CaseData):
                 f.create_group('data')
                 f['data/t'] = data.t
                 f.create_group('data/y')
                 for key, val in data.y.items():
                     if np.array(val).dtype.char in ('S', 'U'):
                         f['data/y'][key] = np.array(val, dtype=string_dt)
-                    else:
+                    elif np.array(val).dtype.char != 'O':
                         f['data/y'][key] = val
+            elif isinstance(data, pd.DataFrame):
+                data.to_hdf(f.filename, 'df_data')
 
     @property
     def fixed_values(self):
@@ -89,8 +93,13 @@ class HDFBackend(emcee.backends.HDFBackend):
 
     @property
     def data(self):
-        from pydemic.data import CaseData
         with self.open() as f:
-            t = f['data/t'][()]
-            y = {key: val[()] for key, val in f['data/y'].items()}
-            return CaseData(t=t, y=y)
+            if 'data' in f.keys():
+                from pydemic.data import CaseData
+                t = f['data/t'][()]
+                y = {key: val[()] for key, val in f['data/y'].items()}
+                return CaseData(t=t, y=y)
+            elif 'df_data' in f.keys():
+                return pd.read_hdf(f.filename, key='df_data')
+            else:
+                return None

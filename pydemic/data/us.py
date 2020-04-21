@@ -24,19 +24,16 @@ THE SOFTWARE.
 """
 
 import os
-import json
 import numpy as np
+import pandas as pd
 from pydemic.data import DataParser
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
 
 class UnitedStatesDataParser(DataParser):
-    _casedata_filename = os.path.join(
-        cwd, "../../assets/us_case_counts.json"
-    )
-    _info_filename = os.path.join(
-        cwd, "../../assets/us_info.json"
+    _filename = os.path.join(
+        cwd, "../../assets/us.h5"
     )
     data_url = "https://covidtracking.com/api/states/daily"
     info_url = "https://covidtracking.com/api/states/info"
@@ -50,36 +47,20 @@ class UnitedStatesDataParser(DataParser):
     def __init__(self):
         super().__init__()
 
-        import os.path
-        if not os.path.isfile(self._info_filename):
-            self.update_info()
+        try:
+            df = pd.read_hdf(self._filename, 'covid_tracking_info')
+        except:  # noqa
+            df = pd.read_json(self.info_url)
+            df.to_hdf(self._filename, 'covid_tracking_info')
 
-        with open(self._info_filename, 'r') as f:
-            info = json.load(f)
+        self.abbreviations = dict(zip(df.name, df.state))
+        self.inverse_abbreviations = dict(zip(df.state, df.name))
 
-        self.abbreviations = {
-            val['name']: key for key, val in info.items()
-        }
-        self.inverse_abbreviations = {
-            val: key for key, val in self.abbreviations.items()
-        }
-
-    def update_info(self):
-        import requests
-        r = requests.get(self.info_url)
-        info = json.loads(r.text)
-        r.close()
-
-        info = {item.pop('state'): item for item in info}
-
-        with open(self._info_filename, 'w') as f:
-            json.dump(info, f)
-
-    def get_case_data(self, region):
+    def get_case_data(self, region, return_df=False):
         if region in self.abbreviations:
             region = self.abbreviations[region]
 
-        return super().get_case_data(region)
+        return super().get_case_data(region, return_df=return_df)
 
     def get_population(self, name='United States of America'):
         if name != 'United States of America':

@@ -31,8 +31,8 @@ cwd = os.path.dirname(os.path.abspath(__file__))
 
 
 class ItalyDataParser(DataParser):
-    _casedata_filename = os.path.join(
-        cwd, "../../assets/italy_case_counts.json"
+    _filename = os.path.join(
+        cwd, "../../assets/italy.h5"
     )
     # info: https://github.com/pcm-dpc/COVID-19
     data_url = "https://raw.github.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json"  # noqa
@@ -55,7 +55,8 @@ class ItalyDataParser(DataParser):
         'variazione_totale_positivi': 'change_in_currently_positive',
         'dimessi_guariti': 'discharged',
         'deceduti': 'dead',
-        'tamponi': 'total_tests',
+        'casi_testati': 'total_tests',
+        'tamponi': 'tests_performed',
         'note_it': 'note_it',
         'note_en': 'note_en',
     }
@@ -64,14 +65,9 @@ class ItalyDataParser(DataParser):
         return self.translation[key]
 
     def parse_case_data(self):
-        region_data_series = super().parse_case_data()
-        for region, data in region_data_series.items():
-            data['positive'] = [int(x) for x in np.cumsum(data['new_positive'])]
-
-        return region_data_series
-
-    def convert_to_date(self, string):
-        return tuple(map(int, string[:10].split('-')))
+        df = super().parse_case_data()
+        df['positive'] = df['new_positive'].cumsum()
+        return df
 
     def get_population(self, name='Italy'):
         if name != 'Italy':

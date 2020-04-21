@@ -26,6 +26,7 @@ THE SOFTWARE.
 import os
 import json
 import numpy as np
+import pandas as pd
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
@@ -54,17 +55,21 @@ class CaseData:
         return text[:-1]
 
 
-def dict_to_case_data(data_dict):
-    from pydemic import days_from
-    t = np.array([days_from(x) for x in data_dict['date']])
-    y = {}
-    for key, val in data_dict.items():
-        y[key] = np.array([0 if x is None else x for x in val])
+def case_data_to_df(case_data, origin='2020-01-01'):
+    t = pd.to_datetime(case_data.t, origin=origin, unit='D')
+    return pd.DataFrame(index=t, data=case_data.y)
+
+
+def df_to_case_data(df, origin='2020-01-01'):
+    t = (df.index - pd.to_datetime(origin)).days
+    y = {col: np.nan_to_num(df[col].to_numpy()) for col in df.columns}
+    for col in df.columns:
+        pass
     return CaseData(t, y)
 
 
 class DataParser:
-    _casedata_filename = None
+    _filename = None
     data_url = None
     region_specifier = 'state'
     _popdata_filename = os.path.join(
@@ -77,65 +82,32 @@ class DataParser:
 
     def __init__(self):
         import os.path
-        if not os.path.isfile(self._casedata_filename):
+        if not os.path.isfile(self._filename):
             self.scrape_case_data()
 
     def translate(self, key):
-        return self.translation.get(key, key)
-
-    def convert_to_date(self, num):
-        year = num // 10000
-        month = (num - 10000 * year) // 100
-        day = (num - 10000 * year - 100 * month)
-        return (year, month, day)
+        _key = camel_to_snake(key)
+        return self.translation.get(_key, _key)
 
     def parse_case_data(self):
-        import requests
-        r = requests.get(self.data_url)
-        all_data = json.loads(r.text)
-        r.close()
-
-        all_data = [
-            {self.translate(camel_to_snake(key)): val for key, val in x.items()}
-            for x in all_data
-        ]
-
-        regions = set([x[self.region_specifier] for x in all_data])
-        data_fields = all_data[0].keys()
-
-        region_data = {}
-        for region in regions:
-            region_data[region] = []
-
-        for data_point in all_data:
-            region = data_point.pop(self.region_specifier)
-            region_data[region].append(data_point)
-
-        region_data_series = {}
-        for region, data in region_data.items():
-            sorted_data = sorted(data, key=lambda x: x['date'])
-            for dp in sorted_data:
-                dp['date'] = self.convert_to_date(dp['date'])
-
-            data_series = {}
-            for key in data_fields:
-                data_series[key] = [x.get(key) for x in sorted_data]
-
-            region_data_series[region] = data_series
-
-        return region_data_series
+        df = pd.read_json(self.data_url)
+        df = df.rename(mapper=self.translate, axis='columns')
+        return df
 
     def scrape_case_data(self):
-        region_data_series = self.parse_case_data()
+        df = self.parse_case_data()
+        df.to_hdf(self._filename, 'covid_tracking_data')
 
-        with open(self._casedata_filename, 'w') as f:
-            json.dump(region_data_series, f)
-
-    def get_case_data(self, region):
-        with open(self._casedata_filename, 'r') as f:
-            case_data = json.load(f)
-
-        return dict_to_case_data(case_data[region])
+    def get_case_data(self, region, return_df=False):
+        df = pd.read_hdf(self._filename, 'covid_tracking_data')
+        df = df[df[self.region_specifier] == region]
+        df.date = pd.to_datetime(df.date.astype(str)).dt.normalize()
+        df = df.set_index('date')
+        df = df.sort_index()
+        if return_df:
+            return df
+        else:
+            return df_to_case_data(df)
 
     def get_population(self, name):
         with open(self._popdata_filename, 'r') as f:
@@ -202,6 +174,10 @@ def get_age_distribution_model(name):
 __all__ = [
     "camel_to_snake",
     "CaseData",
-    "dict_to_case_data",
-    "scrape_all_data"
+    "case_data_to_df",
+    "df_to_case_data",
+    "DataParser",
+    "scrape_all_data",
+    "get_population_model",
+    "get_age_distribution_model",
 ]
