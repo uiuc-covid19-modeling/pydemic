@@ -181,10 +181,6 @@ class LikelihoodEstimator:
 
         return likelihood
 
-    @classmethod
-    def get_model_data(cls, t, **kwargs):
-        raise NotImplementedError
-
     def get_initial_positions(self, walkers, method='normal'):
         if method == 'uniform':
             init = np.array([np.random.uniform(par.bounds[0], par.bounds[1], walkers)
