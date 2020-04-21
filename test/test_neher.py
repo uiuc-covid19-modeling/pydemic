@@ -127,7 +127,7 @@ def test_neher(fraction_hospitalized):
 
 
 def test_neher_estimator():
-    from pydemic.models.neher import NeherModelEstimator
+    from pydemic.sampling import LikelihoodEstimator
     from pydemic.data import CaseData
     t = np.array([78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90])
     y = {'dead': np.array([4,  5,  6,  9, 12, 16, 19, 26, 34, 47, 65, 73, 99])}
@@ -158,8 +158,9 @@ def test_neher_estimator():
         fraction_hospitalized=1.,
         min_mitigation_spacing=0,
     )
-    estimator = NeherModelEstimator(
-        fit_parameters, fixed_values, data, {'dead': 'L2'}
+    estimator = LikelihoodEstimator(
+        fit_parameters, fixed_values, data, NeherModelSimulation,
+        {'dead': 'L2'}
     )
 
     test_L = estimator([2.7, 53.8])
