@@ -60,7 +60,7 @@ setup(name=package,
       install_requires=[
           "numpy",
           "scipy",
-          "xlrd",
+          "pandas",
           "matplotlib",
           "emcee",
           "corner",
