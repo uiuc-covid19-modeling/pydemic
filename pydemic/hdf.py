@@ -57,8 +57,9 @@ class HDFBackend(emcee.backends.HDFBackend):
                 f['fit_parameters/sigma'] = [nanify(par.sigma)
                                              for par in fit_parameters]
 
-            from pydemic.data import CaseData
-            if isinstance(data, CaseData):
+        from pydemic.data import CaseData
+        if isinstance(data, CaseData):
+            with self.open('a') as f:
                 from warnings import warn
                 warn("Passing data=CaseData(...) deprecated. "
                      "Use pandas.DataFrame instead.",
@@ -72,8 +73,8 @@ class HDFBackend(emcee.backends.HDFBackend):
                         f['data/y'][key] = np.array(val, dtype=string_dt)
                     elif np.array(val).dtype.char != 'O':
                         f['data/y'][key] = val
-            elif isinstance(data, pd.DataFrame):
-                data.to_hdf(f.filename, 'df_data')
+        elif isinstance(data, pd.DataFrame):
+            data.to_hdf(filename, 'df_data')
 
     @property
     def fixed_values(self):
