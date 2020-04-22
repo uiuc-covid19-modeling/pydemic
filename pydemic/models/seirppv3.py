@@ -79,10 +79,14 @@ class SEIRPlusPlusSimulationV3:
     .. automethod:: __call__
     """
 
-    def set_kernels(self, t):
+    def get_gamma(self, t, shape, scale, dt):
         from scipy.stats import gamma
+        cdf = gamma.cdf(t, shape, scale=scale)
+        return np.diff(cdf, prepend=0) / dt
+
+    def set_kernels(self, t, dt):
         self.kernels = {
-            key: gamma.pdf(t, shape, scale=scale)
+            key: self.get_gamma(t, shape, scale, dt)
             for key, (shape, scale) in self.distribution_params.items()
         }
 
@@ -219,7 +223,7 @@ class SEIRPlusPlusSimulationV3:
         start_time, end_time = tspan
         times = np.arange(start_time, end_time + dt, dt)
         n_steps = times.shape[0]  # pylint: disable=
-        self.set_kernels(times[1:] - start_time)
+        self.set_kernels(times[1:] - start_time, dt)
 
         y0_all_t = {}
         for key in y0:
