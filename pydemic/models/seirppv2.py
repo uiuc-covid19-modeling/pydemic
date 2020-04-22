@@ -216,7 +216,7 @@ class SEIRPlusPlusSimulationV2:
     @classmethod
     def get_model_data(cls, t, **kwargs):
         if isinstance(t, pd.DatetimeIndex):
-            t_eval = (t - pd.to_datetime('2020-01-01')).days
+            t_eval = (t - pd.to_datetime('2020-01-01')) / pd.Timedelta('1D')
         else:
             t_eval = t
 

@@ -70,7 +70,7 @@ def df_to_case_data(df, origin='2020-01-01'):
     from warnings import warn
     warn("CaseData is deprecated. Use pandas.DataFrame instead.",
          DeprecationWarning, stacklevel=2)
-    t = (df.index - pd.to_datetime(origin)).days
+    t = (df.index - pd.to_datetime(origin)) / pd.Timedelta('1D')
     y = {col: np.nan_to_num(df[col].to_numpy()) for col in df.columns}
     for col in df.columns:
         pass
