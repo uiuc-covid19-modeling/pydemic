@@ -396,7 +396,7 @@ class NeherModelSimulation(Simulation):
         from pydemic.containment import MitigationModel
         mitigation = MitigationModel(start_time, end_time, times, factors)
 
-        sim = NeherModelSimulation(
+        sim = cls(
             epidemiology, severity, population.imports_per_day,
             n_age_groups, mitigation,
             fraction_hospitalized=fraction_hospitalized

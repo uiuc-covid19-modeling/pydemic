@@ -233,7 +233,7 @@ class SEIRPlusPlusSimulationV2:
             #raise ValueError("mitigation point spacing < min_mitigation_spacing")
             return -np.inf
 
-        sim = SEIRPlusPlusSimulationV2(mitigation=mitigation, **kwargs)
+        sim = cls(mitigation=mitigation, **kwargs)
         y0 = sim.get_y0(kwargs.pop('total_population'),
                         kwargs.pop('initial_cases'),
                         kwargs.pop('age_distribution'))

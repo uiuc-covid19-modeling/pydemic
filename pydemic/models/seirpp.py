@@ -225,7 +225,7 @@ class SEIRPlusPlusSimulation:
         if any(np.diff(mitigation.times) < kwargs.get('min_mitigation_spacing', 5)):
             return -np.inf
 
-        sim = SEIRPlusPlusSimulation(mitigation=mitigation, **kwargs)
+        sim = cls(mitigation=mitigation, **kwargs)
         y0 = sim.get_y0(kwargs.pop('total_population'),
                         kwargs.pop('initial_cases'),
                         kwargs.pop('age_distribution'))

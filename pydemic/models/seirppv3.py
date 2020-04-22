@@ -289,7 +289,7 @@ class SEIRPlusPlusSimulationV3:
             return -np.inf
 
         age_distribution = kwargs.pop('age_distribution')
-        sim = SEIRPlusPlusSimulationV3(
+        sim = cls(
             mitigation=mitigation, age_distribution=age_distribution, **kwargs
         )
         y0 = sim.get_y0(kwargs.pop('total_population'),
