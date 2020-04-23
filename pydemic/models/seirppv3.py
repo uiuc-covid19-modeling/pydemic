@@ -39,54 +39,77 @@ class SEIRPlusPlusSimulationState:
         self.y = y
 
 
+def mean_std_to_k_theta(mean, std):
+    return (mean**2 / std**2, std**2 / mean)
+
+
+def convolve_pdf(t, influx, prefactor=1, mean=5, std=2):
+    shape, scale = mean_std_to_k_theta(mean, std)
+    from scipy.stats import gamma
+    cdf = gamma.cdf(t[:] - t[0], shape, scale=scale)
+    pdf = np.diff(cdf, prepend=0)
+
+    prefactor = prefactor * np.ones_like(influx[0, ...])
+
+    kernel = np.outer(pdf, prefactor)
+
+    end = t.shape[0]
+    from scipy.signal import fftconvolve
+    result = fftconvolve(kernel, influx, mode='full', axes=0)[:end]
+
+    return result
+
+
+def convolve_survival(t, influx, prefactor=1, mean=5, std=2):
+    shape, scale = mean_std_to_k_theta(mean, std)
+    from scipy.stats import gamma
+    survival = 1 - gamma.cdf(t - t[0], shape, scale=scale)
+
+    prefactor = prefactor * np.ones_like(influx[0, ...])
+    kernel = np.outer(survival, prefactor)
+
+    end = t.shape[0]
+    from scipy.signal import fftconvolve
+    result = fftconvolve(kernel, influx, mode='full', axes=0)[:end]
+
+    return result
+
+
+def convolve_direct(t, influx, prefactor=1, mean=5, std=2, bad=False):
+    shape, scale = mean_std_to_k_theta(mean, std)
+    from scipy.stats import gamma
+    if bad:
+        cdf = gamma.cdf(t[:] - t[0], shape, scale=scale)  # BAD!!!!
+    else:
+        cdf = gamma.cdf(t[1:] - t[0], shape, scale=scale)
+    pdf = np.diff(cdf, prepend=0)
+
+    prefactor = prefactor * np.ones_like(influx[0, ...])
+
+    end = t.shape[0]
+    result = np.zeros_like(influx)
+    for i in range(1, end):
+        result[i, ...] = prefactor * np.dot(influx[i-1::-1].T, pdf[:i])
+
+    return result
+
+
 class SEIRPlusPlusSimulationV3:
     """
-    Main driver for tracked class model simulations.
-
-    We track the infectious loop in the usual way with
-        serial_k = 1.5, serial_mean = 4., and allow r0 to float
-
-    Infected persons become symptomatic after
-        incubation_k = 7., incubation_mean = 5.5
-        and with probability
-        p_symptomatic initialized to 1., but explored.
-
-    A fraction of the symptomatic people are observed according to
-        p_observed
-
-    In the second (v3) model, some fraction of observed individuals end up
-        in the icu after
-        icu_mean=11., icu_std=5.
-        with probability roughly proportional to ccdphcd deaths and scaled by
-        p_icu_prefactor
-
-    In this second (v3) model, some fraction of icu individuals die after
-        dead_mean=7.5, dead_std=7.5.
-        with uniform probability over demographics, scaled by
-        p_dead_prefactor
-
-    Tracks are thus then called:
-        population (constant)
-        susceptible
-        infected
-        observed  (= p_observed * symptomatic)
-        icu
-        dead
-        recovered  (from icu)
-
+    Main driver for non-Markovian simulations.
 
     .. automethod:: __init__
     .. automethod:: __call__
     """
 
-    def get_gamma(self, t, shape, scale, dt):
+    def get_gamma_pdf(self, t, shape, scale, dt):
         from scipy.stats import gamma
         cdf = gamma.cdf(t, shape, scale=scale)
         return np.diff(cdf, prepend=0) / dt
 
     def set_kernels(self, t, dt):
         self.kernels = {
-            key: self.get_gamma(t, shape, scale, dt)
+            key: self.get_gamma_pdf(t, shape, scale, dt)
             for key, (shape, scale) in self.distribution_params.items()
         }
 
@@ -94,38 +117,22 @@ class SEIRPlusPlusSimulationV3:
         phase = 2 * np.pi * (t - self.peak_day) / 365
         return (1 + self.seasonal_forcing_amp * np.cos(phase))
 
-    def __init__(self, mitigation,
-                 serial_mean=4., serial_std=3.25, r0=3.2,
-                 incubation_mean=5.5, incubation_std=2.,
-                 #p_symptomatic=1.,
-                 ifr=0.003,
-                 p_observed=1.,
-                 icu_mean=11., icu_std=5., p_icu=1., p_icu_prefactor=1.,
-                 dead_mean=7.5, dead_std=7.5, p_dead=1., p_dead_prefactor=1.,
-                 dead_force_exp=False,
+    def __init__(self, mitigation, *, age_distribution=None,
+                 r0=3.2, serial_mean=4, serial_std=3.25,
+                 ifr=0.003, seasonal_forcing_amp=.2, peak_day=15,
+                 incubation_mean=5.5, incubation_std=2, p_observed=1,
+                 icu_mean=11, icu_std=5, p_icu=1, p_icu_prefactor=1,
+                 dead_mean=7.5, dead_std=7.5, p_dead=1, p_dead_prefactor=1,
                  recovered_mean=7.5, recovered_std=7.5,
-                 # original onset->death: mean=18, std=8
-                 seasonal_forcing_amp=.2, peak_day=15,
-                 age_distribution=None,
                  **kwargs):
-
         self.mitigation = mitigation
-
-        def mean_std_to_k_theta(mean, std):
-            return (mean**2 / std**2, std**2 / mean)
-
-        if dead_force_exp:
-            dead_std = dead_mean
 
         self.distribution_params = {
             'serial': mean_std_to_k_theta(serial_mean, serial_std),
-            'incubation': mean_std_to_k_theta(incubation_mean, incubation_std),
-            'icu': mean_std_to_k_theta(icu_mean, icu_std),
-            'dead': mean_std_to_k_theta(dead_mean, dead_std),
-            'recovered': mean_std_to_k_theta(recovered_mean, recovered_std)
         }
         self.seasonal_forcing_amp = seasonal_forcing_amp
         self.peak_day = peak_day
+        self.r0 = r0
 
         if age_distribution is None:
             age_distribution = np.array([0.24789492, 0.13925591, 0.13494838,
@@ -133,82 +140,62 @@ class SEIRPlusPlusSimulationV3:
                                          0.07275651, 0.03971926])
 
         p_symptomatic = 1.
-        if type(p_symptomatic) != list and type(p_symptomatic) != np.ndarray:
-            p_symptomatic = p_symptomatic * np.ones(8)
-        if type(p_observed) != list and type(p_observed) != np.ndarray:
-            p_observed = p_observed * np.ones(8)
-        if type(p_icu) != list and type(p_icu) != np.ndarray:
-            p_icu = p_icu * np.ones(8)
-        if type(p_dead) != list and type(p_dead) != np.ndarray:
-            p_dead = p_dead * np.ones(8)
-
         p_symptomatic = np.array(p_symptomatic)
         p_observed = np.array(p_observed)
         p_icu = np.array(p_icu) * p_icu_prefactor
         p_dead = np.array(p_dead) * p_dead_prefactor
-        p_recovered = np.ones(p_dead.shape) - p_dead
 
         # FIXME: this is a kludge-y way to set the target ifr
         # (infection, not just symptomatic)
-        target_ifr = ifr
         p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
         synthetic_ifr = (p_dead_all * age_distribution).sum()
-        p_symptomatic *= target_ifr / synthetic_ifr
+        p_symptomatic *= ifr / synthetic_ifr
 
-        def update_infected(state, count, dt):
-            fraction = (state.y['susceptible'][..., count-1]
-                        / state.y['population'][..., 0])
-            update = fraction * r0 * np.dot(
-                state.y['infected'][..., count-1::-1],
-                self.kernels['serial'][:count]
-            )
-            update *= dt * self.mitigation(state.t[count])
-            update *= self.seasonal_forcing(state.t[count])
-
-            state.y['susceptible'][..., count] = (
-                state.y['susceptible'][..., count-1] - update
-            )
-            return update
-
-        def update_observed(state, count, dt):
-            update = p_observed * p_symptomatic * dt * np.dot(
-                state.y['infected'][..., count-1::-1],
-                self.kernels['incubation'][:count]
-            )
-            return update
-
-        def update_icu(state, count, dt):
-            update = p_icu * dt * np.dot(
-                state.y['observed'][..., count-1::-1],
-                self.kernels['icu'][:count])
-            return update
-
-        def update_dead(state, count, dt):
-            update = p_dead * dt * np.dot(
-                state.y['icu'][..., count-1::-1],
-                self.kernels['dead'][:count])
-            return update
-
-        def update_recovered(state, count, dt):
-            update = p_recovered * dt * np.dot(
-                state.y['icu'][..., count-1::-1],
-                self.kernels['recovered'][:count])
-            return update
-
-        self.sources = {
-            "susceptible": [],
-            "infected": [update_infected],
-            "observed": [update_observed],
-            "icu": [update_icu],
-            "dead": [update_dead],
-            "recovered": [update_recovered],
-            "population": []
+        self.readouts = {
+            "observed": ('infected', p_observed * p_symptomatic,
+                         incubation_mean, incubation_std),
+            "icu": ('observed', p_icu, icu_mean, icu_std),
+            "dead": ('icu', p_dead, dead_mean, dead_std),
+            "recovered": ('icu', (1 - p_dead),
+                         recovered_mean, recovered_std),
         }
 
     def step(self, state, count, dt):
-        for track in state.y:
-            for source in self.sources[track]:
-                state.y[track][..., count] = source(state, count, dt)
+        fraction = (state.y['susceptible'][..., count-1] / self.population)
+        coef = fraction * dt * self.mitigation(state.t[count])
+        coef *= self.r0 * self.seasonal_forcing(state.t[count])
+        update = coef * np.dot(
+            state.y['infected'][..., count-1::-1],
+            self.kernels['serial'][:count]
+        )
+        state.y['infected'][..., count] = update
+
+        state.y['susceptible'][..., count] = (
+            state.y['susceptible'][..., count-1] - update
+        )
+
+    def get_y0(self, total_population, initial_cases, age_distribution):
+        """
+        :arg total_population: FIXME: document
+
+        :arg age_distribution: A :class:`dict` with key counts
+            (as :class:`numpy.ndarray`'s) FIXME: document
+
+        :returns: FIXME: document
+        """
+
+        # FIXME: shouldn't be set here
+        self.population = total_population * np.array(age_distribution)
+        n_demographics = len(age_distribution)
+
+        y0 = {}
+        for key in ('susceptible', 'infected'):
+            y0[key] = np.zeros((n_demographics,))
+
+        y0['infected'][...] = initial_cases / n_demographics
+        y0['susceptible'][...] = self.population - y0['infected']
+
+        return y0
 
     def __call__(self, tspan, y0, dt=.05):
         """
@@ -230,41 +217,36 @@ class SEIRPlusPlusSimulationV3:
             y0_all_t[key] = np.zeros(y0[key].shape + (n_steps,))
             y0_all_t[key][..., 0] = y0[key]
 
-        state = SEIRPlusPlusSimulationState(times, y0_all_t)
+        influxes = SEIRPlusPlusSimulationState(times, y0_all_t)
 
         for count in range(1, n_steps):
-            self.step(state, count, dt)
+            self.step(influxes, count, dt)
 
-        for key, val in state.y.items():
+        for key, val in influxes.y.items():
+            influxes.y[key] = val.T
+
+        for key, (src, prob, mean, std) in self.readouts.items():
+            influxes.y[key] = convolve_pdf(times, influxes.y[src], prob, mean, std)
+
+        sol = SEIRPlusPlusSimulationState(times, {})
+
+        for key, val in influxes.y.items():
             if key not in ["susceptible", "population"]:
-                state.y[key] = np.cumsum(val, axis=1).T
+                sol.y[key] = np.cumsum(val, axis=0)
             else:
-                state.y[key] = val.T
-        state.y["critical"] = state.y["icu"] - state.y["dead"] - state.y["recovered"]
+                sol.y[key] = val
 
-        return state
+        sol.y['infectious'] = convolve_survival(times, influxes.y['infected'],
+                                                2, 5, 2)
+        sol.y["critical"] = sol.y["icu"] - sol.y["dead"] - sol.y["recovered"]
+        sol.y['ventilators'] = .73 * sol.y['critical']
 
-    def get_y0(self, total_population, initial_cases, age_distribution):
-        """
-        :arg population: FIXME: document
+        i = np.searchsorted(sol.t, sol.t[0] + 5)
+        sol.y["hospitalized"] = np.zeros_like(sol.y['critical'])
+        sol.y["hospitalized"][:-i] = 2.7241 * sol.y['critical'][i:]
+        sol.y["hospitalized"][-i:] = np.nan
 
-        :arg age_distribution: A :class:`dict` with key counts
-            (as :class:`numpy.ndarray`'s) FIXME: document
-
-        :returns: FIXME: document
-        """
-
-        n_demographics = len(age_distribution)
-
-        y0 = {}
-        for key in self.sources.keys():
-            y0[key] = np.zeros((n_demographics,))
-
-        y0['population'][...] = np.array(age_distribution) * total_population
-        y0['infected'][...] = initial_cases / n_demographics
-        y0['susceptible'][...] = y0['population'] - y0['infected']
-
-        return y0
+        return sol
 
     @classmethod
     def get_model_data(cls, t, **kwargs):
@@ -276,8 +258,14 @@ class SEIRPlusPlusSimulationV3:
         t0 = kwargs.pop('start_day')
         tf = kwargs.pop('end_day')
 
-        from pydemic.containment import LinearMitigationModel
-        mitigation = LinearMitigationModel.init_from_kwargs(t0, tf, **kwargs)
+        if t_eval[0] < t0 + 1:
+            return -np.inf
+
+        try:
+            from pydemic.mitigation import MitigationModel
+            mitigation = MitigationModel.init_from_kwargs(t0, tf, **kwargs)
+        except ValueError:
+            return -np.inf
 
         # ensure times are ordered
         if any(np.diff(mitigation.times, prepend=t0, append=tf) < 0):
@@ -300,6 +288,10 @@ class SEIRPlusPlusSimulationV3:
         y = {}
         for key, val in result.y.items():
             y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
+
+        for key in ('dead',):
+            spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
+            y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
 
         _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
         return pd.DataFrame(y, index=_t)
