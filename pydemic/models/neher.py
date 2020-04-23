@@ -388,10 +388,18 @@ class NeherModelSimulation(Simulation):
                             if key.startswith('mitigation_t')])
         times = np.array([kwargs.pop(key) for key in time_keys])
         # ensure times are ordered
+
+        from pydemic.sampling import InvalidParametersError
+
         if (np.diff(times, prepend=start_time, append=end_time) < 0).any():
-            return -np.inf
+            raise InvalidParametersError(
+                "Mitigation times must be ordered within t0 and tf."
+            )
         if (np.diff(times) < kwargs.get('min_mitigation_spacing', 5)).any():
-            return -np.inf
+            raise InvalidParametersError(
+                "Mitigation times must be spaced by at least min_mitigation_spacing."
+                " Decrease min_mitigation_spacing to prevent this check."
+            )
 
         from pydemic.containment import MitigationModel
         mitigation = MitigationModel(start_time, end_time, times, factors)

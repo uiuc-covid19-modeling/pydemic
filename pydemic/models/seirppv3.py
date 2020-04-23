@@ -206,23 +206,26 @@ class NonMarkovianSIRSimulationBase:
         t0 = kwargs.pop('start_day')
         tf = t_eval[-1] + 2
 
+        from pydemic.sampling import InvalidParametersError
+
         if t_eval[0] < t0 + 1:
-            return -np.inf
+            raise InvalidParametersError(
+                "Must start simulation at least one day before result evaluation."
+            )
 
         try:
             from pydemic.mitigation import MitigationModel
             mitigation = MitigationModel.init_from_kwargs(t0, tf, **kwargs)
-        except ValueError:
-            return -np.inf
+        except ValueError:  # raised by PchipInterpolator when times aren't ordered
+            raise InvalidParametersError(
+                "Mitigation times must be ordered within t0 and tf."
+            )
 
-        # ensure times are ordered
-        if any(np.diff(mitigation.times, prepend=t0, append=tf) < 0):
-            return -np.inf
         if any(np.diff(mitigation.times) < kwargs.get('min_mitigation_spacing', 5)):
-            # FIXME: Since get_model_data is effectively a wrapper, it'd be nice
-            # to be able to force computing a trajectory out of bounds (especially
-            # before) for aggregate plotting purposes. Handled manually now.
-            return -np.inf
+            raise InvalidParametersError(
+                "Mitigation times must be spaced by at least min_mitigation_spacing."
+                " Decrease min_mitigation_spacing to prevent this check."
+            )
 
         age_distribution = kwargs.pop('age_distribution')
         sim = cls(
@@ -290,8 +293,7 @@ class SEIRPlusPlusSimulationV3(NonMarkovianSIRSimulationBase):
                          incubation_mean, incubation_std),
             "icu": ('observed', p_icu, icu_mean, icu_std),
             "dead": ('icu', p_dead, dead_mean, dead_std),
-            "recovered": ('icu', (1 - p_dead),
-                         recovered_mean, recovered_std),
+            "recovered": ('icu', (1 - p_dead), recovered_mean, recovered_std),
         }
 
     def __call__(self, tspan, y0, dt=.05):

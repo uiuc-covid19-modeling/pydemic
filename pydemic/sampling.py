@@ -24,10 +24,13 @@ THE SOFTWARE.
 """
 
 import numpy as np
-import pandas as pd
 from scipy.special import gammaln  # pylint: disable=E0611
 from warnings import warn
 from itertools import product
+
+
+class InvalidParametersError(Exception):
+    pass
 
 
 class SampleParameter:
@@ -155,15 +158,12 @@ class LikelihoodEstimator:
             return log_prior + self.get_log_likelihood(parameters)
 
     def get_log_likelihood(self, parameters):
-        # get model data at daily values
-        # when computing diffs, datasets were prepended with 0, so there is no need
-        # to evaluate at an extra data point on day earlier
-        model_data = self.simulator.get_model_data(
-            self.data.index, **parameters, **self.fixed_values
-        )
-        if not isinstance(model_data, pd.DataFrame):
-            if model_data == -np.inf:
-                return -np.inf
+        try:
+            model_data = self.simulator.get_model_data(
+                self.data.index, **parameters, **self.fixed_values
+            )
+        except InvalidParametersError:
+            return -np.inf
 
         likelihood = 0
         for key, norm in self.norms.items():
