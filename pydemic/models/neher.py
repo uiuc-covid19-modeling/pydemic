@@ -338,8 +338,29 @@ class NeherModelSimulation(Simulation):
         else:
             t_eval = t
 
-        start_time = kwargs.pop('start_day')
-        end_time = kwargs.pop('end_day')
+        t0 = kwargs.pop('start_day')
+        tf = t_eval[-1] + 2
+
+        from pydemic.sampling import InvalidParametersError
+
+        if t_eval[0] < t0 + 1:
+            raise InvalidParametersError(
+                "Must start simulation at least one day before result evaluation."
+            )
+
+        try:
+            from pydemic.mitigation import MitigationModel
+            mitigation = MitigationModel.init_from_kwargs(t0, tf, **kwargs)
+        except ValueError:  # raised by PchipInterpolator when times aren't ordered
+            raise InvalidParametersError(
+                "Mitigation times must be ordered within t0 and tf."
+            )
+
+        if any(np.diff(mitigation.times) < kwargs.get('min_mitigation_spacing', 5)):
+            raise InvalidParametersError(
+                "Mitigation times must be spaced by at least min_mitigation_spacing."
+                " Decrease min_mitigation_spacing to prevent this check."
+            )
 
         from pydemic.data import get_population_model, get_age_distribution_model
         pop_name = kwargs.pop('population')
@@ -380,30 +401,6 @@ class NeherModelSimulation(Simulation):
         )
         fraction_hospitalized = kwargs.pop('fraction_hospitalized')
 
-        factor_keys = sorted([key for key in kwargs.keys()
-                              if key.startswith('mitigation_factor')])
-        factors = np.array([kwargs.pop(key) for key in factor_keys])
-
-        time_keys = sorted([key for key in kwargs.keys()
-                            if key.startswith('mitigation_t')])
-        times = np.array([kwargs.pop(key) for key in time_keys])
-        # ensure times are ordered
-
-        from pydemic.sampling import InvalidParametersError
-
-        if (np.diff(times, prepend=start_time, append=end_time) < 0).any():
-            raise InvalidParametersError(
-                "Mitigation times must be ordered within t0 and tf."
-            )
-        if (np.diff(times) < kwargs.get('min_mitigation_spacing', 5)).any():
-            raise InvalidParametersError(
-                "Mitigation times must be spaced by at least min_mitigation_spacing."
-                " Decrease min_mitigation_spacing to prevent this check."
-            )
-
-        from pydemic.containment import MitigationModel
-        mitigation = MitigationModel(start_time, end_time, times, factors)
-
         sim = cls(
             epidemiology, severity, population.imports_per_day,
             n_age_groups, mitigation,
@@ -411,7 +408,7 @@ class NeherModelSimulation(Simulation):
         )
         y0 = sim.get_initial_population(population, age_distribution)
 
-        result = sim.solve_deterministic((start_time, end_time), y0)
+        result = sim.solve_deterministic((t0, tf), y0)
 
         logger = sim.dense_to_logger(result, t_eval)
         y = {key: val.sum(axis=-1) for key, val in logger.y.items()}

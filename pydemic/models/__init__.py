@@ -25,10 +25,15 @@ THE SOFTWARE.
 
 
 from pydemic.models.seir import SEIRModelSimulation
+from pydemic.models.seirpp import (
+    SEIRPlusPlusSimulation, SEIRPlusPlusSimulationOnsetAndDeath
+)
 from pydemic.models.neher import NeherModelSimulation
 
 
 __all__ = [
     "SEIRModelSimulation",
-    "NeherModelSimulation"
+    "SEIRPlusPlusSimulation",
+    "SEIRPlusPlusSimulationOnsetAndDeath",
+    "NeherModelSimulation",
 ]

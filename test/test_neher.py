@@ -154,7 +154,7 @@ def test_neher_estimator():
         age_distribution=age_distribution,
         mitigation_factor_0=1,
         mitigation_factor_1=1,
-        mitigation_t_0=79,
+        mitigation_t_0=69,
         mitigation_t_1=79,
         fraction_hospitalized=1.,
         min_mitigation_spacing=0,
