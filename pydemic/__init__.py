@@ -26,6 +26,8 @@ THE SOFTWARE.
 from pydemic.simulation import (Simulation, SimulationState, StateLogger,
                                 QuantileLogger)
 from pydemic.reactions import Reaction, PassiveReaction, ErlangProcess, GammaProcess
+from pydemic.mitigation import MitigationModel
+from pydemic.sampling import SampleParameter, LikelihoodEstimator
 
 
 def date_to_ms(date):
@@ -111,5 +113,8 @@ __all__ = [
     "SimulationState",
     "StateLogger",
     "QuantileLogger",
+    "MitigationModel",
+    "SampleParameter",
+    "LikelihoodEstimator",
     "date_to_ms",
 ]
