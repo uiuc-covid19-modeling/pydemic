@@ -75,13 +75,10 @@ def convolve_survival(t, influx, prefactor=1, mean=5, std=2):
     return result
 
 
-def convolve_direct(t, influx, prefactor=1, mean=5, std=2, bad=False):
+def convolve_direct(t, influx, prefactor=1, mean=5, std=2):
     shape, scale = mean_std_to_k_theta(mean, std)
     from scipy.stats import gamma
-    if bad:
-        cdf = gamma.cdf(t[:] - t[0], shape, scale=scale)  # BAD!!!!
-    else:
-        cdf = gamma.cdf(t[1:] - t[0], shape, scale=scale)
+    cdf = gamma.cdf(t[1:] - t[0], shape, scale=scale)
     pdf = np.diff(cdf, prepend=0)
 
     prefactor = prefactor * np.ones_like(influx[0, ...])
