@@ -91,7 +91,7 @@ def convolve_direct(t, influx, prefactor=1, mean=5, std=2):
     return result
 
 
-class NonMarkovianSIRSimulationBase:
+class NonMarkovianSEIRSimulationBase:
     """
     Main driver for non-Markovian simulations.
 
@@ -246,7 +246,7 @@ class NonMarkovianSIRSimulationBase:
         return pd.DataFrame(y, index=_t)
 
 
-class SEIRPlusPlusSimulation(NonMarkovianSIRSimulationBase):
+class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
     """
     Main driver for non-Markovian simulations.
 
@@ -330,7 +330,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSIRSimulationBase):
         return sol
 
 
-class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSIRSimulationBase):
+class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
     """
     Main driver for non-Markovian simulations.
 
