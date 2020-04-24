@@ -158,7 +158,7 @@ class NonMarkovianSEIRSimulationBase:
         for key in ('susceptible', 'infected'):
             y0[key] = np.zeros((n_demographics,))
 
-        y0['infected'][...] = initial_cases / n_demographics
+        y0['infected'][...] = initial_cases * np.array(age_distribution)
         y0['susceptible'][...] = self.population - y0['infected']
 
         return y0
@@ -228,6 +228,7 @@ class NonMarkovianSEIRSimulationBase:
         sim = cls(
             mitigation=mitigation, age_distribution=age_distribution, **kwargs
         )
+
         y0 = sim.get_y0(kwargs.pop('total_population'),
                         kwargs.pop('initial_cases'),
                         age_distribution)
