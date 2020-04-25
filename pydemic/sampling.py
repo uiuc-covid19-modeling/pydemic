@@ -308,7 +308,7 @@ class LikelihoodEstimator:
 
         return likelihood
 
-    def get_initial_positions(self, walkers, method='uniform'):
+    def get_initial_positions(self, walkers, method='normal'):
         """
         Generates initial samples for MCMC sampling.
 

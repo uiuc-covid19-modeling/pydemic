@@ -36,7 +36,6 @@ __doc__ = """
 .. autoclass:: SEIRPlusPlusSimulationOnsetAndDeath
 """
 
-
 __all__ = [
     "SEIRModelSimulation",
     "SEIRPlusPlusSimulation",
