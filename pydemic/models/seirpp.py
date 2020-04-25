@@ -29,7 +29,8 @@ from scipy.interpolate import interp1d
 
 __doc__ = """
 .. currentmodule:: pydemic
-.. autoclass:: SEIRPlusPlusSimulationV2
+.. autoclass:: SEIRPlusPlusSimulation
+.. autoclass:: SEIRPlusPlusSimulationOnsetAndDeath
 """
 
 

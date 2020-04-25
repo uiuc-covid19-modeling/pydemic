@@ -27,10 +27,52 @@ import numpy as np
 import pandas as pd
 import emcee
 
+__doc__ = """
+.. currentmodule:: pydemic.hdf
+.. autoclass:: HDFBackend
+.. currentmodule:: pydemic
+"""
+
 
 class HDFBackend(emcee.backends.HDFBackend):
+    """
+    A subclass of :class:`emcee.backends.HDFBackend` which stores additional
+    information used by :class:`~pydemic.LikelihoodEstimator` to automate
+    resuming sampling.
+
+    .. note::
+
+        This class requires :mod:`h5py`.
+
+    The following attributes will be available if they were passed
+    to :meth:`~pydemic.hdf.HDFBackend.__init__` upon creation of
+    the file, and may be used to resume sampling:
+
+    .. autoattribute:: fixed_values
+    .. autoattribute:: fit_parameters
+    .. autoattribute:: data
+
+    .. automethod:: __init__
+    """
+
     def __init__(self, filename, fit_parameters=None, fixed_values=None, data=None,
                  **kwargs):
+        """
+        :arg filename: The name of the HDF5 file to create.
+
+        The following optional parameters (corresponding to those passed to
+        :class:`pydemic.LikelihoodEstimator`) will be stored in the file if passed.
+
+        :arg fit_parameters:
+
+        :arg fixed_values:
+
+        :arg data:
+
+        Any remaining keyword arguments are passed to
+        :class:`emcee.backends.HDFBackend`.
+        """
+
         super().__init__(filename, **kwargs)
         import h5py
         string_dt = h5py.string_dtype(encoding='ascii')

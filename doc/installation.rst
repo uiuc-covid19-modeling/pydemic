@@ -5,22 +5,15 @@
 Installation
 ============
 
-1. Make sure to clone the repository with::
+1. Run ::
 
-    git clone --recurse-submodules ...
-
-1. Run ``sh setup.sh``, which installs pydemic via::
-
-        python setup.py develop
+    python setup.py develop
 
    which should `pip` install the other dependencies if needed.
 
-   and then fetches and parses data via::
+2. The optional dependency :mod:`h5py` (and its dependency, :mod:`hdf5`)
+   may be installed using conda (e.g.,
+   `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_)
+   via::
 
-        python data/parse_all.py --fetch --output-population assets --output-cases assets`
-
-3. To build the full documentation locally, install Sphinx and the required
-   theme and build::
-
-        conda install sphinx sphinx_rtd_theme
-        python setup.py build_sphinx
+    conda install h5py

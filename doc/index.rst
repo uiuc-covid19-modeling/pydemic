@@ -14,6 +14,7 @@ Please check :ref:`installation` to get started.
 
     ref_simulation
     ref_models
+    ref_sampling
     installation
     changes
     license

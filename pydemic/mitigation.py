@@ -26,9 +26,39 @@ THE SOFTWARE.
 import numpy as np
 from scipy.interpolate import PchipInterpolator
 
+__doc__ = """
+.. autoclass:: MitigationModel
+"""
+
 
 class MitigationModel(PchipInterpolator):
+    """
+    An interface for creating (smooth, monotonic) piecewise linear functions.
+    Subclasses :class:`scipy.interpolate.PchipInterpolator`.
+
+    .. automethod:: __init__
+    .. automethod:: init_from_kwargs
+    """
+
     def __init__(self, t0, tf, t, factors):
+        """
+        Constructs the interpolating function which takes the constant values
+        ``factors[0]`` between ``t0`` and ``t[0]`` and ``factors[-1]`` between
+        ``t[-1]`` and ``tf``.
+
+        :arg t0: A :class:`float` representing the first input value for
+            interpolation.
+
+        :arg tf: A :class:`float` representing the last input value for
+            interpolation.
+
+        :arg t: A :class:`numpy.ndarray` of interpolating nodes
+            (between ``t0`` and ``tf``).
+
+        :arg factors: A :class:`numpy.ndarray` of function values to interpolate to
+            at the nodes ``t``.
+        """
+
         self.times = t
         self.factors = factors
         t = np.insert(t, 0, min(t0, t[0]) - 10)
@@ -40,6 +70,12 @@ class MitigationModel(PchipInterpolator):
 
     @classmethod
     def init_from_kwargs(cls, t0, tf, **kwargs):
+        """
+        A convenience constructor which collects values for ``t`` based on (sorted)
+        keyword arguments beginning with ``mitigation_t`` with ``factors``
+        from those beginning with ``mitigation_factor``.
+        """
+
         factor_keys = sorted([key for key in kwargs.keys()
                               if key.startswith('mitigation_factor')])
         factors = np.array([kwargs.pop(key) for key in factor_keys])
