@@ -7,7 +7,7 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSIRSimulationBa
         
         -> symptomatic
             -> hospitalized -> recovered
-                            -> critical -> dead
+                            -> critical -> dead -> all_dead
                                         -> hospitalized -> recovered
 
     Arguments are:
@@ -28,6 +28,7 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSIRSimulationBa
             hospitalized_std=4
             p_hospitalized=[1] * n_demographics
             p_hospitalized_prefactor=1.  
+        # FIXME: fill out the rest of these
 
     .. automethod:: __init__
     .. automethod:: __call__
@@ -58,6 +59,10 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSIRSimulationBa
                  dead_mean=7.5, dead_std=7.5,
                  # critical -> hospitalized below
                  recovered_mean=7.5, recovered_std=7.5,
+
+                 # dead -> all_dead multiplier/lag
+                 all_dead_multiplier=1.,
+                 all_dead_mean=2.5, all_dead_std=2.5,
 
                  age_distribution=None, **kwargs):
 
@@ -125,7 +130,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSIRSimulationBa
             "dead": ('icu', p_dead, dead_mean, dead_std),
             "general_ward": ('icu', 1.-p_dead, recovered_mean, recovered_std),
             "hospital_recovered": ('admitted_to_hospital', 1.-p_critical, discharged_mean, discharged_std),
-            "general_ward_recovered": ('general_ward', 1., discharged_mean, discharged_std)
+            "general_ward_recovered": ('general_ward', 1., discharged_mean, discharged_std),
+            "all_dead": ('dead', all_dead_multiplier, all_dead_mean, all_dead_std)
         }
 
     def __call__(self, tspan, y0, dt=.05):
@@ -165,3 +171,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSIRSimulationBa
         sol.y['hospitalized'] += sol.y['general_ward'] - sol.y['general_ward_recovered']
 
         return sol
+
+    @classmethod
+    def get_model_data(cls, t, **kwargs):
+        return super().get_model_data(t, increment_keys=('dead', 'all_dead'), **kwargs)
+

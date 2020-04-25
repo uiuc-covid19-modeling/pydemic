@@ -194,7 +194,7 @@ class NonMarkovianSIRSimulationBase:
         return influxes
 
     @classmethod
-    def get_model_data(cls, t, **kwargs):
+    def get_model_data(cls, t, increment_keys=('dead',), **kwargs):
         if isinstance(t, pd.DatetimeIndex):
             t_eval = (t - pd.to_datetime('2020-01-01')) / pd.Timedelta('1D')
         else:
@@ -238,7 +238,7 @@ class NonMarkovianSIRSimulationBase:
         for key, val in result.y.items():
             y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
 
-        for key in ('dead',):
+        for key in increment_keys:
             if key in result.y.keys():
                 spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
                 y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
