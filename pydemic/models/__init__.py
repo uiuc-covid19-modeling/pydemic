@@ -26,19 +26,25 @@ THE SOFTWARE.
 
 from pydemic.models.seir import SEIRModelSimulation
 from pydemic.models.seirpp import (
-    SEIRPlusPlusSimulation, SEIRPlusPlusSimulationOnsetAndDeath
+    SEIRPlusPlusSimulation, SEIRPlusPlusSimulationOnsetAndDeath,
+    SEIRPlusPlusSimulationHospitalCriticalAndDeath,
 )
 from pydemic.models.neher import NeherModelSimulation
 
 __doc__ = """
-.. autoclass:: SEIRModelSimulation
+.. currentmodule:: pydemic.models.seirpp
+.. autoclass:: NonMarkovianSEIRSimulationBase
+.. currentmodule:: pydemic.models
 .. autoclass:: SEIRPlusPlusSimulation
 .. autoclass:: SEIRPlusPlusSimulationOnsetAndDeath
+.. autoclass:: SEIRPlusPlusSimulationHospitalCriticalAndDeath
+.. currentmodule:: pydemic
 """
 
 __all__ = [
     "SEIRModelSimulation",
     "SEIRPlusPlusSimulation",
     "SEIRPlusPlusSimulationOnsetAndDeath",
+    "SEIRPlusPlusSimulationHospitalCriticalAndDeath",
     "NeherModelSimulation",
 ]
