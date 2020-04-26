@@ -62,6 +62,9 @@ html_static_path = ['_static']
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+    'pandas': ('https://pandas.pydata.org/docs/', None),
+    'emcee': ('https://emcee.readthedocs.io/en/stable/', None),
     }
 
 latex_elements = {
@@ -72,9 +75,6 @@ autodoc_mock_imports = ['sympy', 'h5py']
 
 import os
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
-
-if on_rtd:
-    exclude_patterns = ['*multigrid*']
 
 
 # setup copy button thing
@@ -139,4 +139,4 @@ def linkcode_resolve(domain, info):
     fn = relpath(fn, start=dirname(pydemic.__file__))
 
     return "https://github.com/gnwong/blob/master/pydemic/%s%s" % (
-           fn, linespec)
+        fn, linespec)

@@ -28,12 +28,53 @@ from scipy.special import gammaln  # pylint: disable=E0611
 from warnings import warn
 from itertools import product
 
+__doc__ = """
+.. currentmodule:: pydemic
+.. autoclass:: SampleParameter
+.. autoclass:: LikelihoodEstimator
+
+Likelihood norms
+----------------
+
+.. currentmodule:: pydemic.sampling
+.. autofunction:: poisson_norm
+.. autofunction:: poisson_norm_diff
+.. autofunction:: l2_log_norm
+.. autofunction:: clipped_l2_log_norm
+.. currentmodule:: pydemic
+"""
+
 
 class InvalidParametersError(Exception):
     pass
 
 
 class SampleParameter:
+    """
+    Representation of sample parameters as interpreted by
+    :class:`LikelihoodEstimator`.
+
+    .. attribute:: name
+
+        The name of the parameter (as to be passed by keyword to likelihood
+        estimators).
+
+    .. attribute:: bounds
+
+        A :class:`tuple` ``(lower, upper)`` specifying the range of permitted values
+        for the parameter.
+
+    .. attribute:: guess
+
+        The best value of the parameter according to the prior.
+        If *None*, no prior is assummed for the parameter.
+
+    .. attribute:: sigma
+
+        The uncertainty of the prior for the parameter.
+        If *None*, no prior is assummed for the parameter.
+    """
+
     def __init__(self, name, bounds, guess=None, uncertainty=None, sigma=None):
         self.name = name
         self.bounds = bounds
@@ -48,11 +89,35 @@ class SampleParameter:
         return text
 
 
-def l2_log_norm(a, b):
-    return -1/2 * np.sum(np.power(np.log(a)-np.log(b), 2.))
+def l2_log_norm(model, data):
+    """
+    :arg model: A :class:`numpy.ndarray` of model predictions.
+
+    :arg data: A :class:`numpy.ndarray` of real data.
+
+    :returns: The (negative of the) :math:`L_2` norm of the
+        difference of ``log(model)`` and ``log(data)``.
+    """
+
+    return -1/2 * np.sum(np.power(np.log(model)-np.log(data), 2.))
 
 
 def clipped_l2_log_norm(model, data, model_uncert=None):
+    """
+    :arg model: A :class:`numpy.ndarray` of model predictions, which will be clipped
+        from below at ``.1``.
+
+    :arg data: A :class:`numpy.ndarray` of real data.
+
+    :arg model_uncert: A :class:`numpy.ndarray` of uncertainty in the model
+        prediction.
+        Defaults to ``np.sqrt(model)``.
+
+    :returns: The (negative of the) :math:`L_2` norm of the
+        difference of ``log(a)`` and ``log(b)``, weighted elementwise by
+        ``model_uncert``.
+    """
+
     if model_uncert is None:
         model_uncert = model**.5
     model = np.maximum(model, .1)
@@ -66,6 +131,14 @@ def clipped_l2_log_norm(model, data, model_uncert=None):
 
 
 def poisson_norm(model, data):
+    """
+    :arg model: A :class:`numpy.ndarray` of model predictions.
+
+    :arg data: A :class:`numpy.ndarray` of real data.
+
+    :returns: The log-Poisson likelihood estimator.
+    """
+
     # ensure no model data is smaller than .1
     model = np.maximum(.1, model)
     # only compare data points whose values are >= 1
@@ -76,14 +149,59 @@ def poisson_norm(model, data):
 
 
 def poisson_norm_diff(model, data):
+    """
+    :arg model: A :class:`numpy.ndarray` of model predictions.
+
+    :arg data: A :class:`numpy.ndarray` of real data.
+
+    :returns: The log-Poisson likelihood estimator of the discrete differences
+        of ``model`` and ``data``.
+    """
+
     model = np.diff(model, prepend=0)
     data = np.diff(data, prepend=0)
     return poisson_norm(model, data)
 
 
 class LikelihoodEstimator:
+    """
+    Driver for likelihood estimation.
+
+    .. automethod:: __init__
+    .. automethod:: __call__
+    .. automethod:: get_log_likelihood
+    .. automethod:: get_initial_positions
+    .. automethod:: sample_uniform
+    .. automethod:: sample_emcee
+    """
+
     def __init__(self, fit_parameters, fixed_values, data, simulator,
                  norms={}, weights=None, norm=None, fit_cumulative=None):
+        """
+        :arg fit_parameters: A :class:`list` of :class:`SampleParameter`'s
+            for sampling.
+
+        :arg fixed_values: A :class:`dict` of values fixed for non-sample parameters.
+
+        :arg data: A :class:`pandas.DataFrame` of the real data to fit against.
+
+        :arg simulator: A :class:`class` with a ``get_model_data`` method to be
+            used for sampling.
+            ``get_model_data`` must have signature ``(t, **kwargs)`` where
+            ``t`` is a :class:`pandas.DateTimeIndex` and paramter values
+            (from ``fixed_values`` and the particular sample of ``fit_parameters``)
+            are passed through ``**kwargs``.
+
+        :arg norms: A :class:`dict` specifying the columns of ``data`` (and of the
+            result of ``simulator.get_model_data``) by key and the likelihood
+            estimator to use for that dataset.
+            The values may be ``'poisson'`` (specifying usage of
+            :func:`~pydemic.sampling.poisson_norm`), ``'poisson_diff'``
+            (:func:`~pydemic.sampling.poisson_norm_diff`),
+            ``'L2'`` (``~pydemic.sampling.clipped_l2_log_norm``),
+            or a function with signature ``(model, data)``.
+        """
+
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
@@ -150,6 +268,16 @@ class LikelihoodEstimator:
         return log_prior
 
     def __call__(self, theta):
+        """
+        Method used internally to compute likelihoods for a set of parameters
+        ``theta`` (e.g., by :mod:`emcee`).
+
+        :arg theta: A :class:`numpy.ndarray` of parameter values (with order
+            specified by :attr:`fit_parameters`).
+
+        :returns: The likelihood.
+        """
+
         log_prior = self.get_log_prior(theta)
         if not np.isfinite(log_prior):
             return -np.inf
@@ -158,6 +286,14 @@ class LikelihoodEstimator:
             return log_prior + self.get_log_likelihood(parameters)
 
     def get_log_likelihood(self, parameters):
+        """
+        :arg parameters: A :class:`dict` of parameter values for those specified
+            specified by :attr:`fit_parameters`, to be passed to
+            :attr`simulator.get_model_data` (along with :attr:`fixed_values`).
+
+        :returns: The likelihood.
+        """
+
         try:
             model_data = self.simulator.get_model_data(
                 self.data.index, **parameters, **self.fixed_values
@@ -173,6 +309,15 @@ class LikelihoodEstimator:
         return likelihood
 
     def get_initial_positions(self, walkers, method='normal'):
+        """
+        Generates initial samples for MCMC sampling.
+
+        :arg walkers: The number of walkers used in sampling.
+
+        :returns: A :class:`numpy.ndarray` of initial walker positions with shape
+            ``(walkers, len(fit_parameters))``.
+        """
+
         if method == 'uniform':
             init = np.array([np.random.uniform(par.bounds[0], par.bounds[1], walkers)
                              for par in self.fit_parameters])
@@ -182,6 +327,24 @@ class LikelihoodEstimator:
         return init.T
 
     def sample_uniform(self, num_points, pool=None):
+        """
+        Driver for uniform sampling of the parameter space.
+
+        :arg num_points: The number of points to sample across each dimension
+            (with bounds specified by :attr:`SampleParameter.bounds`).
+
+        :arg pool: An :class:`multiprocessing.Pool` to use for parallelization.
+            Defaults to *None*, in which case sampling is not parallelized.
+
+        :returns: A :class:`tuple` of two :class:`numpy.ndarray`'s containing the
+            sample parameter values and the likelihoods.
+
+        .. warning::
+
+            It is not recommended to sample uniformly over parameter spaces with
+            dimension higher than two or three.
+        """
+
         if not isinstance(num_points, dict):
             num_points = {par.name: num_points for par in self.fit_parameters}
 
@@ -201,7 +364,32 @@ class LikelihoodEstimator:
         return np.array(values), np.array(likelihoods)
 
     def sample_emcee(self, steps, walkers=None, pool=None, moves=None, progress=True,
-                     init_method='normal', backend=None, backend_filename=None):
+                     init_method='uniform', backend=None, backend_filename=None):
+        """
+        Driver for MCMC sampling using :mod:`emcee`.
+
+        :arg steps: The number of MCMC steps to take.
+
+        :arg walkers: The number of MCMC walkers to use.
+
+        :arg pool: An :class:`multiprocessing.Pool` to use for parallelization.
+            Defaults to *None*, in which case sampling is not parallelized.
+
+        :arg init_method:
+
+        :arg backend: The :class:`pydemic.hdf.HDFBackend` to use for sampling.
+            Defaults to *None*, i.e., no backend.
+
+        :arg backend_filename: The filename to use to create a
+            :class:`pydemic.hdf.HDFBackend`.
+            Defaults to *None*, in which case no backend file is created.
+
+        Any remaining keyword arguments are used as specified by
+        :class:`emcee.EnsembleSampler`.
+
+        :returns: An :class:`emcee.EnsembleSampler`.
+        """
+
         if pool is None:
             from multiprocessing import Pool
             pool = Pool()

@@ -1,15 +1,12 @@
-.. currentmodule:: pydemic
+.. currentmodule:: pydemic.models
 
 Reference: Models
 =================
 
-.. autoclass:: AgeDistribution
+.. automodule:: pydemic.models
 
-.. autoclass:: PopulationModel
 
-.. autoclass:: EpidemiologyModel
+Other utilities for modeling
+----------------------------
 
-.. autoclass:: SeverityModel
-
-.. autoclass:: CaseData
-
+.. automodule:: pydemic.mitigation

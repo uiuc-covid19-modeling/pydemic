@@ -30,6 +30,11 @@ from pydemic.models.seirpp import (
 )
 from pydemic.models.neher import NeherModelSimulation
 
+__doc__ = """
+.. autoclass:: SEIRModelSimulation
+.. autoclass:: SEIRPlusPlusSimulation
+.. autoclass:: SEIRPlusPlusSimulationOnsetAndDeath
+"""
 
 __all__ = [
     "SEIRModelSimulation",
