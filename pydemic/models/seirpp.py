@@ -97,6 +97,8 @@ class NonMarkovianSEIRSimulationBase:
     .. automethod:: get_model_data
     """
 
+    increment_keys = ('dead',)
+
     def get_gamma_pdf(self, t, shape, scale, dt):
         from scipy.stats import gamma
         cdf = gamma.cdf(t, shape, scale=scale)
@@ -225,7 +227,7 @@ class NonMarkovianSEIRSimulationBase:
         return influxes
 
     @classmethod
-    def get_model_data(cls, t, increment_keys=('dead',), **kwargs):
+    def get_model_data(cls, t, **kwargs):
         """
         A wrapper to :meth:`__init__` and :meth:`__call__` for initializing and
         running a simulation from keyword arguments only (i.e., as used by
@@ -312,7 +314,7 @@ class NonMarkovianSEIRSimulationBase:
         for key, val in result.y.items():
             y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
 
-        for key in increment_keys:
+        for key in cls.increment_keys:
             if key in result.y.keys():
                 spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
                 y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
@@ -511,6 +513,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
 
     .. automethod:: __init__
     """
+
+    increment_keys = ('dead', 'all_dead', 'admitted_to_hospital')
 
     def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25,
@@ -716,11 +720,3 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             sol.y['general_ward_recovered']
 
         return sol
-
-    @classmethod
-    def get_model_data(cls, t, **kwargs):
-        return super().get_model_data(
-            t,
-            increment_keys=('dead', 'all_dead', 'admitted_to_hospital'),
-            **kwargs
-        )
