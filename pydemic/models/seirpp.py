@@ -27,12 +27,6 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
-__doc__ = """
-.. currentmodule:: pydemic
-.. autoclass:: SEIRPlusPlusSimulation
-.. autoclass:: SEIRPlusPlusSimulationOnsetAndDeath
-"""
-
 
 class SimulationResult:
     def __init__(self, time, y):
@@ -94,11 +88,16 @@ def convolve_direct(t, influx, prefactor=1, mean=5, std=2):
 
 class NonMarkovianSEIRSimulationBase:
     """
-    Main driver for non-Markovian simulations.
+    Main driver for non-Markovian simulations, used as a base class for
+    SEIR++ variants.
 
     .. automethod:: __init__
+    .. automethod:: get_y0
     .. automethod:: __call__
+    .. automethod:: get_model_data
     """
+
+    increment_keys = ('dead',)
 
     def get_gamma_pdf(self, t, shape, scale, dt):
         from scipy.stats import gamma
@@ -115,10 +114,31 @@ class NonMarkovianSEIRSimulationBase:
         phase = 2 * np.pi * (t - self.peak_day) / 365
         return (1 + self.seasonal_forcing_amp * np.cos(phase))
 
-    def __init__(self, mitigation, *,
+    def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25,
                  seasonal_forcing_amp=.2, peak_day=15, **kwargs):
-        self.mitigation = mitigation
+        """
+        The following keyword-only arguments are recognized:
+
+        :arg mitigation: A function of time specifying a multiplicative factor.
+            Defaults to ``lambda t: 1``.
+
+        :arg r0: The basic reproduction number.
+
+        :arg serial_mean: The mean of the serial interval distribution.
+
+        :arg serial_std: The standard deviation of the serial interval distribution.
+
+        :arg seasonal_forcing_amp: The amplitude (i.e., maximum fractional change)
+            in the force of infection due to seasonal effects.
+
+        :arg peak_day: The day of the year at which seasonal forcing is greatest.
+        """
+
+        if mitigation is not None:
+            self.mitigation = mitigation
+        else:
+            self.mitigation = lambda t: 1
 
         self.distribution_params = {
             'serial': mean_std_to_k_theta(serial_mean, serial_std),
@@ -143,12 +163,18 @@ class NonMarkovianSEIRSimulationBase:
 
     def get_y0(self, total_population, initial_cases, age_distribution):
         """
-        :arg total_population: FIXME: document
+        Initializes a population with a number ``initial_cases`` of initial
+        infectious individuals distributed in proportion to ``age_distribution``.
 
-        :arg age_distribution: A :class:`dict` with key counts
-            (as :class:`numpy.ndarray`'s) FIXME: document
+        :arg total_population: The total size of the population.
 
-        :returns: FIXME: document
+        :arg initial_cases: The total numnber of initial cases.
+
+        :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
+            fraction of the population in various age groups.
+
+        :returns: A :class:`dict` containing the initial conditions for the
+            ``'infected'`` and ``'susceptible'`` compartments.
         """
 
         # FIXME: shouldn't be set here
@@ -159,7 +185,7 @@ class NonMarkovianSEIRSimulationBase:
         for key in ('susceptible', 'infected'):
             y0[key] = np.zeros((n_demographics,))
 
-        y0['infected'][...] = initial_cases / n_demographics
+        y0['infected'][...] = initial_cases * np.array(age_distribution)
         y0['susceptible'][...] = self.population - y0['infected']
 
         return y0
@@ -169,9 +195,15 @@ class NonMarkovianSEIRSimulationBase:
         :arg tspan: A :class:`tuple` specifying the initiala and final times.
 
         :arg y0: A :class:`dict` with the initial values
-            (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
+            (as :class:`numpy.ndarray`'s) for the
+            ``'infected'`` and ``'susceptible'`` compartments, e.g., as returned
+            by :meth:`get_y0`.
 
-        :returns: A :class:`~pydemic.simulation.StateLogger`. FIXME: maybe not?
+        :arg dt: The timestep.
+
+        :returns: A :class:`SimulationResult` with attributes ``t``, the array of
+            times of evaluation, and ``y``, a :class:`dict` of results where time
+            proceeds along the first axis.
         """
 
         start_time, end_time = tspan
@@ -196,6 +228,49 @@ class NonMarkovianSEIRSimulationBase:
 
     @classmethod
     def get_model_data(cls, t, **kwargs):
+        """
+        A wrapper to :meth:`__init__` and :meth:`__call__` for initializing and
+        running a simulation from keyword arguments only (i.e., as used by
+        :class:`~pydemic.LikelihoodEstimator`.)
+
+        :arg t: A :class:`pandas.DatetimeIndex` (or :class:`numpy.ndarray` of
+            times in days since 2020/1/1) of times at which to evaluate the
+            solution.
+
+        The following keyword arguments are required:
+
+        :arg start_day: The day (relative to 2020/1/1) at which to begin the
+            simulation---i.e., the day corresponding to the initial condition
+            generated by :meth:`get_y0`.
+
+        :arg total_population: The total size of the population.
+
+        :arg initial_cases: The total numnber of initial cases.
+
+        :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
+            fraction of the population in various age groups.
+
+        In addition, a :class:`~pydemic.MitigationModel` is created from
+        passed keyword arguments via
+        :meth:`~pydemic.MitigationModel.init_from_kwargs`.
+
+        The following optional keyword arguments are also recognized:
+
+        :arg min_mitigation_spacing: The minimum number of days of separation
+            between mitigation events.
+            Defaults to ``5``.
+
+        All remaining keyword arguments are passed to :meth:`__init__`.
+
+        :raises InvalidParametersError: if ``t`` specifies any days of evaluation
+            which are not at least one day after ``start_day``.
+
+        :raises InvalidParametersError: if mitigation events are not ordered and
+            separated by ``min_mitigation_spacing``.
+
+        :returns: A :class:`pandas.DataFrame` of simulation results.
+        """
+
         if isinstance(t, pd.DatetimeIndex):
             t_eval = (t - pd.to_datetime('2020-01-01')) / pd.Timedelta('1D')
         else:
@@ -206,7 +281,7 @@ class NonMarkovianSEIRSimulationBase:
 
         from pydemic.sampling import InvalidParametersError
 
-        if t_eval[0] < t0 + 1:
+        if (t_eval < t0 + 1).any():
             raise InvalidParametersError(
                 "Must start simulation at least one day before result evaluation."
             )
@@ -229,6 +304,7 @@ class NonMarkovianSEIRSimulationBase:
         sim = cls(
             mitigation=mitigation, age_distribution=age_distribution, **kwargs
         )
+
         y0 = sim.get_y0(kwargs.pop('total_population'),
                         kwargs.pop('initial_cases'),
                         age_distribution)
@@ -238,7 +314,7 @@ class NonMarkovianSEIRSimulationBase:
         for key, val in result.y.items():
             y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
 
-        for key in ('dead',):
+        for key in cls.increment_keys:
             if key in result.y.keys():
                 spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
                 y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
@@ -249,13 +325,10 @@ class NonMarkovianSEIRSimulationBase:
 
 class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
     """
-    Main driver for non-Markovian simulations.
-
     .. automethod:: __init__
-    .. automethod:: __call__
     """
 
-    def __init__(self, mitigation, *,
+    def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25,
                  seasonal_forcing_amp=.2, peak_day=15,
                  incubation_mean=5.5, incubation_std=2, p_observed=1,
@@ -263,9 +336,45 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
                  dead_mean=7.5, dead_std=7.5, p_dead=1, p_dead_prefactor=1,
                  recovered_mean=7.5, recovered_std=7.5,
                  ifr=0.003, age_distribution=None, **kwargs):
+        """
+        In addition to the arguments recognized by
+        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
+        following keyword-only arguments are recognized:
+
+        :arg incubation_mean:
+
+        :arg incubation_std:
+
+        :arg p_observed:
+
+        :arg icu_mean:
+
+        :arg icu_std:
+
+        :arg p_icu:
+
+        :arg p_icu_prefactor:
+
+        :arg dead_mean:
+
+        :arg dead_std:
+
+        :arg p_dead:
+
+        :arg p_dead_prefactor:
+
+        :arg recovered_mean:
+
+        :arg recovered_std:
+
+        :arg ifr:
+
+        :arg age_distribution:
+        """
 
         super().__init__(
-            mitigation, r0=r0, serial_mean=serial_mean, serial_std=serial_std,
+            mitigation=mitigation, r0=r0,
+            serial_mean=serial_mean, serial_std=serial_std,
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
@@ -295,15 +404,6 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
         }
 
     def __call__(self, tspan, y0, dt=.05):
-        """
-        :arg tspan: A :class:`tuple` specifying the initial and final times.
-
-        :arg y0: A :class:`dict` with the initial values
-            (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
-
-        :returns: A :class:`~pydemic.simulation.StateLogger`. FIXME: maybe not?
-        """
-
         influxes = super().__call__(tspan, y0, dt=dt)
         t = influxes.t
 
@@ -333,22 +433,41 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
 
 class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
     """
-    Main driver for non-Markovian simulations.
-
     .. automethod:: __init__
-    .. automethod:: __call__
     """
 
-    def __init__(self, mitigation, *,
+    def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25,
                  seasonal_forcing_amp=.2, peak_day=15,
                  p_symptomatic=1.,
                  incubation_mean=5.5, incubation_std=2, p_observed=1,
                  dead_mean=7.5, dead_std=7.5, p_dead=1, p_dead_prefactor=1,
                  **kwargs):
+        """
+        In addition to the arguments recognized by
+        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
+        following keyword-only arguments are recognized:
+
+        :arg p_symptomatic:
+
+        :arg incubation_mean:
+
+        :arg incubation_std:
+
+        :arg p_observed:
+
+        :arg dead_mean:
+
+        :arg dead_std:
+
+        :arg p_dead:
+
+        :arg p_dead_prefactor:
+        """
 
         super().__init__(
-            mitigation, r0=r0, serial_mean=serial_mean, serial_std=serial_std,
+            mitigation=mitigation, r0=r0,
+            serial_mean=serial_mean, serial_std=serial_std,
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
@@ -363,15 +482,6 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
         }
 
     def __call__(self, tspan, y0, dt=.05):
-        """
-        :arg tspan: A :class:`tuple` specifying the initial and final times.
-
-        :arg y0: A :class:`dict` with the initial values
-            (as :class:`numpy.ndarray`'s) for each of :attr:`compartments`.
-
-        :returns: A :class:`~pydemic.simulation.StateLogger`. FIXME: maybe not?
-        """
-
         influxes = super().__call__(tspan, y0, dt=dt)
         t = influxes.t
 
@@ -388,5 +498,227 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
 
         sol.y['infectious'] = convolve_survival(t, influxes.y['infected'],
                                                 2, 5, 2)
+
+        return sol
+
+
+class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationBase):
+    """
+    SEIR++ model with unconnected infectivity loop. Readout topology is::
+
+        -> symptomatic
+            -> hospitalized -> recovered
+                            -> critical -> dead -> all_dead
+                                        -> hospitalized -> recovered_mean
+
+    .. automethod:: __init__
+    """
+
+    increment_keys = ('dead', 'all_dead', 'admitted_to_hospital')
+
+    def __init__(self, mitigation=None, *,
+                 r0=3.2, serial_mean=4, serial_std=3.25,
+                 seasonal_forcing_amp=.2, peak_day=15,
+                 ifr=0.009, incubation_mean=5.5, incubation_std=2,
+                 p_symptomatic=1., p_symptomatic_prefactor=None,
+                 p_hospitalized=1., p_hospitalized_prefactor=1.,
+                 hospitalized_mean=6.5, hospitalized_std=4.,
+                 discharged_mean=6., discharged_std=4.,
+                 p_critical=1., p_critical_prefactor=1.,
+                 critical_mean=2., critical_std=2.,
+                 p_dead=1., p_dead_prefactor=1.,
+                 dead_mean=7.5, dead_std=7.5,
+                 recovered_mean=7.5, recovered_std=7.5,
+                 all_dead_multiplier=1.,
+                 all_dead_mean=2.5, all_dead_std=2.5,
+                 age_distribution=None, **kwargs):
+        """
+        In addition to the arguments recognized by
+        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
+        following keyword-only arguments are recognized:
+
+        :arg ifr: The infection fatality ratio, i.e., the proportion of the infected
+            population who eventually die.
+
+        :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
+            fraction of the population in various age groups.
+
+        :arg incubation_mean: The mean of the delay-time distribution
+            of developing symptoms after being infected.
+
+        :arg incubation_std: The standard deviation of the delay-time distribution
+            of developing symptoms after being infected.
+
+        :arg p_symptomatic: The distribution of the proportion of infected
+            individuals who become symptomatic.
+
+        :arg p_symptomatic_prefactor: The overall scaling of the proportion of
+            infected individuals who become symptomatic.
+            If not *None*, overrides the input ``ifr``; otherwise its value is set
+            according to ``ifr``.
+
+        :arg p_hospitalized: The distribution of the proportion of symptomatic
+            individuals who enter the hospital.
+
+        :arg p_hospitalized_prefactor: The overall scaling of the proportion of
+            symptomatic individuals who enter the hospital.
+
+        :arg hospitalized_mean: The mean of the delay-time
+            distribution of entering the hospital after becoming symptomatic.
+
+        :arg hospitalized_std: The standard derivation of the delay-time
+            distribution of entering the hospital after becoming symptomatic.
+
+        :arg discharged_mean: The mean of the delay-time
+            distribution of survivors being discharged after entering the hospital.
+
+        :arg discharged_std: The standard derivation of the delay-time
+            distribution of survivors being discharged after entering the hospital.
+
+        :arg p_critical: The distribution of the proportion of
+            hospitalized individuals who become critical.
+
+        :arg p_critical_prefactor: The overall scaling of the proportion of
+            hospitalized individuals who become critical.
+
+        :arg critical_mean: The mean of the delay-time
+            distribution of hospitalized individuals entering the ICU.
+
+        :arg critical_std: The standard deviation of the delay-time
+            distribution of hospitalized individuals entering the ICU.
+
+        :arg p_dead: The distribution of the proportion of
+            ICU patients who die.
+
+        :arg p_dead_prefactor: The overall scaling of the proportion of
+            ICU patients who die.
+
+        :arg dead_mean: The mean of the delay-time
+            distribution of ICU patients dying.
+
+        :arg dead_std: The standard deviation of the delay-time
+            distribution of ICU patients dying.
+
+        :arg recovered_mean: The mean of the delay-time
+            distribution of ICU patients recovering and returning to the general
+            hospital.
+
+        :arg recovered_std: The standard deviation of the delay-time
+            distribution of ICU patients recovering and returning to the general
+            hospital.
+
+        :arg all_dead_multiplier: The ratio of total deaths to deaths occurring
+            in the ICU.
+
+        :arg all_dead_mean: The mean of the delay-time distribution
+            between ICU deaths and net deaths.
+
+        :arg all_dead_std: The standard deviation of the delay-time distribution
+            between ICU deaths and net deaths.
+        """
+
+        super().__init__(
+            mitigation=mitigation, r0=r0,
+            serial_mean=serial_mean, serial_std=serial_std,
+            seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
+        )
+
+        if age_distribution is None:
+            # default to usa_population
+            age_distribution = np.array([0.12000352, 0.12789140, 0.13925591,
+                                         0.13494838, 0.12189751,  0.12724997,
+                                         0.11627754, 0.07275651, 0.03971926])
+
+        # make numpy arrays first in case p_* passed as lists
+        p_symptomatic = np.array(p_symptomatic)
+        p_hospitalized = np.array(p_hospitalized) * p_hospitalized_prefactor
+        p_critical = np.array(p_critical) * p_critical_prefactor
+        p_dead = np.array(p_dead) * p_dead_prefactor
+
+        # if p_symptomatic_prefactor is None, set according to ifr
+        if p_symptomatic_prefactor is None:
+            p_dead_product = p_symptomatic * p_hospitalized * p_critical * p_dead
+            synthetic_ifr = (p_dead_product * age_distribution).sum()
+            p_symptomatic_prefactor = ifr / synthetic_ifr
+
+        # ... and update p_symptomatic
+        p_symptomatic *= p_symptomatic_prefactor
+
+        # now check that none of the prefactors are too large
+        from pydemic.sampling import InvalidParametersError
+
+        # first check p_symptomatic_prefactor
+        top = age_distribution
+        bottom = age_distribution * p_symptomatic
+        if top.sum() < bottom.sum():
+            raise InvalidParametersError(
+                "p_symptomatic_prefactor must not be too large"
+            )
+
+        # then check p_hospitalized_prefactor
+        top = bottom.copy()
+        bottom *= p_hospitalized
+        if top.sum() < bottom.sum():
+            raise InvalidParametersError(
+                "p_hospitalized_prefactor must not be too large"
+            )
+
+        # then check p_critical_prefactor
+        top = bottom.copy()
+        bottom *= p_critical
+        if top.sum() < bottom.sum():
+            raise InvalidParametersError(
+                "p_critical_prefactor must not be too large"
+            )
+
+        # and finally check p_dead_prefactor
+        top = bottom.copy()
+        bottom *= p_dead
+        if top.sum() < bottom.sum():
+            raise InvalidParametersError(
+                "p_dead_prefactor must not be too large"
+            )
+
+        self.readouts = {
+            "symptomatic": ('infected', p_symptomatic,
+                            incubation_mean, incubation_std),
+            "admitted_to_hospital": ('symptomatic', p_hospitalized,
+                                     hospitalized_mean, hospitalized_std),
+            "icu": ('admitted_to_hospital', p_critical, critical_mean, critical_std),
+            "dead": ('icu', p_dead, dead_mean, dead_std),
+            "general_ward": ('icu', 1.-p_dead, recovered_mean, recovered_std),
+            "hospital_recovered": ('admitted_to_hospital', 1.-p_critical,
+                                   discharged_mean, discharged_std),
+            "general_ward_recovered": ('general_ward', 1., discharged_mean,
+                                       discharged_std),
+            "all_dead": ('dead', all_dead_multiplier, all_dead_mean, all_dead_std)
+        }
+
+    def __call__(self, tspan, y0, dt=.05):
+        influxes = super().__call__(tspan, y0, dt=dt)
+        t = influxes.t
+
+        for key, (src, prob, mean, std) in self.readouts.items():
+            influxes.y[key] = convolve_pdf(t, influxes.y[src], prob, mean, std)
+
+        sol = SimulationResult(t, {})
+
+        for key, val in influxes.y.items():
+            if key not in ["susceptible", "population"]:
+                sol.y[key] = np.cumsum(val, axis=0)
+            else:
+                sol.y[key] = val
+
+        # FIXME: something wrong with this -- infectious > infected at small time
+        sol.y['infectious'] = convolve_survival(t, influxes.y['infected'], 2, 5, 2)
+
+        sol.y['critical'] = sol.y['icu'] - sol.y['general_ward'] - sol.y['dead']
+        sol.y['ventilators'] = .73 * sol.y['critical']
+        sol.y['hospitalized'] = (
+            sol.y['admitted_to_hospital']
+            - sol.y['hospital_recovered'] - sol.y['icu']
+        )
+        sol.y['hospitalized'] += (sol.y['general_ward']
+                                  - sol.y['general_ward_recovered'])
 
         return sol

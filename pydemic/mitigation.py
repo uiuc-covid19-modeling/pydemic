@@ -27,6 +27,7 @@ import numpy as np
 from scipy.interpolate import PchipInterpolator
 
 __doc__ = """
+.. currentmodule:: pydemic
 .. autoclass:: MitigationModel
 """
 
