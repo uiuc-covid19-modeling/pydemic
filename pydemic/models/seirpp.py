@@ -714,9 +714,11 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
 
         sol.y['critical'] = sol.y['icu'] - sol.y['general_ward'] - sol.y['dead']
         sol.y['ventilators'] = .73 * sol.y['critical']
-        sol.y['hospitalized'] = sol.y['admitted_to_hospital'] - \
-                                sol.y['hospital_recovered'] - sol.y['icu']
-        sol.y['hospitalized'] += sol.y['general_ward'] - \
-            sol.y['general_ward_recovered']
+        sol.y['hospitalized'] = (
+            sol.y['admitted_to_hospital']
+            - sol.y['hospital_recovered'] - sol.y['icu']
+        )
+        sol.y['hospitalized'] += (sol.y['general_ward']
+                                  - sol.y['general_ward_recovered'])
 
         return sol
