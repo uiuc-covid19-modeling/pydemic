@@ -468,17 +468,20 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
                                          0.13494838, 0.12189751,  0.12724997,
                                          0.11627754, 0.07275651, 0.03971926])
 
+        # make numpy arrays first in case p_* passed as lists
+        p_symptomatic = np.array(p_symptomatic)
+        p_hospitalized = np.array(p_hospitalized) * p_hospitalized_prefactor
+        p_critical = np.array(p_critical) * p_critical_prefactor
+        p_dead = np.array(p_dead) * p_dead_prefactor
+
         # if p_symptomatic_prefactor is None, set according to ifr
         if p_symptomatic_prefactor is None:
             p_dead_product = p_symptomatic * p_hospitalized * p_critical * p_dead
             synthetic_ifr = (p_dead_product * age_distribution).sum()
             p_symptomatic_prefactor = ifr / synthetic_ifr
 
-        # make numpy arrays first in case p_* passed as lists
-        p_symptomatic = np.array(p_symptomatic) * p_symptomatic_prefactor
-        p_hospitalized = np.array(p_hospitalized) * p_hospitalized_prefactor
-        p_critical = np.array(p_critical) * p_critical_prefactor
-        p_dead = np.array(p_dead) * p_dead_prefactor
+        # ... and update p_symptomatic
+        p_symptomatic *= p_symptomatic_prefactor
 
         # now check that none of the prefactors are too large
         from pydemic.sampling import InvalidParametersError
@@ -570,5 +573,6 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
 
     @classmethod
     def get_model_data(cls, t, **kwargs):
-        return super().get_model_data(t, increment_keys=('dead', 'all_dead'),
-                                      **kwargs)
+        return super().get_model_data(t, increment_keys=('dead', 'all_dead', 
+                                      'admitted_to_hospital'), **kwargs)
+
