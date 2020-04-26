@@ -514,13 +514,14 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
     .. automethod:: __init__
     """
 
-    increment_keys = ('dead', 'all_dead', 'admitted_to_hospital')
+    increment_keys = ('dead', 'all_dead', 'positive', 'admitted_to_hospital')
 
     def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25,
                  seasonal_forcing_amp=.2, peak_day=15,
                  ifr=0.009, incubation_mean=5.5, incubation_std=2,
                  p_symptomatic=1., p_symptomatic_prefactor=None,
+                 p_positive=.5,
                  p_hospitalized=1., p_hospitalized_prefactor=1.,
                  hospitalized_mean=6.5, hospitalized_std=4.,
                  discharged_mean=6., discharged_std=4.,
@@ -556,6 +557,9 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             infected individuals who become symptomatic.
             If not *None*, overrides the input ``ifr``; otherwise its value is set
             according to ``ifr``.
+
+        :arg p_positive: The fraction of symptomatic individuals who are tested and
+            test positive.
 
         :arg p_hospitalized: The distribution of the proportion of symptomatic
             individuals who enter the hospital.
@@ -682,6 +686,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         self.readouts = {
             "symptomatic": ('infected', p_symptomatic,
                             incubation_mean, incubation_std),
+            "positive": ('infected', p_positive * p_symptomatic,
+                         incubation_mean, incubation_std),
             "admitted_to_hospital": ('symptomatic', p_hospitalized,
                                      hospitalized_mean, hospitalized_std),
             "icu": ('admitted_to_hospital', p_critical, critical_mean, critical_std),
