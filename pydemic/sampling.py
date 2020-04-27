@@ -400,8 +400,11 @@ class LikelihoodEstimator:
             is_initialized = backend.initialized
         elif backend_filename is not None:
             from pydemic.hdf import HDFBackend
-            backend = HDFBackend(backend_filename, self.fit_parameters,
-                                 self.fixed_values, self._original_data)
+            backend = HDFBackend(backend_filename,
+                                 fit_parameters=self.fit_parameters,
+                                 fixed_values=self.fixed_values,
+                                 data=self._original_data,
+                                 simulator=self.simulator)
             is_initialized = False
         else:
             is_initialized = False

@@ -56,7 +56,7 @@ class HDFBackend(emcee.backends.HDFBackend):
     """
 
     def __init__(self, filename, fit_parameters=None, fixed_values=None, data=None,
-                 **kwargs):
+                 simulator=None, **kwargs):
         """
         :arg filename: The name of the HDF5 file to create.
 
@@ -98,6 +98,9 @@ class HDFBackend(emcee.backends.HDFBackend):
                                                    for par in fit_parameters]
                 f['fit_parameters/sigma'] = [nanify(par.sigma)
                                              for par in fit_parameters]
+
+            if simulator is not None:
+                f.attrs['simulator'] = simulator.__name__
 
         from pydemic.data import CaseData
         if isinstance(data, CaseData):
@@ -153,5 +156,18 @@ class HDFBackend(emcee.backends.HDFBackend):
                 return CaseData(t=t, y=y)
             elif 'df_data' in f.keys():
                 return pd.read_hdf(f.filename, key='df_data')
+            else:
+                return None
+
+    @property
+    def simulator(self):
+        with self.open() as f:
+            if 'simulator' in f.attrs:
+                name = f.attrs['simulator']
+                try:
+                    import pydemic.models as models
+                    return getattr(models, name)
+                except AttributeError:
+                    return name
             else:
                 return None
