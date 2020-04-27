@@ -51,6 +51,7 @@ class HDFBackend(emcee.backends.HDFBackend):
     .. autoattribute:: fixed_values
     .. autoattribute:: fit_parameters
     .. autoattribute:: data
+    .. autoattribute:: simulator
 
     .. automethod:: __init__
     """
@@ -68,6 +69,8 @@ class HDFBackend(emcee.backends.HDFBackend):
         :arg fixed_values:
 
         :arg data:
+
+        :arg simulator:
 
         Any remaining keyword arguments are passed to
         :class:`emcee.backends.HDFBackend`.
@@ -161,6 +164,12 @@ class HDFBackend(emcee.backends.HDFBackend):
 
     @property
     def simulator(self):
+        """
+        The simulation class whose ``get_model_data`` method is used for sampling.
+        If the class is defined in :mod:`pydemic.models`, that class will be
+        returned; otherwise the name of the class will be returned.
+        """
+
         with self.open() as f:
             if 'simulator' in f.attrs:
                 name = f.attrs['simulator']
