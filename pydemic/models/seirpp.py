@@ -148,17 +148,18 @@ class NonMarkovianSEIRSimulationBase:
         self.r0 = r0
 
     def step(self, state, count, dt):
-        fraction = (state.y['susceptible'][..., count-1] / self.population)
-        coef = fraction * dt * self.mitigation(state.t[count])
-        coef *= self.r0 * self.seasonal_forcing(state.t[count])
-        update = coef * np.dot(
-            state.y['infected'][..., count-1::-1],
-            self.kernels['serial'][:count]
-        )
-        state.y['infected'][..., count] = update
+        Rt = (self.r0
+              * self.mitigation(state.t[count])
+              * self.seasonal_forcing(state.t[count]))
+        j_m = np.dot(state.y['infected'][..., count-1::-1],
+                     self.kernels['serial'][:count])
+        j_i = j_m.sum()
+        S_i = state.y['susceptible'][..., count-1]
+        new_infected_i = dt * Rt * S_i * j_i / self.total_population
+        state.y['infected'][..., count] = new_infected_i
 
         state.y['susceptible'][..., count] = (
-            state.y['susceptible'][..., count-1] - update
+            state.y['susceptible'][..., count-1] - new_infected_i
         )
 
     def get_y0(self, total_population, initial_cases, age_distribution):
@@ -178,6 +179,7 @@ class NonMarkovianSEIRSimulationBase:
         """
 
         # FIXME: shouldn't be set here
+        self.total_population = total_population
         self.population = total_population * np.array(age_distribution)
         n_demographics = len(age_distribution)
 
