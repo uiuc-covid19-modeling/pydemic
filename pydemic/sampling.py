@@ -326,6 +326,57 @@ class LikelihoodEstimator:
                              for par in self.fit_parameters])
         return init.T
 
+    def minimizer(self, theta):
+        return - self.__call__(theta)
+
+    def basinhopping(self, x0=None, bounds=None, **kwargs):
+        if x0 is None:
+            x0 = [par.guess for par in self.fit_parameters]
+        if bounds is None:
+            bounds = [par.bounds for par in self.fit_parameters]
+
+        xmin = np.array(bounds)[:, 0]
+        xmax = np.array(bounds)[:, 1]
+
+        def bounds_enforcer(**kwargs):
+            x = kwargs["x_new"]
+            tmax = bool(np.all(x <= xmax))
+            tmin = bool(np.all(x >= xmin))
+            return tmax and tmin
+
+        from scipy.optimize import basinhopping
+        sol = basinhopping(
+            self.minimizer, x0, accept_test=bounds_enforcer, **kwargs
+        )
+        sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
+        return sol
+
+    def differential_evolution(self, bounds=None, workers=-1, **kwargs):
+        if bounds is None:
+            bounds = [par.bounds for par in self.fit_parameters]
+
+        from scipy.optimize import differential_evolution
+        sol = differential_evolution(
+            self.minimizer, bounds=bounds, workers=workers,
+            updating=('immediate' if workers == 1 else 'deferred'),
+            **kwargs
+        )
+        sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
+        return sol
+
+    def dual_annealing(self, bounds=None, **kwargs):
+        if bounds is None:
+            bounds = [par.bounds for par in self.fit_parameters]
+        bounds = [par.bounds for par in self.fit_parameters]
+
+        from scipy.optimize import dual_annealing
+        sol = dual_annealing(
+            self.minimizer, bounds=bounds,
+            **kwargs
+        )
+        sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
+        return sol
+
     def sample_uniform(self, num_points, pool=None):
         """
         Driver for uniform sampling of the parameter space.
