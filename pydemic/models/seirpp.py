@@ -718,7 +718,7 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
                 sol.y[key] = val
 
         # FIXME: something wrong with this -- infectious > infected at small time
-        sol.y['infectious'] = convolve_survival(t, influxes.y['infected'], 2, 5, 2)
+        sol.y['infectious'] = convolve_survival(t, influxes.y['infected'], 1, 5, 2)
 
         sol.y['critical'] = sol.y['icu'] - sol.y['general_ward'] - sol.y['dead']
         sol.y['ventilators'] = .73 * sol.y['critical']
