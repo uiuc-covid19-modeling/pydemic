@@ -99,6 +99,8 @@ def differential_evolution(*args, progress=True, filename=None,
         if path.exists(filename):
             with pickle.load(open(filename, "rb")) as solver:
                 solver.maxiter = maxiter
+                if 'tol' in kwargs:
+                    solver.tol = kwargs['tol']
                 ret = solver.solve()
 
             return ret
