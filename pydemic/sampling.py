@@ -351,13 +351,15 @@ class LikelihoodEstimator:
         sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
         return sol
 
-    def differential_evolution(self, bounds=None, workers=-1, **kwargs):
+    def differential_evolution(self, bounds=None, workers=-1, filename=None,
+                               progress=True, **kwargs):
         if bounds is None:
             bounds = [par.bounds for par in self.fit_parameters]
 
-        from scipy.optimize import differential_evolution
+        from pydemic.desolver import differential_evolution
         sol = differential_evolution(
             self.minimizer, bounds=bounds, workers=workers,
+            filename=filename, progress=progress,
             updating=('immediate' if workers == 1 else 'deferred'),
             **kwargs
         )
