@@ -99,6 +99,12 @@ class NonMarkovianSEIRSimulationBase:
 
     increment_keys = ('dead',)
 
+    def set_std(self, mean, std, k):
+        if k is not None:
+            return np.sqrt(mean * mean / k)
+        else:
+            return std
+
     def get_gamma_pdf(self, t, shape, scale, dt):
         from scipy.stats import gamma
         cdf = gamma.cdf(t, shape, scale=scale)
@@ -525,6 +531,12 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
 
     increment_keys = ('dead', 'all_dead', 'positive', 'admitted_to_hospital')
 
+    def _set_std(self, mean, std, k):
+        if k is not None:
+            return np.sqrt(mean * mean / k)
+        else:
+            return std
+
     def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
                  seasonal_forcing_amp=.2, peak_day=15,
@@ -669,13 +681,16 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
                                          0.13494838, 0.12189751,  0.12724997,
                                          0.11627754, 0.07275651, 0.03971926])
 
-        # a bit of a kludge to overwrite _std if _k is passed
-        for base_key in ["serial", "incubation", "hospitalized", "discharged",
-                         "critical", "dead", "recovered", "all_dead"]:
-            if kwargs.get(base_key + "_k") is not None:
-                mean = kwargs.get(base_key + "_mean")
-                k = kwargs.get(base_key + "_k")
-                kwargs[base_key + "_std"] = np.sqrt(mean * mean / k)
+        # a bit of a verbose kludge to overwrite _std if _k is passed
+        serial_std = self.set_std(serial_mean, serial_std, serial_k)
+        incubation_std = self.set_std(incubation_mean, incubation_std, incubation_k)
+        hospitalized_std = self.set_std(hospitalized_mean, hospitalized_std,
+                                        hospitalized_k)
+        discharged_std = self.set_std(discharged_mean, discharged_std, discharged_k)
+        critical_std = self.set_std(critical_mean, critical_std, critical_k)
+        dead_std = self.set_std(dead_mean, dead_std, dead_k)
+        recovered_std = self.set_std(recovered_mean, recovered_std, recovered_k)
+        all_dead_std = self.set_std(all_dead_mean, all_dead_std, all_dead_k)
 
         # make numpy arrays first in case p_* passed as lists
         p_symptomatic = np.array(p_symptomatic)
