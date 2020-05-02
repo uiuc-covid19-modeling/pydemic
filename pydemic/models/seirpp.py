@@ -115,7 +115,7 @@ class NonMarkovianSEIRSimulationBase:
         return (1 + self.seasonal_forcing_amp * np.cos(phase))
 
     def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_mean=4, serial_std=3.25,
+                 r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
                  seasonal_forcing_amp=.2, peak_day=15, **kwargs):
         """
         The following keyword-only arguments are recognized:
@@ -129,11 +129,18 @@ class NonMarkovianSEIRSimulationBase:
 
         :arg serial_std: The standard deviation of the serial interval distribution.
 
+        :arg serial_k: The gamma k of the delay-time distribution for infecting
+            new individuals after having been infected. If not None, will overwrite
+            serial_std.
+
         :arg seasonal_forcing_amp: The amplitude (i.e., maximum fractional change)
             in the force of infection due to seasonal effects.
 
         :arg peak_day: The day of the year at which seasonal forcing is greatest.
         """
+
+        if serial_k is not None:
+            serial_std = np.sqrt(serial_mean * serial_mean / serial_k)
 
         if mitigation is not None:
             self.mitigation = mitigation
@@ -519,21 +526,21 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
     increment_keys = ('dead', 'all_dead', 'positive', 'admitted_to_hospital')
 
     def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_mean=4, serial_std=3.25,
+                 r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
                  seasonal_forcing_amp=.2, peak_day=15,
-                 ifr=0.009, incubation_mean=5.5, incubation_std=2,
+                 ifr=0.009, incubation_mean=5.5, incubation_std=2, incubation_k=None,
                  p_symptomatic=1., p_symptomatic_prefactor=None,
                  p_positive=.5,
                  p_hospitalized=1., p_hospitalized_prefactor=1.,
-                 hospitalized_mean=6.5, hospitalized_std=4.,
-                 discharged_mean=6., discharged_std=4.,
+                 hospitalized_mean=6.5, hospitalized_std=4., hospitalized_k=None,
+                 discharged_mean=6., discharged_std=4., discharged_k=None,
                  p_critical=1., p_critical_prefactor=1.,
-                 critical_mean=2., critical_std=2.,
+                 critical_mean=2., critical_std=2., critical_k=None,
                  p_dead=1., p_dead_prefactor=1.,
-                 dead_mean=7.5, dead_std=7.5,
-                 recovered_mean=7.5, recovered_std=7.5,
+                 dead_mean=7.5, dead_std=7.5, dead_k=None,
+                 recovered_mean=7.5, recovered_std=7.5, recovered_k=None,
                  all_dead_multiplier=1.,
-                 all_dead_mean=2.5, all_dead_std=2.5,
+                 all_dead_mean=2.5, all_dead_std=2.5, all_dead_k=None,
                  age_distribution=None, **kwargs):
         """
         In addition to the arguments recognized by
@@ -551,6 +558,10 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
 
         :arg incubation_std: The standard deviation of the delay-time distribution
             of developing symptoms after being infected.
+
+        :arg incubation_k: The gamma k of the delay-time distribution
+            of developing symptoms after being infected. If not None, will overwrite
+            incubation_std.
 
         :arg p_symptomatic: The distribution of the proportion of infected
             individuals who become symptomatic.
@@ -575,11 +586,19 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg hospitalized_std: The standard derivation of the delay-time
             distribution of entering the hospital after becoming symptomatic.
 
+        :arg hospitalized_k: The gamma k of the delay-time distribution
+            of entering the hospital after becoming symptomatic. If not None,
+            will overwrite hospitalized_std.
+
         :arg discharged_mean: The mean of the delay-time
             distribution of survivors being discharged after entering the hospital.
 
         :arg discharged_std: The standard derivation of the delay-time
             distribution of survivors being discharged after entering the hospital.
+
+        :arg discharged_k: The gamma k of the delay-time distribution
+            of survivors being discharged after entering the hospital. If not
+            None, will overwrite discharged_std.
 
         :arg p_critical: The distribution of the proportion of
             hospitalized individuals who become critical.
@@ -593,6 +612,10 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg critical_std: The standard deviation of the delay-time
             distribution of hospitalized individuals entering the ICU.
 
+        :arg critical_k: The gamma k of the delay-time distribution
+            of hospitalized individuals entering the ICU. If not None,
+            will overwrite critical_std.
+
         :arg p_dead: The distribution of the proportion of
             ICU patients who die.
 
@@ -605,27 +628,38 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg dead_std: The standard deviation of the delay-time
             distribution of ICU patients dying.
 
-        :arg recovered_mean: The mean of the delay-time
-            distribution of ICU patients recovering and returning to the general
-            hospital.
+        :arg dead_k: The gamma k of the delay-time distribution of ICU
+            patients dying. If not None, will overwrite dead_std.
+
+        :arg recovered_mean: The mean of the delay-time distribution
+            of ICU patients recovering and returning to the general
+            ward.
 
         :arg recovered_std: The standard deviation of the delay-time
-            distribution of ICU patients recovering and returning to the general
-            hospital.
+            distribution of ICU patients recovering and returning to
+            the general ward.
+
+        :arg recovered_k: The gamma k of the delay-time distribution of ICU
+            patients recovering and returning to the general ward. If not
+            None, will overwrite recovered_std.
 
         :arg all_dead_multiplier: The ratio of total deaths to deaths occurring
             in the ICU.
 
         :arg all_dead_mean: The mean of the delay-time distribution
-            between ICU deaths and net deaths.
+            between ICU deaths and all reported deaths.
 
         :arg all_dead_std: The standard deviation of the delay-time distribution
-            between ICU deaths and net deaths.
+            between ICU deaths and all reported deaths.
+
+        :arg all_dead_k: The gamma k of the delay-time distribution
+            between ICU deaths and all reported deaths. If not None,
+            will overwrite all_dead_std.
         """
 
         super().__init__(
             mitigation=mitigation, r0=r0,
-            serial_mean=serial_mean, serial_std=serial_std,
+            serial_mean=serial_mean, serial_std=serial_std, serial_k=serial_k,
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
@@ -634,6 +668,14 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             age_distribution = np.array([0.12000352, 0.12789140, 0.13925591,
                                          0.13494838, 0.12189751,  0.12724997,
                                          0.11627754, 0.07275651, 0.03971926])
+
+        # a bit of a kludge to overwrite _std if _k is passed
+        for base_key in ["serial", "incubation", "hospitalized", "discharged",
+                         "critical", "dead", "recovered", "all_dead"]:
+            if kwargs.get(base_key + "_k") is not None:
+                mean = kwargs.get(base_key + "_mean")
+                k = kwargs.get(base_key + "_k")
+                kwargs[base_key + "_std"] = np.sqrt(mean * mean / k)
 
         # make numpy arrays first in case p_* passed as lists
         p_symptomatic = np.array(p_symptomatic)
