@@ -101,7 +101,7 @@ class NonMarkovianSEIRSimulationBase:
 
     def set_std(self, mean, std, k):
         if k is not None:
-            return np.sqrt(mean * mean / k)
+            return np.sqrt(mean**2 / k)
         else:
             return std
 
@@ -135,9 +135,10 @@ class NonMarkovianSEIRSimulationBase:
 
         :arg serial_std: The standard deviation of the serial interval distribution.
 
-        :arg serial_k: The gamma k of the delay-time distribution for infecting
-            new individuals after having been infected. If not None, will overwrite
-            serial_std.
+        :arg serial_k: The shape parameter :math:`k` (for a gamma distribution)
+            of the delay-time distribution for infecting
+            new individuals after having been infected.
+            If not *None*, will overwrite ``serial_std``.
 
         :arg seasonal_forcing_amp: The amplitude (i.e., maximum fractional change)
             in the force of infection due to seasonal effects.
@@ -145,8 +146,7 @@ class NonMarkovianSEIRSimulationBase:
         :arg peak_day: The day of the year at which seasonal forcing is greatest.
         """
 
-        if serial_k is not None:
-            serial_std = np.sqrt(serial_mean * serial_mean / serial_k)
+        serial_std = self.set_std(serial_mean, serial_std, serial_k)
 
         if mitigation is not None:
             self.mitigation = mitigation
@@ -531,12 +531,6 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
 
     increment_keys = ('dead', 'all_dead', 'positive', 'admitted_to_hospital')
 
-    def _set_std(self, mean, std, k):
-        if k is not None:
-            return np.sqrt(mean * mean / k)
-        else:
-            return std
-
     def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
                  seasonal_forcing_amp=.2, peak_day=15,
@@ -609,8 +603,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             distribution of survivors being discharged after entering the hospital.
 
         :arg discharged_k: The gamma k of the delay-time distribution
-            of survivors being discharged after entering the hospital. If not
-            None, will overwrite discharged_std.
+            of survivors being discharged after entering the hospital.
+            If not *None*, will overwrite ``discharged_std``.
 
         :arg p_critical: The distribution of the proportion of
             hospitalized individuals who become critical.
