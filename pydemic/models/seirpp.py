@@ -244,6 +244,26 @@ class NonMarkovianSEIRSimulationBase:
             )
 
         age_distribution = kwargs.pop('age_distribution')
+
+        for key in ('serial', 'incubation', 'hospitalized', 'discharged',
+                    'critical', 'dead', 'recovered', 'all_dead'):
+            mean = kwargs.pop(key+'_mean', None)
+            std = kwargs.pop(key+'_std', None)
+            shape = kwargs.pop(key+'_k', None)
+            # only pass key_dist if key_mean and one of key_std/key_k are passed
+            if mean is not None and shape is not None:
+                kwargs[key+'_dist'] = GammaDistribution(mean=mean, shape=shape)
+            elif mean is not None and std is not None:
+                kwargs[key+'_dist'] = GammaDistribution(mean=mean, std=std)
+            elif mean is not None:
+                raise InvalidParametersError(
+                    "Must pass either %s+_shape or %s+_std." % (key, key)
+                )
+
+        for key in ('symptomatic', 'hospitalized', 'critical', 'dead'):
+            prefactor = kwargs.pop('p_'+key+'_prefactor', 1.)
+            kwargs['p_'+key] *= prefactor
+
         sim = cls(
             mitigation=mitigation, age_distribution=age_distribution, **kwargs
         )
@@ -271,18 +291,22 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
     .. automethod:: __init__
     """
 
-    def __init__(self, mitigation=None, *,
+    def __init__(self, mitigation=None, *, age_distribution, ifr=0.003,
                  r0=3.2, serial_dist=default_serial,
                  seasonal_forcing_amp=.2, peak_day=15,
                  incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
-                 icu_dist=GammaDistribution(11, 5), p_icu=1, p_icu_prefactor=1,
-                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1, p_dead_prefactor=1,
+                 icu_dist=GammaDistribution(11, 5), p_icu=1,
+                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
                  recovered_dist=GammaDistribution(7.5, 7.5),
-                 ifr=0.003, age_distribution=None, **kwargs):
+                 **kwargs):
         """
         In addition to the arguments recognized by
         :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
         following keyword-only arguments are recognized:
+
+        :arg age_distribution:
+
+        :arg ifr:
 
         :arg incubation_dist:
 
@@ -292,19 +316,11 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
 
         :arg p_icu:
 
-        :arg p_icu_prefactor:
-
         :arg dead_dist:
 
         :arg p_dead:
 
-        :arg p_dead_prefactor:
-
         :arg recovered_dist:
-
-        :arg ifr:
-
-        :arg age_distribution:
         """
 
         super().__init__(
@@ -313,16 +329,9 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
-        if age_distribution is None:
-            age_distribution = np.array([0.24789492, 0.13925591, 0.13494838,
-                                         0.12189751, 0.12724997, 0.11627754,
-                                         0.07275651, 0.03971926])
-
         p_symptomatic = 1.
         p_symptomatic = np.array(p_symptomatic)
         p_observed = np.array(p_observed)
-        p_icu = np.array(p_icu) * p_icu_prefactor
-        p_dead = np.array(p_dead) * p_dead_prefactor
 
         # FIXME: this is a kludge-y way to set the target ifr
         # (infection, not just symptomatic)
@@ -377,7 +386,7 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
                  seasonal_forcing_amp=.2, peak_day=15,
                  p_symptomatic=1,
                  incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
-                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1, p_dead_prefactor=1,
+                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
                  **kwargs):
         """
         In addition to the arguments recognized by
@@ -393,8 +402,6 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
         :arg dead_dist:
 
         :arg p_dead:
-
-        :arg p_dead_prefactor:
         """
 
         super().__init__(
@@ -405,7 +412,7 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
 
         p_symptomatic = np.array(p_symptomatic)
         p_observed = np.array(p_observed)
-        p_dead = np.array(p_dead) * p_dead_prefactor
+        p_dead = np.array(p_dead)
 
         self.readouts = {
             "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
@@ -450,54 +457,41 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
     increment_keys = ('infected', 'dead', 'all_dead', 'positive',
                       'admitted_to_hospital', 'total_discharged')
 
-    def __init__(self, mitigation=None, *,
+    def __init__(self, mitigation=None, *, age_distribution, ifr=None,
                  r0=3.2, serial_dist=default_serial,
                  seasonal_forcing_amp=.2, peak_day=15,
-                 ifr=0.009,
                  incubation_dist=GammaDistribution(5.5, 2),
-                 p_symptomatic=1., p_symptomatic_prefactor=None,
-                 p_positive=.5,
-                 p_hospitalized=1., p_hospitalized_prefactor=1.,
-                 hospitalized_dist=GammaDistribution(6.5, 4),
+                 p_symptomatic=None, p_positive=.5,
+                 hospitalized_dist=GammaDistribution(6.5, 4), p_hospitalized=1.,
                  discharged_dist=GammaDistribution(6, 4),
-                 p_critical=1., p_critical_prefactor=1.,
-                 critical_dist=GammaDistribution(2, 2),
-                 p_dead=1., p_dead_prefactor=1.,
-                 dead_dist=GammaDistribution(7.5, 7.5),
+                 critical_dist=GammaDistribution(2, 2), p_critical=1.,
+                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1.,
                  recovered_dist=GammaDistribution(7.5, 7.5),
-                 all_dead_multiplier=1.,
-                 all_dead_dist=GammaDistribution(2.5, 2.5),
-                 age_distribution=None, **kwargs):
+                 all_dead_dist=GammaDistribution(2.5, 2.5), all_dead_multiplier=1.,
+                 **kwargs):
         """
         In addition to the arguments recognized by
         :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
         following keyword-only arguments are recognized:
 
-        :arg ifr: The infection fatality ratio, i.e., the proportion of the infected
-            population who eventually die.
-
         :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
             fraction of the population in various age groups.
 
-        :arg incubation_dist: The delay-time distribution
-            for developing symptoms after being infected.
+        :arg ifr: The infection fatality ratio, i.e., the proportion of the infected
+            population who eventually die.
+            If not *None*, will rescale ``p_symptomatic`` to effect the passed value.
 
         :arg p_symptomatic: The distribution of the proportion of infected
             individuals who become symptomatic.
 
-        :arg p_symptomatic_prefactor: The overall scaling of the proportion of
-            infected individuals who become symptomatic.
-            If not *None*, overrides the input ``ifr``; otherwise its value is set
-            according to ``ifr``.
+        :arg incubation_dist: The delay-time distribution
+            for developing symptoms after being infected.
 
         :arg p_positive: The fraction of symptomatic individuals who are tested and
             test positive.
 
         :arg p_hospitalized: The distribution of the proportion of symptomatic
             individuals who enter the hospital.
-
-        :arg p_hospitalized_prefactor: The overall scaling of the proportion of
-            symptomatic individuals who enter the hospital.
 
         :arg hospitalized_dist: The delay-time distribution of
             entering the hospital after becoming symptomatic.
@@ -508,16 +502,10 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg p_critical: The distribution of the proportion of
             hospitalized individuals who become critical.
 
-        :arg p_critical_prefactor: The overall scaling of the proportion of
-            hospitalized individuals who become critical.
-
         :arg critical_dist: The delay-time distribution
             of hospitalized individuals entering the ICU.
 
         :arg p_dead: The distribution of the proportion of
-            ICU patients who die.
-
-        :arg p_dead_prefactor: The overall scaling of the proportion of
             ICU patients who die.
 
         :arg dead_dist: The delay-time distribution of ICU patients dying.
@@ -538,61 +526,30 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
-        if age_distribution is None:
-            # default to usa_population
-            age_distribution = np.array([0.12000352, 0.12789140, 0.13925591,
-                                         0.13494838, 0.12189751,  0.12724997,
-                                         0.11627754, 0.07275651, 0.03971926])
-
-        # make numpy arrays first in case p_* passed as lists
         p_symptomatic = np.array(p_symptomatic)
-        p_hospitalized = np.array(p_hospitalized) * p_hospitalized_prefactor
-        p_critical = np.array(p_critical) * p_critical_prefactor
-        p_dead = np.array(p_dead) * p_dead_prefactor
+        p_hospitalized = np.array(p_hospitalized)
+        p_critical = np.array(p_critical)
+        p_dead = np.array(p_dead)
 
-        # if p_symptomatic_prefactor is None, set according to ifr
-        if p_symptomatic_prefactor is None:
-            p_dead_product = p_symptomatic * p_hospitalized * p_critical * p_dead
-            synthetic_ifr = (p_dead_product * age_distribution).sum()
-            p_symptomatic_prefactor = ifr / synthetic_ifr
+        # if p_symptomatic is None, set so that
+        # p_symptomatic * p_hospitalized * p_critical * p_dead
+        # weighted by the age distribution, achieves ifr
+        if ifr is not None:
+            p_dead_net = p_symptomatic * p_hospitalized * p_critical * p_dead
+            weighted_sum = (p_dead_net * age_distribution).sum()
+            p_symptomatic *= ifr / weighted_sum
 
-        # ... and update p_symptomatic
-        p_symptomatic *= p_symptomatic_prefactor
-
-        # now check that none of the prefactors are too large
+        # check that none of the probabilties are too large
         from pydemic.sampling import InvalidParametersError
 
-        # first check p_symptomatic_prefactor
-        top = age_distribution
-        bottom = age_distribution * p_symptomatic
-        if top.sum() < bottom.sum():
-            raise InvalidParametersError(
-                "p_symptomatic_prefactor must not be too large"
-            )
+        p_progression = [age_distribution]
+        for prob in (p_symptomatic, p_hospitalized, p_critical, p_dead):
+            p_progression.append(p_progression[-1] * prob)
 
-        # then check p_hospitalized_prefactor
-        top = bottom.copy()
-        bottom *= p_hospitalized
-        if top.sum() < bottom.sum():
-            raise InvalidParametersError(
-                "p_hospitalized_prefactor must not be too large"
-            )
-
-        # then check p_critical_prefactor
-        top = bottom.copy()
-        bottom *= p_critical
-        if top.sum() < bottom.sum():
-            raise InvalidParametersError(
-                "p_critical_prefactor must not be too large"
-            )
-
-        # and finally check p_dead_prefactor
-        top = bottom.copy()
-        bottom *= p_dead
-        if top.sum() < bottom.sum():
-            raise InvalidParametersError(
-                "p_dead_prefactor must not be too large"
-            )
+        names = ('p_symptomatic', 'p_hospitalized', 'p_critical', 'p_dead')
+        for i, name in enumerate(names):
+            if p_progression[i].sum() < p_progression[i+1].sum():
+                raise InvalidParametersError("%s is too large" % name)
 
         self.readouts = {
             "symptomatic": ('infected', p_symptomatic, incubation_dist),
