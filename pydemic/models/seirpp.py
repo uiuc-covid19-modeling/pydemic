@@ -26,6 +26,7 @@ THE SOFTWARE.
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
+# pylint: disable=no-member
 
 
 class SimulationResult:
@@ -34,56 +35,8 @@ class SimulationResult:
         self.y = y
 
 
-def mean_std_to_k_theta(mean, std):
-    return (mean**2 / std**2, std**2 / mean)
-
-
-def convolve_pdf(t, influx, prefactor=1, mean=5, std=2):
-    shape, scale = mean_std_to_k_theta(mean, std)
-    from scipy.stats import gamma
-    cdf = gamma.cdf(t[:] - t[0], shape, scale=scale)
-    pdf = np.diff(cdf, prepend=0)
-
-    prefactor = prefactor * np.ones_like(influx[0, ...])
-
-    kernel = np.outer(pdf, prefactor)
-
-    end = t.shape[0]
-    from scipy.signal import fftconvolve
-    result = fftconvolve(kernel, influx, mode='full', axes=0)[:end]
-
-    return result
-
-
-def convolve_survival(t, influx, prefactor=1, mean=5, std=2):
-    shape, scale = mean_std_to_k_theta(mean, std)
-    from scipy.stats import gamma
-    survival = 1 - gamma.cdf(t - t[0], shape, scale=scale)
-
-    prefactor = prefactor * np.ones_like(influx[0, ...])
-    kernel = np.outer(survival, prefactor)
-
-    end = t.shape[0]
-    from scipy.signal import fftconvolve
-    result = fftconvolve(kernel, influx, mode='full', axes=0)[:end]
-
-    return result
-
-
-def convolve_direct(t, influx, prefactor=1, mean=5, std=2):
-    shape, scale = mean_std_to_k_theta(mean, std)
-    from scipy.stats import gamma
-    cdf = gamma.cdf(t[1:] - t[0], shape, scale=scale)
-    pdf = np.diff(cdf, prepend=0)
-
-    prefactor = prefactor * np.ones_like(influx[0, ...])
-
-    end = t.shape[0]
-    result = np.zeros_like(influx)
-    for i in range(1, end):
-        result[i, ...] = prefactor * np.dot(influx[i-1::-1].T, pdf[:i])
-
-    return result
+from pydemic.distributions import GammaDistribution
+default_serial = GammaDistribution(mean=4, std=3.25)
 
 
 class NonMarkovianSEIRSimulationBase:
@@ -99,29 +52,12 @@ class NonMarkovianSEIRSimulationBase:
 
     increment_keys = ('infected', 'dead')
 
-    def set_std(self, mean, std, k):
-        if k is not None:
-            return np.sqrt(mean**2 / k)
-        else:
-            return std
-
-    def get_gamma_pdf(self, t, shape, scale, dt):
-        from scipy.stats import gamma
-        cdf = gamma.cdf(t, shape, scale=scale)
-        return np.diff(cdf, prepend=0) / dt
-
-    def set_kernels(self, t, dt):
-        self.kernels = {
-            key: self.get_gamma_pdf(t, shape, scale, dt)
-            for key, (shape, scale) in self.distribution_params.items()
-        }
-
     def seasonal_forcing(self, t):
         phase = 2 * np.pi * (t - self.peak_day) / 365
         return (1 + self.seasonal_forcing_amp * np.cos(phase))
 
     def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
+                 r0=3.2, serial_dist=default_serial,
                  seasonal_forcing_amp=.2, peak_day=15, **kwargs):
         """
         The following keyword-only arguments are recognized:
@@ -131,14 +67,9 @@ class NonMarkovianSEIRSimulationBase:
 
         :arg r0: The basic reproduction number.
 
-        :arg serial_mean: The mean of the serial interval distribution.
-
-        :arg serial_std: The standard deviation of the serial interval distribution.
-
-        :arg serial_k: The shape parameter :math:`k` (for a gamma distribution)
-            of the delay-time distribution for infecting
-            new individuals after having been infected.
-            If not *None*, will overwrite ``serial_std``.
+        :arg serial_dist: The serial interval distribution, i.e.,
+            an instance of (a subclass of)
+            :class:`~pydemic.distributions.DistributionBase`).
 
         :arg seasonal_forcing_amp: The amplitude (i.e., maximum fractional change)
             in the force of infection due to seasonal effects.
@@ -146,16 +77,12 @@ class NonMarkovianSEIRSimulationBase:
         :arg peak_day: The day of the year at which seasonal forcing is greatest.
         """
 
-        serial_std = self.set_std(serial_mean, serial_std, serial_k)
-
         if mitigation is not None:
             self.mitigation = mitigation
         else:
             self.mitigation = lambda t: 1
 
-        self.distribution_params = {
-            'serial': mean_std_to_k_theta(serial_mean, serial_std),
-        }
+        self.serial_dist = serial_dist
         self.seasonal_forcing_amp = seasonal_forcing_amp
         self.peak_day = peak_day
         self.r0 = r0
@@ -165,7 +92,7 @@ class NonMarkovianSEIRSimulationBase:
               * self.mitigation(state.t[count])
               * self.seasonal_forcing(state.t[count]))
         j_m = np.dot(state.y['infected'][..., count-1::-1],
-                     self.kernels['serial'][:count])
+                     self.serial_pdf[:count])
         j_i = j_m.sum()
         S_i = state.y['susceptible'][..., count-1]
         new_infected_i = dt * Rt * S_i * j_i / self.total_population
@@ -224,7 +151,8 @@ class NonMarkovianSEIRSimulationBase:
         start_time, end_time = tspan
         times = np.arange(start_time, end_time + dt, dt)
         n_steps = times.shape[0]  # pylint: disable=
-        self.set_kernels(times[1:] - start_time, dt)
+        pdf = self.serial_dist.pdf(times[1:] - start_time, method='diff')
+        self.serial_pdf = pdf / dt
 
         y0_all_t = {}
         for key in y0:
@@ -344,43 +272,35 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
     """
 
     def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_mean=4, serial_std=3.25,
+                 r0=3.2, serial_dist=default_serial,
                  seasonal_forcing_amp=.2, peak_day=15,
-                 incubation_mean=5.5, incubation_std=2, p_observed=1,
-                 icu_mean=11, icu_std=5, p_icu=1, p_icu_prefactor=1,
-                 dead_mean=7.5, dead_std=7.5, p_dead=1, p_dead_prefactor=1,
-                 recovered_mean=7.5, recovered_std=7.5,
+                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
+                 icu_dist=GammaDistribution(11, 5), p_icu=1, p_icu_prefactor=1,
+                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1, p_dead_prefactor=1,
+                 recovered_dist=GammaDistribution(7.5, 7.5),
                  ifr=0.003, age_distribution=None, **kwargs):
         """
         In addition to the arguments recognized by
         :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
         following keyword-only arguments are recognized:
 
-        :arg incubation_mean:
-
-        :arg incubation_std:
+        :arg incubation_dist:
 
         :arg p_observed:
 
-        :arg icu_mean:
-
-        :arg icu_std:
+        :arg icu_dist:
 
         :arg p_icu:
 
         :arg p_icu_prefactor:
 
-        :arg dead_mean:
-
-        :arg dead_std:
+        :arg dead_dist:
 
         :arg p_dead:
 
         :arg p_dead_prefactor:
 
-        :arg recovered_mean:
-
-        :arg recovered_std:
+        :arg recovered_dist:
 
         :arg ifr:
 
@@ -389,7 +309,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
 
         super().__init__(
             mitigation=mitigation, r0=r0,
-            serial_mean=serial_mean, serial_std=serial_std,
+            serial_dist=serial_dist,
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
@@ -411,19 +331,18 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
         p_symptomatic *= ifr / synthetic_ifr
 
         self.readouts = {
-            "observed": ('infected', p_observed * p_symptomatic,
-                         incubation_mean, incubation_std),
-            "icu": ('observed', p_icu, icu_mean, icu_std),
-            "dead": ('icu', p_dead, dead_mean, dead_std),
-            "recovered": ('icu', (1 - p_dead), recovered_mean, recovered_std),
+            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
+            "icu": ('observed', p_icu, icu_dist),
+            "dead": ('icu', p_dead, dead_dist),
+            "recovered": ('icu', (1 - p_dead), recovered_dist),
         }
 
     def __call__(self, tspan, y0, dt=.05):
         influxes = super().__call__(tspan, y0, dt=dt)
         t = influxes.t
 
-        for key, (src, prob, mean, std) in self.readouts.items():
-            influxes.y[key] = convolve_pdf(t, influxes.y[src], prob, mean, std)
+        for key, (src, prob, dist) in self.readouts.items():
+            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
 
         sol = SimulationResult(t, {})
 
@@ -433,8 +352,10 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
             else:
                 sol.y[key] = val
 
-        sol.y['infectious'] = convolve_survival(t, influxes.y['infected'],
-                                                2, 5, 2)
+        infectious_dist = GammaDistribution(mean=5, std=2)
+        sol.y['infectious'] = infectious_dist.convolve_survival(
+            t, influxes.y['infected']
+        )
         sol.y["critical"] = sol.y["icu"] - sol.y["dead"] - sol.y["recovered"]
         sol.y['ventilators'] = .73 * sol.y['critical']
 
@@ -452,11 +373,11 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
     """
 
     def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_mean=4, serial_std=3.25,
+                 r0=3.2, serial_dist=default_serial,
                  seasonal_forcing_amp=.2, peak_day=15,
-                 p_symptomatic=1.,
-                 incubation_mean=5.5, incubation_std=2, p_observed=1,
-                 dead_mean=7.5, dead_std=7.5, p_dead=1, p_dead_prefactor=1,
+                 p_symptomatic=1,
+                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
+                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1, p_dead_prefactor=1,
                  **kwargs):
         """
         In addition to the arguments recognized by
@@ -465,15 +386,11 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
 
         :arg p_symptomatic:
 
-        :arg incubation_mean:
-
-        :arg incubation_std:
+        :arg incubation_dist:
 
         :arg p_observed:
 
-        :arg dead_mean:
-
-        :arg dead_std:
+        :arg dead_dist:
 
         :arg p_dead:
 
@@ -482,7 +399,7 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
 
         super().__init__(
             mitigation=mitigation, r0=r0,
-            serial_mean=serial_mean, serial_std=serial_std,
+            serial_dist=serial_dist,
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
@@ -491,17 +408,16 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
         p_dead = np.array(p_dead) * p_dead_prefactor
 
         self.readouts = {
-            "observed": ('infected', p_observed * p_symptomatic,
-                         incubation_mean, incubation_std),
-            "dead": ('observed', p_dead, dead_mean, dead_std),
+            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
+            "dead": ('observed', p_dead, dead_dist),
         }
 
     def __call__(self, tspan, y0, dt=.05):
         influxes = super().__call__(tspan, y0, dt=dt)
         t = influxes.t
 
-        for key, (src, prob, mean, std) in self.readouts.items():
-            influxes.y[key] = convolve_pdf(t, influxes.y[src], prob, mean, std)
+        for key, (src, prob, dist) in self.readouts.items():
+            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
 
         sol = SimulationResult(t, {})
 
@@ -511,8 +427,10 @@ class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
             else:
                 sol.y[key] = val
 
-        sol.y['infectious'] = convolve_survival(t, influxes.y['infected'],
-                                                2, 5, 2)
+        infectious_dist = GammaDistribution(mean=5, std=2)
+        sol.y['infectious'] = infectious_dist.convolve_survival(
+            t, influxes.y['infected']
+        )
 
         return sol
 
@@ -524,7 +442,7 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         -> symptomatic
             -> hospitalized -> recovered
                             -> critical -> dead -> all_dead
-                                        -> hospitalized -> recovered_mean
+                                        -> hospitalized -> recovered
 
     .. automethod:: __init__
     """
@@ -533,21 +451,22 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
                       'admitted_to_hospital', 'total_discharged')
 
     def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
+                 r0=3.2, serial_dist=default_serial,
                  seasonal_forcing_amp=.2, peak_day=15,
-                 ifr=0.009, incubation_mean=5.5, incubation_std=2, incubation_k=None,
+                 ifr=0.009,
+                 incubation_dist=GammaDistribution(5.5, 2),
                  p_symptomatic=1., p_symptomatic_prefactor=None,
                  p_positive=.5,
                  p_hospitalized=1., p_hospitalized_prefactor=1.,
-                 hospitalized_mean=6.5, hospitalized_std=4., hospitalized_k=None,
-                 discharged_mean=6., discharged_std=4., discharged_k=None,
+                 hospitalized_dist=GammaDistribution(6.5, 4),
+                 discharged_dist=GammaDistribution(6, 4),
                  p_critical=1., p_critical_prefactor=1.,
-                 critical_mean=2., critical_std=2., critical_k=None,
+                 critical_dist=GammaDistribution(2, 2),
                  p_dead=1., p_dead_prefactor=1.,
-                 dead_mean=7.5, dead_std=7.5, dead_k=None,
-                 recovered_mean=7.5, recovered_std=7.5, recovered_k=None,
+                 dead_dist=GammaDistribution(7.5, 7.5),
+                 recovered_dist=GammaDistribution(7.5, 7.5),
                  all_dead_multiplier=1.,
-                 all_dead_mean=2.5, all_dead_std=2.5, all_dead_k=None,
+                 all_dead_dist=GammaDistribution(2.5, 2.5),
                  age_distribution=None, **kwargs):
         """
         In addition to the arguments recognized by
@@ -560,15 +479,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
             fraction of the population in various age groups.
 
-        :arg incubation_mean: The mean of the delay-time distribution
-            of developing symptoms after being infected.
-
-        :arg incubation_std: The standard deviation of the delay-time distribution
-            of developing symptoms after being infected.
-
-        :arg incubation_k: The gamma k of the delay-time distribution
-            of developing symptoms after being infected. If not None, will overwrite
-            incubation_std.
+        :arg incubation_dist: The delay-time distribution
+            for developing symptoms after being infected.
 
         :arg p_symptomatic: The distribution of the proportion of infected
             individuals who become symptomatic.
@@ -587,25 +499,11 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg p_hospitalized_prefactor: The overall scaling of the proportion of
             symptomatic individuals who enter the hospital.
 
-        :arg hospitalized_mean: The mean of the delay-time
-            distribution of entering the hospital after becoming symptomatic.
+        :arg hospitalized_dist: The delay-time distribution of
+            entering the hospital after becoming symptomatic.
 
-        :arg hospitalized_std: The standard derivation of the delay-time
-            distribution of entering the hospital after becoming symptomatic.
-
-        :arg hospitalized_k: The gamma k of the delay-time distribution
-            of entering the hospital after becoming symptomatic. If not None,
-            will overwrite hospitalized_std.
-
-        :arg discharged_mean: The mean of the delay-time
-            distribution of survivors being discharged after entering the hospital.
-
-        :arg discharged_std: The standard derivation of the delay-time
-            distribution of survivors being discharged after entering the hospital.
-
-        :arg discharged_k: The gamma k of the delay-time distribution
-            of survivors being discharged after entering the hospital.
-            If not *None*, will overwrite ``discharged_std``.
+        :arg discharged_dist: The delay-time distribution of
+            survivors being discharged after entering the hospital.
 
         :arg p_critical: The distribution of the proportion of
             hospitalized individuals who become critical.
@@ -613,15 +511,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg p_critical_prefactor: The overall scaling of the proportion of
             hospitalized individuals who become critical.
 
-        :arg critical_mean: The mean of the delay-time
-            distribution of hospitalized individuals entering the ICU.
-
-        :arg critical_std: The standard deviation of the delay-time
-            distribution of hospitalized individuals entering the ICU.
-
-        :arg critical_k: The gamma k of the delay-time distribution
-            of hospitalized individuals entering the ICU. If not None,
-            will overwrite critical_std.
+        :arg critical_dist: The delay-time distribution
+            of hospitalized individuals entering the ICU.
 
         :arg p_dead: The distribution of the proportion of
             ICU patients who die.
@@ -629,44 +520,21 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         :arg p_dead_prefactor: The overall scaling of the proportion of
             ICU patients who die.
 
-        :arg dead_mean: The mean of the delay-time
-            distribution of ICU patients dying.
+        :arg dead_dist: The delay-time distribution of ICU patients dying.
 
-        :arg dead_std: The standard deviation of the delay-time
-            distribution of ICU patients dying.
-
-        :arg dead_k: The gamma k of the delay-time distribution of ICU
-            patients dying. If not None, will overwrite dead_std.
-
-        :arg recovered_mean: The mean of the delay-time distribution
-            of ICU patients recovering and returning to the general
-            ward.
-
-        :arg recovered_std: The standard deviation of the delay-time
-            distribution of ICU patients recovering and returning to
-            the general ward.
-
-        :arg recovered_k: The gamma k of the delay-time distribution of ICU
-            patients recovering and returning to the general ward. If not
-            None, will overwrite recovered_std.
+        :arg recovered_dist: The delay-time distribution
+            of ICU patients recovering and returning to the general ward.
 
         :arg all_dead_multiplier: The ratio of total deaths to deaths occurring
             in the ICU.
 
-        :arg all_dead_mean: The mean of the delay-time distribution
+        :arg all_dead_dist: The delay-time distribution
             between ICU deaths and all reported deaths.
-
-        :arg all_dead_std: The standard deviation of the delay-time distribution
-            between ICU deaths and all reported deaths.
-
-        :arg all_dead_k: The gamma k of the delay-time distribution
-            between ICU deaths and all reported deaths. If not None,
-            will overwrite all_dead_std.
         """
 
         super().__init__(
             mitigation=mitigation, r0=r0,
-            serial_mean=serial_mean, serial_std=serial_std, serial_k=serial_k,
+            serial_dist=serial_dist,
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
@@ -675,17 +543,6 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             age_distribution = np.array([0.12000352, 0.12789140, 0.13925591,
                                          0.13494838, 0.12189751,  0.12724997,
                                          0.11627754, 0.07275651, 0.03971926])
-
-        # a bit of a verbose kludge to overwrite _std if _k is passed
-        serial_std = self.set_std(serial_mean, serial_std, serial_k)
-        incubation_std = self.set_std(incubation_mean, incubation_std, incubation_k)
-        hospitalized_std = self.set_std(hospitalized_mean, hospitalized_std,
-                                        hospitalized_k)
-        discharged_std = self.set_std(discharged_mean, discharged_std, discharged_k)
-        critical_std = self.set_std(critical_mean, critical_std, critical_k)
-        dead_std = self.set_std(dead_mean, dead_std, dead_k)
-        recovered_std = self.set_std(recovered_mean, recovered_std, recovered_k)
-        all_dead_std = self.set_std(all_dead_mean, all_dead_std, all_dead_k)
 
         # make numpy arrays first in case p_* passed as lists
         p_symptomatic = np.array(p_symptomatic)
@@ -738,28 +595,25 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             )
 
         self.readouts = {
-            "symptomatic": ('infected', p_symptomatic,
-                            incubation_mean, incubation_std),
-            "positive": ('infected', p_positive * p_symptomatic,
-                         incubation_mean, incubation_std),
+            "symptomatic": ('infected', p_symptomatic, incubation_dist),
+            "positive": ('infected', p_positive * p_symptomatic, incubation_dist),
             "admitted_to_hospital": ('symptomatic', p_hospitalized,
-                                     hospitalized_mean, hospitalized_std),
-            "icu": ('admitted_to_hospital', p_critical, critical_mean, critical_std),
-            "dead": ('icu', p_dead, dead_mean, dead_std),
-            "general_ward": ('icu', 1.-p_dead, recovered_mean, recovered_std),
+                                     hospitalized_dist),
+            "icu": ('admitted_to_hospital', p_critical, critical_dist),
+            "dead": ('icu', p_dead, dead_dist),
+            "general_ward": ('icu', 1.-p_dead, recovered_dist),
             "hospital_recovered": ('admitted_to_hospital', 1.-p_critical,
-                                   discharged_mean, discharged_std),
-            "general_ward_recovered": ('general_ward', 1., discharged_mean,
-                                       discharged_std),
-            "all_dead": ('dead', all_dead_multiplier, all_dead_mean, all_dead_std)
+                                   discharged_dist),
+            "general_ward_recovered": ('general_ward', 1., discharged_dist),
+            "all_dead": ('dead', all_dead_multiplier, all_dead_dist),
         }
 
     def __call__(self, tspan, y0, dt=.05):
         influxes = super().__call__(tspan, y0, dt=dt)
         t = influxes.t
 
-        for key, (src, prob, mean, std) in self.readouts.items():
-            influxes.y[key] = convolve_pdf(t, influxes.y[src], prob, mean, std)
+        for key, (src, prob, dist) in self.readouts.items():
+            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
 
         sol = SimulationResult(t, {})
 
@@ -769,8 +623,10 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
             else:
                 sol.y[key] = val
 
-        # FIXME: something wrong with this -- infectious > infected at small time
-        sol.y['infectious'] = convolve_survival(t, influxes.y['infected'], 1, 5, 2)
+        infectious_dist = GammaDistribution(mean=5, std=2)
+        sol.y['infectious'] = infectious_dist.convolve_survival(
+            t, influxes.y['infected']
+        )
 
         sol.y['critical'] = sol.y['icu'] - sol.y['general_ward'] - sol.y['dead']
         sol.y['ventilators'] = .73 * sol.y['critical']
