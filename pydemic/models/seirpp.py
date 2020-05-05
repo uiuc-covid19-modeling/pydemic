@@ -288,162 +288,6 @@ class NonMarkovianSEIRSimulationBase:
 
 class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
     """
-    .. automethod:: __init__
-    """
-
-    def __init__(self, mitigation=None, *, age_distribution, ifr=0.003,
-                 r0=3.2, serial_dist=default_serial,
-                 seasonal_forcing_amp=.2, peak_day=15,
-                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
-                 icu_dist=GammaDistribution(11, 5), p_icu=1,
-                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
-                 recovered_dist=GammaDistribution(7.5, 7.5),
-                 **kwargs):
-        """
-        In addition to the arguments recognized by
-        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
-        following keyword-only arguments are recognized:
-
-        :arg age_distribution:
-
-        :arg ifr:
-
-        :arg incubation_dist:
-
-        :arg p_observed:
-
-        :arg icu_dist:
-
-        :arg p_icu:
-
-        :arg dead_dist:
-
-        :arg p_dead:
-
-        :arg recovered_dist:
-        """
-
-        super().__init__(
-            mitigation=mitigation, r0=r0,
-            serial_dist=serial_dist,
-            seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
-        )
-
-        p_symptomatic = 1.
-        p_symptomatic = np.array(p_symptomatic)
-        p_observed = np.array(p_observed)
-
-        # FIXME: this is a kludge-y way to set the target ifr
-        # (infection, not just symptomatic)
-        p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
-        synthetic_ifr = (p_dead_all * age_distribution).sum()
-        p_symptomatic *= ifr / synthetic_ifr
-
-        self.readouts = {
-            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
-            "icu": ('observed', p_icu, icu_dist),
-            "dead": ('icu', p_dead, dead_dist),
-            "recovered": ('icu', (1 - p_dead), recovered_dist),
-        }
-
-    def __call__(self, tspan, y0, dt=.05):
-        influxes = super().__call__(tspan, y0, dt=dt)
-        t = influxes.t
-
-        for key, (src, prob, dist) in self.readouts.items():
-            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
-
-        sol = SimulationResult(t, {})
-
-        for key, val in influxes.y.items():
-            if key not in ["susceptible", "population"]:
-                sol.y[key] = np.cumsum(val, axis=0)
-            else:
-                sol.y[key] = val
-
-        infectious_dist = GammaDistribution(mean=5, std=2)
-        sol.y['infectious'] = infectious_dist.convolve_survival(
-            t, influxes.y['infected']
-        )
-        sol.y["critical"] = sol.y["icu"] - sol.y["dead"] - sol.y["recovered"]
-        sol.y['ventilators'] = .73 * sol.y['critical']
-
-        i = np.searchsorted(sol.t, sol.t[0] + 5)
-        sol.y["hospitalized"] = np.zeros_like(sol.y['critical'])
-        sol.y["hospitalized"][:-i] = 2.7241 * sol.y['critical'][i:]
-        sol.y["hospitalized"][-i:] = np.nan
-
-        return sol
-
-
-class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
-    """
-    .. automethod:: __init__
-    """
-
-    def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_dist=default_serial,
-                 seasonal_forcing_amp=.2, peak_day=15,
-                 p_symptomatic=1,
-                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
-                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
-                 **kwargs):
-        """
-        In addition to the arguments recognized by
-        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
-        following keyword-only arguments are recognized:
-
-        :arg p_symptomatic:
-
-        :arg incubation_dist:
-
-        :arg p_observed:
-
-        :arg dead_dist:
-
-        :arg p_dead:
-        """
-
-        super().__init__(
-            mitigation=mitigation, r0=r0,
-            serial_dist=serial_dist,
-            seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
-        )
-
-        p_symptomatic = np.array(p_symptomatic)
-        p_observed = np.array(p_observed)
-        p_dead = np.array(p_dead)
-
-        self.readouts = {
-            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
-            "dead": ('observed', p_dead, dead_dist),
-        }
-
-    def __call__(self, tspan, y0, dt=.05):
-        influxes = super().__call__(tspan, y0, dt=dt)
-        t = influxes.t
-
-        for key, (src, prob, dist) in self.readouts.items():
-            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
-
-        sol = SimulationResult(t, {})
-
-        for key, val in influxes.y.items():
-            if key not in ["susceptible", "population"]:
-                sol.y[key] = np.cumsum(val, axis=0)
-            else:
-                sol.y[key] = val
-
-        infectious_dist = GammaDistribution(mean=5, std=2)
-        sol.y['infectious'] = infectious_dist.convolve_survival(
-            t, influxes.y['infected']
-        )
-
-        return sol
-
-
-class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationBase):
-    """
     SEIR++ model with unconnected infectivity loop. Readout topology is::
 
         -> symptomatic
@@ -599,6 +443,181 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         )
         sol.y['recovered'] = (
             sol.y['infected'] - sol.y['infectious'] - sol.y['all_dead']
+        )
+
+        return sol
+
+
+class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationBase):
+    def __init__(self, *args, **kwargs):
+        from warnings import warn
+        warn("pydemic.SEIRPlusPlusSimulationHospitalCriticalAndDeath is deprecated. "
+             "Use pydemic.SEIRPlusPlusSimulation instead.",
+             DeprecationWarning, stacklevel=2)
+
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def get_model_data(cls, *args, **kwargs):
+        from warnings import warn
+        warn("pydemic.SEIRPlusPlusSimulationHospitalCriticalAndDeath is deprecated. "
+             "Use pydemic.SEIRPlusPlusSimulation instead.",
+             DeprecationWarning, stacklevel=2)
+
+        return super().get_model_data(*args, **kwargs)
+
+
+class OldSEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
+    """
+    .. automethod:: __init__
+    """
+
+    def __init__(self, mitigation=None, *, age_distribution, ifr=0.003,
+                 r0=3.2, serial_dist=default_serial,
+                 seasonal_forcing_amp=.2, peak_day=15,
+                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
+                 icu_dist=GammaDistribution(11, 5), p_icu=1,
+                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
+                 recovered_dist=GammaDistribution(7.5, 7.5),
+                 **kwargs):
+        """
+        In addition to the arguments recognized by
+        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
+        following keyword-only arguments are recognized:
+
+        :arg age_distribution:
+
+        :arg ifr:
+
+        :arg incubation_dist:
+
+        :arg p_observed:
+
+        :arg icu_dist:
+
+        :arg p_icu:
+
+        :arg dead_dist:
+
+        :arg p_dead:
+
+        :arg recovered_dist:
+        """
+
+        super().__init__(
+            mitigation=mitigation, r0=r0,
+            serial_dist=serial_dist,
+            seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
+        )
+
+        p_symptomatic = 1.
+        p_symptomatic = np.array(p_symptomatic)
+        p_observed = np.array(p_observed)
+
+        # FIXME: this is a kludge-y way to set the target ifr
+        # (infection, not just symptomatic)
+        p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
+        synthetic_ifr = (p_dead_all * age_distribution).sum()
+        p_symptomatic *= ifr / synthetic_ifr
+
+        self.readouts = {
+            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
+            "icu": ('observed', p_icu, icu_dist),
+            "dead": ('icu', p_dead, dead_dist),
+            "recovered": ('icu', (1 - p_dead), recovered_dist),
+        }
+
+    def __call__(self, tspan, y0, dt=.05):
+        influxes = super().__call__(tspan, y0, dt=dt)
+        t = influxes.t
+
+        for key, (src, prob, dist) in self.readouts.items():
+            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
+
+        sol = SimulationResult(t, {})
+
+        for key, val in influxes.y.items():
+            if key not in ["susceptible", "population"]:
+                sol.y[key] = np.cumsum(val, axis=0)
+            else:
+                sol.y[key] = val
+
+        infectious_dist = GammaDistribution(mean=5, std=2)
+        sol.y['infectious'] = infectious_dist.convolve_survival(
+            t, influxes.y['infected']
+        )
+        sol.y["critical"] = sol.y["icu"] - sol.y["dead"] - sol.y["recovered"]
+        sol.y['ventilators'] = .73 * sol.y['critical']
+
+        i = np.searchsorted(sol.t, sol.t[0] + 5)
+        sol.y["hospitalized"] = np.zeros_like(sol.y['critical'])
+        sol.y["hospitalized"][:-i] = 2.7241 * sol.y['critical'][i:]
+        sol.y["hospitalized"][-i:] = np.nan
+
+        return sol
+
+
+class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
+    """
+    .. automethod:: __init__
+    """
+
+    def __init__(self, mitigation=None, *,
+                 r0=3.2, serial_dist=default_serial,
+                 seasonal_forcing_amp=.2, peak_day=15,
+                 p_symptomatic=1,
+                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
+                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
+                 **kwargs):
+        """
+        In addition to the arguments recognized by
+        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
+        following keyword-only arguments are recognized:
+
+        :arg p_symptomatic:
+
+        :arg incubation_dist:
+
+        :arg p_observed:
+
+        :arg dead_dist:
+
+        :arg p_dead:
+        """
+
+        super().__init__(
+            mitigation=mitigation, r0=r0,
+            serial_dist=serial_dist,
+            seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
+        )
+
+        p_symptomatic = np.array(p_symptomatic)
+        p_observed = np.array(p_observed)
+        p_dead = np.array(p_dead)
+
+        self.readouts = {
+            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
+            "dead": ('observed', p_dead, dead_dist),
+        }
+
+    def __call__(self, tspan, y0, dt=.05):
+        influxes = super().__call__(tspan, y0, dt=dt)
+        t = influxes.t
+
+        for key, (src, prob, dist) in self.readouts.items():
+            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
+
+        sol = SimulationResult(t, {})
+
+        for key, val in influxes.y.items():
+            if key not in ["susceptible", "population"]:
+                sol.y[key] = np.cumsum(val, axis=0)
+            else:
+                sol.y[key] = val
+
+        infectious_dist = GammaDistribution(mean=5, std=2)
+        sol.y['infectious'] = infectious_dist.convolve_survival(
+            t, influxes.y['infected']
         )
 
         return sol
