@@ -20,7 +20,7 @@ jobs:
                 python-version: 3.8
         -   name: "Main Script"
             run: |
-                pip install flake8
+                pip install flake8 matplotlib
                 flake8 pydemic test/*.py examples/*.py
     pylint:
         name: Pylint
@@ -34,7 +34,7 @@ jobs:
         -   name: "Main Script"
             run: |
                 python setup.py develop
-                pip install pylint pytest
+                pip install pylint pytest matplotlib
                 pylint --rcfile=setup.cfg test/test_*.py examples/*.py
     pytest:
         name: Pytest
