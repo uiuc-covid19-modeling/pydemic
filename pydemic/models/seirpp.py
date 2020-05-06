@@ -97,7 +97,7 @@ class NonMarkovianSEIRSimulationBase:
     .. automethod:: get_model_data
     """
 
-    increment_keys = ('dead',)
+    increment_keys = ('infected', 'dead')
 
     def set_std(self, mean, std, k):
         if k is not None:
@@ -529,7 +529,8 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
     .. automethod:: __init__
     """
 
-    increment_keys = ('dead', 'all_dead', 'positive', 'admitted_to_hospital')
+    increment_keys = ('infected', 'dead', 'all_dead', 'positive',
+                      'admitted_to_hospital')
 
     def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
