@@ -351,10 +351,17 @@ class LikelihoodEstimator:
         sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
         return sol
 
-    def differential_evolution(self, bounds=None, workers=-1, filename=None,
-                               progress=True, **kwargs):
+    def differential_evolution(self, bounds=None, workers=-1, progress=True,
+                               backend=None, backend_filename=None, **kwargs):
         if bounds is None:
             bounds = [par.bounds for par in self.fit_parameters]
+
+        if backend_filename is not None:
+            filename = backend_filename.replace('.h5', '')+'.p'
+        elif backend is not None:
+            filename = backend.filename.replace('.h5', '')+'.p'
+        else:
+            filename = None
 
         from pydemic.desolver import differential_evolution
         sol = differential_evolution(
@@ -363,7 +370,23 @@ class LikelihoodEstimator:
             updating=('immediate' if workers == 1 else 'deferred'),
             **kwargs
         )
-        sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
+
+        if backend is None and backend_filename is not None:
+            from pydemic.hdf import HDFOptimizationBackend
+            backend = HDFOptimizationBackend(
+                backend_filename,
+                fit_parameters=self.fit_parameters,
+                fixed_values=self.fixed_values,
+                data=self._original_data,
+                simulator=self.simulator
+            )
+
+        if backend is not None:
+            backend.set_result(sol,
+                               tol=kwargs.get('tol', 1e-2),
+                               popsize=kwargs.get('popsize', 15))
+            sol = backend.result
+
         return sol
 
     def dual_annealing(self, bounds=None, **kwargs):
