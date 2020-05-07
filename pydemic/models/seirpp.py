@@ -530,7 +530,7 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
     """
 
     increment_keys = ('infected', 'dead', 'all_dead', 'positive',
-                      'admitted_to_hospital')
+                      'admitted_to_hospital', 'total_discharged')
 
     def __init__(self, mitigation=None, *,
                  r0=3.2, serial_mean=4, serial_std=3.25, serial_k=None,
@@ -780,5 +780,12 @@ class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationB
         )
         sol.y['hospitalized'] += (sol.y['general_ward']
                                   - sol.y['general_ward_recovered'])
+
+        sol.y['total_discharged'] = (
+            sol.y['hospital_recovered'] + sol.y['general_ward_recovered']
+        )
+        sol.y['recovered'] = (
+            sol.y['infected'] - sol.y['infectious'] - sol.y['all_dead']
+        )
 
         return sol
