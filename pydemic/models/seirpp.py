@@ -150,7 +150,7 @@ class NonMarkovianSEIRSimulationBase:
 
         start_time, end_time = tspan
         times = np.arange(start_time, end_time + dt, dt)
-        n_steps = times.shape[0]  # pylint: disable=
+        n_steps = times.shape[0]
         pdf = self.serial_dist.pdf(times[1:] - start_time, method='diff')
         self.serial_pdf = pdf / dt
 
@@ -448,7 +448,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
         return sol
 
 
-class SEIRPlusPlusSimulationHospitalCriticalAndDeath(NonMarkovianSEIRSimulationBase):
+class SEIRPlusPlusSimulationHospitalCriticalAndDeath(SEIRPlusPlusSimulation):
     def __init__(self, *args, **kwargs):
         from warnings import warn
         warn("pydemic.SEIRPlusPlusSimulationHospitalCriticalAndDeath is deprecated. "

@@ -476,7 +476,7 @@ class NeherPortSimulation:
         fracs = ages / np.sum(ages)
         init['susceptible'] = np.round(fracs * self.population.population_served)
 
-        i_middle = round(ages.shape[0] / 2) + 1  # pylint: disable=E1136
+        i_middle = round(ages.shape[0] / 2) + 1
         initial_cases = self.population.initial_cases
         init['susceptible'][i_middle] -= initial_cases
         init['infectious'][i_middle] = 0.3 * initial_cases

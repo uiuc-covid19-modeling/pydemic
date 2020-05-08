@@ -326,7 +326,7 @@ class Simulation:
         # the right rate distributions for processes that have two
         # different lhs <--> rhs reactions ...
 
-        lhs, rhs = reactions[full_index[0]]
+        lhs, rhs = reactions[full_index[0]]  # pylint: disable=E1126
         state.y[lhs][full_index[1:]] -= 1.
         state.y[rhs][full_index[1:]] += 1.
 
