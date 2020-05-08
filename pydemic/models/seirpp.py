@@ -262,7 +262,7 @@ class NonMarkovianSEIRSimulationBase:
 
         for key in ('symptomatic', 'hospitalized', 'critical', 'dead'):
             prefactor = kwargs.pop('p_'+key+'_prefactor', 1.)
-            kwargs['p_'+key] *= prefactor
+            kwargs['p_'+key] = prefactor * kwargs['p_'+key].copy()
 
         sim = cls(
             mitigation=mitigation, age_distribution=age_distribution, **kwargs
