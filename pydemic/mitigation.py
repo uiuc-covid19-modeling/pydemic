@@ -62,11 +62,16 @@ class MitigationModel(PchipInterpolator):
 
         self.times = t
         self.factors = factors
-        t = np.insert(t, 0, min(t0, t[0]) - 10)
-        t = np.append(t, max(tf, t[-1]) + 10)
+        if len(t) > 0:
+            t = np.insert(t, 0, min(t0, t[0]) - 10)
+            t = np.append(t, max(tf, t[-1]) + 10)
+        if len(factors) > 0:
+            factors = np.insert(factors, 0, factors[0])
+            factors = np.append(factors, factors[-1])
+        else:
+            t = np.array([t0 - 10, tf + 10])
+            factors = np.array([1, 1])
 
-        factors = np.insert(factors, 0, factors[0])
-        factors = np.append(factors, factors[-1])
         super().__init__(t, factors)
 
     @classmethod
