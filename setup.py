@@ -63,6 +63,7 @@ setup(name=package,
           "pandas",
           "emcee",
           "h5py",
+          "tables",
           ],
 
       # author="George Wong",
