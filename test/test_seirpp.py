@@ -1,0 +1,194 @@
+__copyright__ = """
+Copyright (C) 2020 George N Wong
+Copyright (C) 2020 Zachary J Weiner
+"""
+
+__license__ = """
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+"""
+
+import numpy as np
+import pandas as pd
+import pytest
+from pydemic.models import SEIRPlusPlusSimulation
+from pydemic.distributions import GammaDistribution
+from pydemic import MitigationModel
+
+tspan = (60, 125)
+t_eval = np.linspace(70, 120, 100)
+
+cases_call = {
+    'defaults': dict(
+        age_distribution=np.array([1.]),
+        total_population=1e6,
+        initial_cases=10,
+    ),
+    'no_ifr': dict(
+        age_distribution=np.array([.2, .3, .4, .1]),
+        total_population=1e6,
+        initial_cases=10,
+        ifr=None,
+        p_symptomatic=np.array([.1, .3, .5, .9]),
+    ),
+    'change_all_params': dict(
+        mitigation=MitigationModel(*tspan, [70, 80], [1., .4]),
+        age_distribution=np.array([.2, .3, .4, .1]),
+        total_population=1e6,
+        initial_cases=10,
+        ifr=.008,
+        r0=2.5,
+        serial_dist=GammaDistribution(4, 3.3),
+        seasonal_forcing_amp=.1,
+        peak_day=7,
+        incubation_dist=GammaDistribution(5.3, 4),
+        p_symptomatic=np.array([.2, .4, .5, .8]),
+        p_positive=.9 * np.array([.2, .4, .5, .8]),
+        hospitalized_dist=GammaDistribution(8, 4),
+        p_hospitalized=np.array([.4, .6, .7, .8]),
+        discharged_dist=GammaDistribution(7, 3),
+        critical_dist=GammaDistribution(4, 1),
+        p_critical=np.array([.3, .3, .7, .9]),
+        dead_dist=GammaDistribution(4, 3),
+        p_dead=np.array([.4, .4, .7, .9]),
+        recovered_dist=GammaDistribution(8, 2.5),
+        all_dead_dist=GammaDistribution(2., 1.5),
+        all_dead_multiplier=1.3,
+    )
+}
+
+cases_get_model_data = {
+    'defaults': dict(
+        start_day=tspan[0],
+        age_distribution=np.array([1.]),
+        total_population=1e6,
+        initial_cases=10,
+    ),
+    'no_ifr': dict(
+        start_day=tspan[0],
+        age_distribution=np.array([.2, .3, .4, .1]),
+        total_population=1e6,
+        initial_cases=10,
+        ifr=None,
+        p_symptomatic=np.array([.1, .3, .5, .9]),
+    ),
+    'change_all_params': dict(
+        start_day=tspan[0],
+        mitigation_t_0=70,
+        mitigation_t_1=80,
+        mitigation_factor_0=1.,
+        mitigation_factor_1=.4,
+        age_distribution=np.array([.2, .3, .4, .1]),
+        total_population=1e6,
+        initial_cases=9,
+        ifr=.008,
+        r0=2.5,
+        serial_mean=4,
+        serial_std=3.3,
+        seasonal_forcing_amp=.1,
+        peak_day=7,
+        incubation_mean=5.3,
+        incubation_std=4,
+        p_symptomatic=np.array([.2, .4, .5, .8]),
+        p_positive=.9 * np.array([.2, .4, .5, .8]),
+        hospitalized_mean=8,
+        hospitalized_std=4,
+        p_hospitalized=np.array([.4, .6, .7, .8]),
+        discharged_mean=7,
+        discharged_std=3,
+        critical_mean=4,
+        critical_std=1,
+        p_critical=np.array([.3, .3, .7, .9]),
+        dead_mean=4,
+        dead_std=3,
+        p_dead=np.array([.4, .4, .7, .9]),
+        recovered_mean=8,
+        recovered_std=2.5,
+        all_dead_mean=2.0,
+        all_dead_std=1.5,
+        all_dead_multiplier=1.3,
+    )
+}
+
+
+def compare_results(a, b):
+    diffs = {}
+    for col in a.columns:
+        max_err = 0
+        avg_err = 0
+        diffs[col] = (max_err, avg_err)
+
+    return diffs
+
+
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+regression_path = os.path.join(dir_path, 'regression.h5')
+
+
+@pytest.mark.parametrize("case, params", cases_call.items())
+def test_seirpp_call(case, params):
+    true = pd.read_hdf(regression_path, 'seirpp_call/'+case)
+
+    sim = SEIRPlusPlusSimulation(**params)
+    y0 = sim.get_y0(params['total_population'],
+                    params['initial_cases'],
+                    params['age_distribution'])
+    result = sim(tspan, y0)
+
+    from scipy.interpolate import interp1d
+    y = {}
+    for key, val in result.y.items():
+        y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
+
+    for key in sim.increment_keys:
+        if key in result.y.keys():
+            spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
+            y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
+
+    _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
+    df = pd.DataFrame(y, index=_t)
+    # df.to_hdf(regression_path, 'seirpp_call/'+case)
+
+    max_rtol = 1.e-11
+    avg_rtol = 1.e-13
+    for key, (max_err, avg_err) in compare_results(true, df).items():
+        assert (max_err < max_rtol and avg_err < avg_rtol), \
+            "%s is wrong, %s, %s" % (key, max_err, avg_err)
+
+
+@pytest.mark.parametrize("case, params", cases_get_model_data.items())
+def test_seirpp_get_model_data(case, params):
+    true = pd.read_hdf(regression_path, 'seirpp_get_model_data/'+case)
+
+    result = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
+    # result.to_hdf(regression_path, 'seirpp_get_model_data/'+case)
+
+    max_rtol = 1.e-11
+    avg_rtol = 1.e-13
+    for key, (max_err, avg_err) in compare_results(true, result).items():
+        assert (max_err < max_rtol and avg_err < avg_rtol), \
+            "%s is wrong, %s, %s" % (key, max_err, avg_err)
+
+
+if __name__ == "__main__":
+    for case, params in cases_call.items():
+        test_seirpp_call(case, params)
+
+    for case, params in cases_get_model_data.items():
+        test_seirpp_get_model_data(case, params)
