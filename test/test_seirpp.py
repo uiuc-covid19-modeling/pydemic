@@ -236,11 +236,17 @@ def test_seirpp_get_model_data(case, params):
 
     case2 = case+'_changed_prefactors'
     params['ifr'] = None
+    check_ps = {}
     for key, val in change_prefactors.items():
+        check_ps[key] = np.copy(params.get(key, 1))
         params[key+'_prefactor'] = val
 
     df = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
     # df.to_hdf(regression_path, 'seirpp_get_model_data/'+case2)
+
+    # check that p_* didn't change
+    for key, val in change_prefactors.items():
+        assert np.allclose(check_ps[key], params.get(key, 1), rtol=1.e-13, atol=0)
 
     for group in ('seirpp_call/', 'seirpp_get_model_data/'):
         true = pd.read_hdf(regression_path, group+case2)
