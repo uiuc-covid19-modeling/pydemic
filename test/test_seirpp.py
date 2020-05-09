@@ -30,7 +30,7 @@ from pydemic.models import SEIRPlusPlusSimulation
 from pydemic.distributions import GammaDistribution
 from pydemic import MitigationModel
 
-tspan = (60, 125)
+tspan = (50, 125)
 t_eval = np.linspace(70, 120, 100)
 
 cases_call = {
@@ -38,6 +38,9 @@ cases_call = {
         age_distribution=np.array([1.]),
         total_population=1e6,
         initial_cases=10,
+        p_critical=.9,
+        p_dead=.9,
+        p_positive=.4,
     ),
     'no_ifr': dict(
         age_distribution=np.array([.2, .3, .4, .1]),
@@ -45,12 +48,15 @@ cases_call = {
         initial_cases=10,
         ifr=None,
         p_symptomatic=np.array([.1, .3, .5, .9]),
+        p_critical=.9,
+        p_dead=.9,
+        p_positive=np.array([.4, .5, .6, .7]),
     ),
     'change_all_params': dict(
         mitigation=MitigationModel(*tspan, [70, 80], [1., .4]),
         age_distribution=np.array([.2, .3, .4, .1]),
         total_population=1e6,
-        initial_cases=10,
+        initial_cases=9,
         ifr=.008,
         r0=2.5,
         serial_dist=GammaDistribution(4, 3.3),
@@ -78,6 +84,9 @@ cases_get_model_data = {
         age_distribution=np.array([1.]),
         total_population=1e6,
         initial_cases=10,
+        p_critical=.9,
+        p_dead=.9,
+        p_positive=.4,
     ),
     'no_ifr': dict(
         start_day=tspan[0],
@@ -86,6 +95,9 @@ cases_get_model_data = {
         initial_cases=10,
         ifr=None,
         p_symptomatic=np.array([.1, .3, .5, .9]),
+        p_critical=.9,
+        p_dead=.9,
+        p_positive=np.array([.4, .5, .6, .7]),
     ),
     'change_all_params': dict(
         start_day=tspan[0],
@@ -125,13 +137,25 @@ cases_get_model_data = {
     )
 }
 
+change_prefactors = {
+    # 'p_symptomatic': .04,
+    'p_positive': .234,
+    'p_hospitalized': .2523,
+    'p_critical': .34,
+    'p_dead': .12,
+}
+
 
 def compare_results(a, b):
     diffs = {}
     for col in a.columns:
-        max_err = 0
-        avg_err = 0
-        diffs[col] = (max_err, avg_err)
+        err = np.abs(1 - a[col].to_numpy() / b[col].to_numpy())
+        max_err = np.nanmax(err)
+        avg_err = np.nanmean(err)
+        if np.isfinite([max_err, avg_err]).all():
+            diffs[col] = (max_err, avg_err)
+        else:
+            print(col, a[col])
 
     return diffs
 
@@ -143,47 +167,87 @@ regression_path = os.path.join(dir_path, 'regression.h5')
 
 @pytest.mark.parametrize("case, params", cases_call.items())
 def test_seirpp_call(case, params):
-    true = pd.read_hdf(regression_path, 'seirpp_call/'+case)
+    def get_df(params):
+        sim = SEIRPlusPlusSimulation(**params)
+        y0 = sim.get_y0(params['total_population'],
+                        params['initial_cases'],
+                        params['age_distribution'])
+        result = sim(tspan, y0)
 
-    sim = SEIRPlusPlusSimulation(**params)
-    y0 = sim.get_y0(params['total_population'],
-                    params['initial_cases'],
-                    params['age_distribution'])
-    result = sim(tspan, y0)
+        from scipy.interpolate import interp1d
+        y = {}
+        for key, val in result.y.items():
+            y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
 
-    from scipy.interpolate import interp1d
-    y = {}
-    for key, val in result.y.items():
-        y[key] = interp1d(result.t, val.sum(axis=-1), axis=0)(t_eval)
+        for key in sim.increment_keys:
+            if key in result.y.keys():
+                spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
+                y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
 
-    for key in sim.increment_keys:
-        if key in result.y.keys():
-            spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
-            y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
+        _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
+        return pd.DataFrame(y, index=_t)
 
-    _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
-    df = pd.DataFrame(y, index=_t)
+    df = get_df(params)
     # df.to_hdf(regression_path, 'seirpp_call/'+case)
 
-    max_rtol = 1.e-11
-    avg_rtol = 1.e-13
-    for key, (max_err, avg_err) in compare_results(true, df).items():
-        assert (max_err < max_rtol and avg_err < avg_rtol), \
-            "%s is wrong, %s, %s" % (key, max_err, avg_err)
+    max_rtol = 1.e-9
+    avg_rtol = 1.e-10
+
+    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        true = pd.read_hdf(regression_path, group+case)
+        for key, (max_err, avg_err) in compare_results(true, df).items():
+            assert (max_err < max_rtol and avg_err < avg_rtol), \
+                "case %s: %s failed against %s, %s, %s" % \
+                (case, key, group, max_err, avg_err)
+
+    case2 = case+'_changed_prefactors'
+    params['ifr'] = None
+    for key, val in change_prefactors.items():
+        if key in params:
+            params[key] *= val
+        else:
+            params[key] = val
+
+    df = get_df(params)
+    df.to_hdf(regression_path, 'seirpp_call/'+case2)
+
+    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        true = pd.read_hdf(regression_path, group+case2)
+        for key, (max_err, avg_err) in compare_results(true, df).items():
+            assert (max_err < max_rtol and avg_err < avg_rtol), \
+                "case %s: %s failed against %s, %s, %s" % \
+                (case2, key, group, max_err, avg_err)
 
 
 @pytest.mark.parametrize("case, params", cases_get_model_data.items())
 def test_seirpp_get_model_data(case, params):
-    true = pd.read_hdf(regression_path, 'seirpp_get_model_data/'+case)
+    df = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
+    # df.to_hdf(regression_path, 'seirpp_get_model_data/'+case)
 
-    result = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
-    # result.to_hdf(regression_path, 'seirpp_get_model_data/'+case)
+    max_rtol = 1.e-9
+    avg_rtol = 1.e-10
 
-    max_rtol = 1.e-11
-    avg_rtol = 1.e-13
-    for key, (max_err, avg_err) in compare_results(true, result).items():
-        assert (max_err < max_rtol and avg_err < avg_rtol), \
-            "%s is wrong, %s, %s" % (key, max_err, avg_err)
+    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        true = pd.read_hdf(regression_path, group+case)
+        for key, (max_err, avg_err) in compare_results(true, df).items():
+            assert (max_err < max_rtol and avg_err < avg_rtol), \
+                "case %s: %s failed against %s, %s, %s" % \
+                (case, key, group, max_err, avg_err)
+
+    case2 = case+'_changed_prefactors'
+    params['ifr'] = None
+    for key, val in change_prefactors.items():
+        params[key+'_prefactor'] = val
+
+    df = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
+    # df.to_hdf(regression_path, 'seirpp_get_model_data/'+case2)
+
+    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        true = pd.read_hdf(regression_path, group+case2)
+        for key, (max_err, avg_err) in compare_results(true, df).items():
+            assert (max_err < max_rtol and avg_err < avg_rtol), \
+                "case %s: %s failed against %s, %s, %s" % \
+                (case2, key, group, max_err, avg_err)
 
 
 if __name__ == "__main__":

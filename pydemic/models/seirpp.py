@@ -260,9 +260,10 @@ class NonMarkovianSEIRSimulationBase:
                     "Must pass either %s+_shape or %s+_std." % (key, key)
                 )
 
-        for key in ('symptomatic', 'hospitalized', 'critical', 'dead'):
+        for key in ('symptomatic', 'positive', 'hospitalized', 'critical', 'dead'):
+            # FIXME: decide on default behavior here
             prefactor = kwargs.pop('p_'+key+'_prefactor', 1.)
-            prob = kwargs.get('p_'+key, np.array(1.)).copy()
+            prob = np.array(kwargs.get('p_'+key, 1.)).copy()
             kwargs['p_'+key] = prefactor * prob
 
         sim = cls(

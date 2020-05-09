@@ -62,6 +62,7 @@ setup(name=package,
           "scipy",
           "pandas",
           "emcee",
+          "h5py",
           ],
 
       # author="George Wong",
