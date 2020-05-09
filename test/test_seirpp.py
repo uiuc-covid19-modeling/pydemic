@@ -209,7 +209,7 @@ def test_seirpp_call(case, params):
             params[key] = val
 
     df = get_df(params)
-    df.to_hdf(regression_path, 'seirpp_call/'+case2)
+    # df.to_hdf(regression_path, 'seirpp_call/'+case2)
 
     for group in ('seirpp_call/', 'seirpp_get_model_data/'):
         true = pd.read_hdf(regression_path, group+case2)
