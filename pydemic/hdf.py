@@ -217,7 +217,7 @@ class HDFOptimizationBackend(BackendMixIn):
     .. automethod:: __init__
     """
 
-    def __init__(self, filename, name="optimization", read_only=False, dtype=None,
+    def __init__(self, filename, name="_optimizer", read_only=False, dtype=None,
                  fit_parameters=None, fixed_values=None, data=None,
                  simulator=None, **kwargs):
         """
@@ -266,6 +266,32 @@ class HDFOptimizationBackend(BackendMixIn):
             )
         f = h5py.File(self.filename, mode)
         return f
+
+    @property
+    def initialized(self):
+        import os
+        if not os.path.exists(self.filename):
+            return False
+        try:
+            with self.open() as f:
+                return self.name in f
+        except (OSError, IOError):
+            return False
+
+    def save_optimizer(self, optimizer):
+        import pickle
+        pickled_obj = pickle.dumps(optimizer)
+        with self.open('a') as f:
+            if self.name in f:
+                del f[self.name]
+            f.create_dataset(self.name, data=[pickled_obj])
+
+    def load_optimizer(self):
+        import pickle
+        with self.open('a') as f:
+            string = f[self.name][()]
+        optimizer = pickle.loads(string)
+        return optimizer
 
     def set_result(self, result, tol=None, popsize=None):
         with self.open('a') as f:

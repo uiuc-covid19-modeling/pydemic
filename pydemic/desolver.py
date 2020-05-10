@@ -23,7 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import pickle
 from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
 from emcee.pbar import get_progress_bar
 
@@ -35,11 +34,10 @@ __doc__ = """
 
 
 class PicklingDifferentialEvolutionSolver(DifferentialEvolutionSolver):
-    def __init__(self, *args, filename=None, progress=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cumulative_nit = 0
-        self.filename = filename
-        self.progress = progress
+        self.backend = None
         self.pbar = None
         self.workers = kwargs.get("workers", 1)
 
@@ -49,14 +47,17 @@ class PicklingDifferentialEvolutionSolver(DifferentialEvolutionSolver):
         if self.pbar is not None:
             self.pbar.update(1)
 
-        if self.filename is not None:
-            pickle.dump(self, open(self.filename, "wb"))
+        if self.backend is not None:
+            self.backend.save_optimizer(self)
+
         return result
 
-    def solve(self):
-        with get_progress_bar(self.progress, self.maxiter) as self.pbar:
+    def solve(self, backend=None, progress=None):
+        self.backend = backend
+        with get_progress_bar(progress, self.maxiter) as self.pbar:
             result = super().solve()
         result.nit = self.cumulative_nit
+        self.backend = None
         return result
 
     next = __next__
@@ -64,6 +65,7 @@ class PicklingDifferentialEvolutionSolver(DifferentialEvolutionSolver):
     def __getstate__(self):
         state = self.__dict__.copy()
         del state["pbar"]
+        del state["backend"]
         del state["_mapwrapper"]
         return state
 
@@ -71,9 +73,11 @@ class PicklingDifferentialEvolutionSolver(DifferentialEvolutionSolver):
         self.__dict__.update(state)
         from scipy._lib._util import MapWrapper
         self._mapwrapper = MapWrapper(self.workers)
+        self.pbar = None
+        self.backend = None
 
 
-def differential_evolution(*args, progress=True, filename=None,
+def differential_evolution(*args, progress=True, backend=None,
                            maxiter=1000, **kwargs):
     """
     A wrapper to :func:`scipy.optimize.differential_evolution` which optionally
@@ -94,20 +98,17 @@ def differential_evolution(*args, progress=True, filename=None,
     :class:`scipy.optimize.differential_evolution.
     """
 
-    if filename is not None:
-        from os import path
-        if path.exists(filename):
-            with pickle.load(open(filename, "rb")) as solver:
+    if backend is not None:
+        if backend.initialized:
+            with backend.load_optimizer() as solver:
                 solver.maxiter = maxiter
                 if 'tol' in kwargs:
                     solver.tol = kwargs['tol']
-                ret = solver.solve()
+                ret = solver.solve(backend=backend, progress=progress)
+                return ret
 
-            return ret
-
-    with PicklingDifferentialEvolutionSolver(
-            *args, filename=filename, maxiter=maxiter, progress=progress, **kwargs
-    ) as solver:
-        ret = solver.solve()
+    with PicklingDifferentialEvolutionSolver(*args, maxiter=maxiter,
+                                             **kwargs) as solver:
+        ret = solver.solve(backend=backend, progress=progress)
 
     return ret

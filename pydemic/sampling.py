@@ -356,21 +356,6 @@ class LikelihoodEstimator:
         if bounds is None:
             bounds = [par.bounds for par in self.fit_parameters]
 
-        if backend_filename is not None:
-            filename = backend_filename.replace('.h5', '')+'.p'
-        elif backend is not None:
-            filename = backend.filename.replace('.h5', '')+'.p'
-        else:
-            filename = None
-
-        from pydemic.desolver import differential_evolution
-        sol = differential_evolution(
-            self.minimizer, bounds=bounds, workers=workers,
-            filename=filename, progress=progress,
-            updating=('immediate' if workers == 1 else 'deferred'),
-            **kwargs
-        )
-
         if backend is None and backend_filename is not None:
             from pydemic.hdf import HDFOptimizationBackend
             backend = HDFOptimizationBackend(
@@ -380,6 +365,14 @@ class LikelihoodEstimator:
                 data=self._original_data,
                 simulator=self.simulator
             )
+
+        from pydemic.desolver import differential_evolution
+        sol = differential_evolution(
+            self.minimizer, bounds=bounds, workers=workers,
+            backend=backend, progress=progress,
+            updating=('immediate' if workers == 1 else 'deferred'),
+            **kwargs
+        )
 
         if backend is not None:
             backend.set_result(sol,

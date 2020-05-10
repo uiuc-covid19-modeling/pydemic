@@ -28,9 +28,12 @@ from pydemic.desolver import differential_evolution
 
 
 def test_desolver():
-    filename = '__test_desolver.p'
+    filename = '__test_desolver.h5'
     if os.path.exists(filename):
         os.remove(filename)
+
+    from pydemic.hdf import HDFOptimizationBackend
+    backend = HDFOptimizationBackend(filename)
 
     from scipy.optimize import rosen
     bounds = [(0, 2), (0, 2), (0, 2)]
@@ -38,8 +41,7 @@ def test_desolver():
 
     for i in range(20):
         sol = differential_evolution(
-            rosen, bounds=bounds,
-            maxiter=maxiter, progress=False, filename=filename,
+            rosen, bounds=bounds, maxiter=maxiter, progress=False, backend=backend,
         )
 
         print(sol)
