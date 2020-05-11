@@ -312,7 +312,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
                  r0=3.2, serial_dist=default_serial,
                  seasonal_forcing_amp=.2, peak_day=15,
                  incubation_dist=GammaDistribution(5.5, 2),
-                 p_symptomatic=1., p_positive=.5,
+                 p_symptomatic=1., p_positive=1.,
                  hospitalized_dist=GammaDistribution(6.5, 4), p_hospitalized=1.,
                  discharged_dist=GammaDistribution(6, 4),
                  critical_dist=GammaDistribution(2, 2), p_critical=1.,
