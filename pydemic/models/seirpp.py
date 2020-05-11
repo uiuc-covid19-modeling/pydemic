@@ -56,9 +56,9 @@ class NonMarkovianSEIRSimulationBase:
         phase = 2 * np.pi * (t - self.peak_day) / 365
         return (1 + self.seasonal_forcing_amp * np.cos(phase))
 
-    def __init__(self, mitigation=None, *,
+    def __init__(self, mitigation=None, *, age_distribution=None,
                  r0=3.2, serial_dist=default_serial,
-                 seasonal_forcing_amp=.2, peak_day=15, **kwargs):
+                 seasonal_forcing_amp=.2, peak_day=15):
         """
         The following keyword-only arguments are recognized:
 
@@ -232,6 +232,9 @@ class NonMarkovianSEIRSimulationBase:
         try:
             from pydemic.mitigation import MitigationModel
             mitigation = MitigationModel.init_from_kwargs(t0, tf, **kwargs)
+            for key in list(kwargs.keys()):
+                if 'mitigation_t' in key or 'mitigation_factor' in key:
+                    _ = kwargs.pop(key)
         except ValueError:  # raised by PchipInterpolator when times aren't ordered
             raise InvalidParametersError(
                 "Mitigation times must be ordered within t0 and tf."
@@ -262,17 +265,19 @@ class NonMarkovianSEIRSimulationBase:
 
         for key in ('symptomatic', 'positive', 'hospitalized', 'critical', 'dead'):
             # FIXME: decide on default behavior here
-            prefactor = kwargs.pop('p_'+key+'_prefactor', 1.)
-            prob = np.array(kwargs.get('p_'+key, 1.)).copy()
-            kwargs['p_'+key] = prefactor * prob
+            prefactor = kwargs.pop('p_'+key+'_prefactor', None)
+            if prefactor is not None:
+                prob = np.array(kwargs.get('p_'+key, 1.)).copy()
+                kwargs['p_'+key] = prefactor * prob
+
+        total_population = kwargs.pop('total_population')
+        initial_cases = kwargs.pop('initial_cases')
 
         sim = cls(
             mitigation=mitigation, age_distribution=age_distribution, **kwargs
         )
 
-        y0 = sim.get_y0(kwargs.pop('total_population'),
-                        kwargs.pop('initial_cases'),
-                        age_distribution)
+        y0 = sim.get_y0(total_population, initial_cases, age_distribution)
         result = sim((t0, tf), y0)
 
         y = {}
@@ -313,8 +318,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
                  critical_dist=GammaDistribution(2, 2), p_critical=1.,
                  dead_dist=GammaDistribution(7.5, 7.5), p_dead=1.,
                  recovered_dist=GammaDistribution(7.5, 7.5),
-                 all_dead_dist=GammaDistribution(2.5, 2.5), all_dead_multiplier=1.,
-                 **kwargs):
+                 all_dead_dist=GammaDistribution(2.5, 2.5), all_dead_multiplier=1.):
         """
         In addition to the arguments recognized by
         :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
@@ -372,6 +376,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
+        age_distribution = np.array(age_distribution)
         p_symptomatic = np.array(p_symptomatic)
         p_hospitalized = np.array(p_hospitalized)
         p_critical = np.array(p_critical)

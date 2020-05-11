@@ -167,11 +167,13 @@ regression_path = os.path.join(dir_path, 'regression.h5')
 
 @pytest.mark.parametrize("case, params", cases_call.items())
 def test_seirpp_call(case, params):
-    def get_df(params):
-        sim = SEIRPlusPlusSimulation(**params)
-        y0 = sim.get_y0(params['total_population'],
-                        params['initial_cases'],
-                        params['age_distribution'])
+    def get_df(**params):
+        total_population = params.pop('total_population')
+        initial_cases = params.pop('initial_cases')
+        age_distribution = params.pop('age_distribution')
+
+        sim = SEIRPlusPlusSimulation(**params, age_distribution=age_distribution)
+        y0 = sim.get_y0(total_population, initial_cases, age_distribution)
         result = sim(tspan, y0)
 
         from scipy.interpolate import interp1d
@@ -187,7 +189,7 @@ def test_seirpp_call(case, params):
         _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
         return pd.DataFrame(y, index=_t)
 
-    df = get_df(params)
+    df = get_df(**params)
     # df.to_hdf(regression_path, 'seirpp_call/'+case)
 
     max_rtol = 1.e-9
@@ -208,7 +210,7 @@ def test_seirpp_call(case, params):
         else:
             params[key] = val
 
-    df = get_df(params)
+    df = get_df(**params)
     # df.to_hdf(regression_path, 'seirpp_call/'+case2)
 
     for group in ('seirpp_call/', 'seirpp_get_model_data/'):
