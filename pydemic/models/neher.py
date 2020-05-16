@@ -223,7 +223,7 @@ class ContainmentModel:
                 times.append(event[1])
                 factors.append(event[2])
         self.times, self.factors = (
-            list(l) for l in zip(*sorted(zip(times, factors)))
+            list(points) for points in zip(*sorted(zip(times, factors)))
         )
 
     def _regenerate(self):
