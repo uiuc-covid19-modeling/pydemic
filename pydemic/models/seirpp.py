@@ -240,7 +240,7 @@ class NonMarkovianSEIRSimulationBase:
                 "Mitigation times must be ordered within t0 and tf."
             )
 
-        if any(np.diff(mitigation.times) < kwargs.get('min_mitigation_spacing', 5)):
+        if any(np.diff(mitigation.times) < kwargs.pop('min_mitigation_spacing', 5)):
             raise InvalidParametersError(
                 "Mitigation times must be spaced by at least min_mitigation_spacing."
                 " Decrease min_mitigation_spacing to prevent this check."
