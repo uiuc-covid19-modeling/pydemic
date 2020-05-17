@@ -340,8 +340,8 @@ class NeherPortSimulation:
         time_offset = (time - jan_2020) / ms_per_day - peak_day
         phase = 2 * np.pi * time_offset / 365
         return (
-            self.avg_infection_rate *
-            (1 + self.epidemiology.seasonal_forcing * np.cos(phase))
+            self.avg_infection_rate
+            * (1 + self.epidemiology.seasonal_forcing * np.cos(phase))
         )
 
     def step(self, time, state, sample):
