@@ -30,6 +30,9 @@ from pydemic.models import SEIRPlusPlusSimulation
 from pydemic.distributions import GammaDistribution
 from pydemic import MitigationModel
 
+# WARNING: don't set to True unless you want to change the regression test data!
+overwrite = False
+
 tspan = (50, 125)
 t_eval = np.linspace(70, 120, 100)
 
@@ -47,6 +50,16 @@ cases_call = {
         total_population=1e6,
         initial_cases=10,
         ifr=None,
+        p_symptomatic=np.array([.1, .3, .5, .9]),
+        p_critical=.9,
+        p_dead=.9,
+        p_positive=np.array([.4, .5, .6, .7]),
+    ),
+    'log_ifr': dict(
+        age_distribution=np.array([.2, .3, .4, .1]),
+        total_population=1e6,
+        initial_cases=10,
+        ifr=.007,
         p_symptomatic=np.array([.1, .3, .5, .9]),
         p_critical=.9,
         p_dead=.9,
@@ -94,6 +107,17 @@ cases_get_model_data = {
         total_population=1e6,
         initial_cases=10,
         ifr=None,
+        p_symptomatic=np.array([.1, .3, .5, .9]),
+        p_critical=.9,
+        p_dead=.9,
+        p_positive=np.array([.4, .5, .6, .7]),
+    ),
+    'log_ifr': dict(
+        start_day=tspan[0],
+        age_distribution=np.array([.2, .3, .4, .1]),
+        total_population=1e6,
+        initial_cases=10,
+        log_ifr=np.log(.007),
         p_symptomatic=np.array([.1, .3, .5, .9]),
         p_critical=.9,
         p_dead=.9,
@@ -190,20 +214,25 @@ def test_seirpp_call(case, params):
         return pd.DataFrame(y, index=_t)
 
     df = get_df(**params)
-    # df.to_hdf(regression_path, 'seirpp_call/'+case)
 
     max_rtol = 1.e-9
     avg_rtol = 1.e-10
 
-    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
-        true = pd.read_hdf(regression_path, group+case)
-        for key, (max_err, avg_err) in compare_results(true, df).items():
-            assert (max_err < max_rtol and avg_err < avg_rtol), \
-                "case %s: %s failed against %s, %s, %s" % \
-                (case, key, group, max_err, avg_err)
+    if overwrite:
+        df.to_hdf(regression_path, 'seirpp_call/'+case)
+    else:
+        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+            true = pd.read_hdf(regression_path, group+case)
+            for key, (max_err, avg_err) in compare_results(true, df).items():
+                assert (max_err < max_rtol and avg_err < avg_rtol), \
+                    "case %s: %s failed against %s, %s, %s" % \
+                    (case, key, group, max_err, avg_err)
 
     case2 = case+'_changed_prefactors'
-    params['ifr'] = None
+    if 'ifr' in params:
+        params['ifr'] = None
+    if 'log_ifr' in params:
+        params.pop('log_ifr')
     for key, val in change_prefactors.items():
         if key in params:
             params[key] *= val
@@ -211,51 +240,59 @@ def test_seirpp_call(case, params):
             params[key] = val
 
     df = get_df(**params)
-    # df.to_hdf(regression_path, 'seirpp_call/'+case2)
-
-    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
-        true = pd.read_hdf(regression_path, group+case2)
-        for key, (max_err, avg_err) in compare_results(true, df).items():
-            assert (max_err < max_rtol and avg_err < avg_rtol), \
-                "case %s: %s failed against %s, %s, %s" % \
-                (case2, key, group, max_err, avg_err)
+    if overwrite:
+        df.to_hdf(regression_path, 'seirpp_call/'+case2)
+    else:
+        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+            true = pd.read_hdf(regression_path, group+case2)
+            for key, (max_err, avg_err) in compare_results(true, df).items():
+                assert (max_err < max_rtol and avg_err < avg_rtol), \
+                    "case %s: %s failed against %s, %s, %s" % \
+                    (case2, key, group, max_err, avg_err)
 
 
 @pytest.mark.parametrize("case, params", cases_get_model_data.items())
 def test_seirpp_get_model_data(case, params):
     df = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
-    # df.to_hdf(regression_path, 'seirpp_get_model_data/'+case)
 
     max_rtol = 1.e-9
     avg_rtol = 1.e-10
 
-    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
-        true = pd.read_hdf(regression_path, group+case)
-        for key, (max_err, avg_err) in compare_results(true, df).items():
-            assert (max_err < max_rtol and avg_err < avg_rtol), \
-                "case %s: %s failed against %s, %s, %s" % \
-                (case, key, group, max_err, avg_err)
+    if overwrite:
+        df.to_hdf(regression_path, 'seirpp_get_model_data/'+case)
+    else:
+        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+            true = pd.read_hdf(regression_path, group+case)
+            for key, (max_err, avg_err) in compare_results(true, df).items():
+                assert (max_err < max_rtol and avg_err < avg_rtol), \
+                    "case %s: %s failed against %s, %s, %s" % \
+                    (case, key, group, max_err, avg_err)
 
     case2 = case+'_changed_prefactors'
-    params['ifr'] = None
+    if 'ifr' in params:
+        params['ifr'] = None
+    if 'log_ifr' in params:
+        params.pop('log_ifr')
     check_ps = {}
     for key, val in change_prefactors.items():
         check_ps[key] = np.copy(params.get(key, 1))
         params[key+'_prefactor'] = val
 
     df = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
-    # df.to_hdf(regression_path, 'seirpp_get_model_data/'+case2)
 
     # check that p_* didn't change
     for key, val in change_prefactors.items():
         assert np.allclose(check_ps[key], params.get(key, 1), rtol=1.e-13, atol=0)
 
-    for group in ('seirpp_call/', 'seirpp_get_model_data/'):
-        true = pd.read_hdf(regression_path, group+case2)
-        for key, (max_err, avg_err) in compare_results(true, df).items():
-            assert (max_err < max_rtol and avg_err < avg_rtol), \
-                "case %s: %s failed against %s, %s, %s" % \
-                (case2, key, group, max_err, avg_err)
+    if overwrite:
+        df.to_hdf(regression_path, 'seirpp_get_model_data/'+case2)
+    else:
+        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+            true = pd.read_hdf(regression_path, group+case2)
+            for key, (max_err, avg_err) in compare_results(true, df).items():
+                assert (max_err < max_rtol and avg_err < avg_rtol), \
+                    "case %s: %s failed against %s, %s, %s" % \
+                    (case2, key, group, max_err, avg_err)
 
 
 if __name__ == "__main__":
