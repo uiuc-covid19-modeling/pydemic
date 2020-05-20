@@ -229,6 +229,11 @@ class NonMarkovianSEIRSimulationBase:
                 "Must start simulation at least one day before result evaluation."
             )
 
+        if 'log_ifr' in kwargs:
+            if 'ifr' in kwargs:
+                raise InvalidParametersError("Can't pass both ifr and log_ifr.")
+            kwargs['ifr'] = np.exp(kwargs.pop('log_ifr'))
+
         try:
             from pydemic.mitigation import MitigationModel
             mitigation = MitigationModel.init_from_kwargs(t0, tf, **kwargs)
@@ -386,7 +391,10 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
         # p_symptomatic * p_hospitalized * p_critical * p_dead
         # weighted by the age distribution, achieves ifr
         if ifr is not None:
-            p_dead_net = p_symptomatic * p_hospitalized * p_critical * p_dead
+            p_dead_net = (
+                p_symptomatic * p_hospitalized * p_critical
+                * p_dead * all_dead_multiplier
+            )
             weighted_sum = (p_dead_net * age_distribution).sum()
             p_symptomatic *= ifr / weighted_sum
 

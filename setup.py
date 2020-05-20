@@ -64,7 +64,7 @@ setup(name=package,
           "emcee",
           "h5py",
           "tables",
-          ],
+      ],
 
       # author="George Wong",
       license="MIT",
