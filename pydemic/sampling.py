@@ -145,7 +145,7 @@ def poisson_norm(model, data):
     data_nonzero = data > .9
     model = model[data_nonzero]
     data = data[data_nonzero]
-    return np.sum(- model - gammaln(data) + data * np.log(model))
+    return np.sum(- model - gammaln(data + 1) + data * np.log(model))
 
 
 def poisson_norm_diff(model, data):
