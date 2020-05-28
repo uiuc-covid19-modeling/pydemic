@@ -1,2 +1,7 @@
 numpy
 sphinx==2.2.0
+scipy
+pandas
+emcee
+h5py
+tables
