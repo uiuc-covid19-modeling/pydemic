@@ -89,7 +89,7 @@ class SampleParameter:
         return text
 
 
-def l2_log_norm(model, data):
+def l2_log_norm(model, data, **kwargs):
     """
     :arg model: A :class:`numpy.ndarray` of model predictions.
 
@@ -102,7 +102,7 @@ def l2_log_norm(model, data):
     return -1/2 * np.sum(np.power(np.log(model)-np.log(data), 2.))
 
 
-def clipped_l2_log_norm(model, data, model_uncert=None):
+def clipped_l2_log_norm(model, data, model_uncert=None, **kwargs):
     """
     :arg model: A :class:`numpy.ndarray` of model predictions, which will be clipped
         from below at ``.1``.
@@ -130,7 +130,7 @@ def clipped_l2_log_norm(model, data, model_uncert=None):
     return - 1/2 * np.sum(top / bot)
 
 
-def poisson_norm(model, data):
+def poisson_norm(model, data, **kwargs):
     """
     :arg model: A :class:`numpy.ndarray` of model predictions.
 
@@ -139,28 +139,20 @@ def poisson_norm(model, data):
     :returns: The log-Poisson likelihood estimator.
     """
 
-    # ensure no model data is smaller than .1
-    model = np.maximum(.1, model)
-    # only compare data points whose values are >= 1
-    data_nonzero = data > .9
-    model = model[data_nonzero]
-    data = data[data_nonzero]
+    data_finite = np.isfinite(data)
+    model = np.maximum(1e-15, model[data_finite])
+    data = data[data_finite]
     return np.sum(- model - gammaln(data + 1) + data * np.log(model))
 
 
-def poisson_norm_diff(model, data):
-    """
-    :arg model: A :class:`numpy.ndarray` of model predictions.
+class PoissonPowerNorm:
+    fields = {'number'}
 
-    :arg data: A :class:`numpy.ndarray` of real data.
+    def __init__(self, number):
+        self.number = number
 
-    :returns: The log-Poisson likelihood estimator of the discrete differences
-        of ``model`` and ``data``.
-    """
-
-    model = np.diff(model, prepend=0)
-    data = np.diff(data, prepend=0)
-    return poisson_norm(model, data)
+    def __call__(self, model, data, **kwargs):
+        return poisson_norm(model, data, **kwargs) * self.number
 
 
 class LikelihoodEstimator:
@@ -205,7 +197,7 @@ class LikelihoodEstimator:
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
-        self.data = data.copy().fillna(0)
+        self.data = data.copy()
         self._original_data = self.data
         self.simulator = simulator
 
@@ -231,9 +223,7 @@ class LikelihoodEstimator:
 
         self.norms = {}
         for key, norm in norms.items():
-            if norm == 'poisson_diff':
-                self.norms[key] = poisson_norm_diff
-            elif norm == 'poisson':
+            if norm == 'poisson':
                 self.norms[key] = poisson_norm
             elif norm == 'L2':
                 self.norms[key] = clipped_l2_log_norm
@@ -249,7 +239,7 @@ class LikelihoodEstimator:
                 if fit_cumulative:
                     self.norms[key] = clipped_l2_log_norm
                 else:
-                    self.norms[key] = poisson_norm_diff
+                    self.norms[key] = poisson_norm
             else:
                 self.norms[key] = norm
 
@@ -303,8 +293,8 @@ class LikelihoodEstimator:
 
         likelihood = 0
         for key, norm in self.norms.items():
-            likelihood += norm(model_data[key].to_numpy(),
-                               self.data[key].to_numpy())
+            likelihood += norm(model_data[key].values, self.data[key].values,
+                               **parameters)
 
         return likelihood
 
