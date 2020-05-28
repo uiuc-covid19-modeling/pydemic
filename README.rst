@@ -1,9 +1,9 @@
 pydemic: a python driver for epidemic modeling and inference
 ============================================================
 
-.. image:: https://github.com/gnwong/pydemic/workflows/CI/badge.svg?branch=master
+.. image:: https://github.com/uiuc-covid19-modeling/pydemic/workflows/CI/badge.svg?branch=master
     :alt: Github Build Status
-    :target: https://github.com/gnwong/pydemic/actions?query=branch%3Amaster+workflow%3ACI
+    :target: https://github.com/uiuc-covid19-modeling/pydemic/actions?query=branch%3Amaster+workflow%3ACI
 .. image:: https://readthedocs.org/projects/pydemic/badge/?version=latest
     :target: https://pydemic.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status

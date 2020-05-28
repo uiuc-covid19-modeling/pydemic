@@ -138,5 +138,5 @@ def linkcode_resolve(domain, info):
     import pydemic
     fn = relpath(fn, start=dirname(pydemic.__file__))
 
-    return "https://github.com/gnwong/blob/master/pydemic/%s%s" % (
+    return "https://github.com/uiuc-covid19-modeling/blob/master/pydemic/%s%s" % (
         fn, linespec)
