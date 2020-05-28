@@ -25,7 +25,6 @@ THE SOFTWARE.
 
 import numpy as np
 from scipy.special import gammaln  # pylint: disable=E0611
-from warnings import warn
 from itertools import product
 
 __doc__ = """
@@ -167,8 +166,7 @@ class LikelihoodEstimator:
     .. automethod:: sample_emcee
     """
 
-    def __init__(self, fit_parameters, fixed_values, data, simulator,
-                 norms={}, weights=None, norm=None, fit_cumulative=None):
+    def __init__(self, fit_parameters, fixed_values, data, simulator, norms={}):
         """
         :arg fit_parameters: A :class:`list` of :class:`SampleParameter`'s
             for sampling.
@@ -188,9 +186,7 @@ class LikelihoodEstimator:
             result of ``simulator.get_model_data``) by key and the likelihood
             estimator to use for that dataset.
             The values may be ``'poisson'`` (specifying usage of
-            :func:`~pydemic.sampling.poisson_norm`), ``'poisson_diff'``
-            (:func:`~pydemic.sampling.poisson_norm_diff`),
-            ``'L2'`` (``~pydemic.sampling.clipped_l2_log_norm``),
+            :func:`~pydemic.sampling.poisson_norm`)
             or a function with signature ``(model, data)``.
         """
 
@@ -200,23 +196,6 @@ class LikelihoodEstimator:
         self.data = data.copy()
         self._original_data = self.data
         self.simulator = simulator
-
-        if norm is not None:
-            warn("Passing norm is deprecated. "
-                 "Pass custom norm functions to norms instead.",
-                 DeprecationWarning, stacklevel=2)
-
-        if weights is not None:
-            warn("Passing weights is deprecated. "
-                 "Pass custom norm functions to norms instead.",
-                 DeprecationWarning, stacklevel=2)
-            if len(norms) == 0:
-                norms = weights
-
-        if fit_cumulative is not None:
-            warn("Passing fit_cumulative is deprecated. "
-                 "Pass 'L2' or a custom norm function to norms instead.",
-                 DeprecationWarning, stacklevel=2)
 
         if len(norms) == 0:
             raise ValueError('Must fit over at least one dataset.')
@@ -228,18 +207,8 @@ class LikelihoodEstimator:
             elif norm == 'L2':
                 self.norms[key] = clipped_l2_log_norm
             elif not callable(norm):
-                warn("Passing weights is deprecated. "
-                     "Pass norm functions (or 'poisson'/'l2') to norms instead. "
-                     "This will raise an exception in future versions.",
-                     DeprecationWarning, stacklevel=2)
-                if norm != 1.:
-                    raise ValueError(
-                        'weights not equal to one must be implemented manualy'
-                    )
-                if fit_cumulative:
-                    self.norms[key] = clipped_l2_log_norm
-                else:
-                    self.norms[key] = poisson_norm
+                raise ValueError("values of norms dict must be either "
+                                 "'poisson' or a callable.")
             else:
                 self.norms[key] = norm
 

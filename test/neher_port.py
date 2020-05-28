@@ -334,7 +334,7 @@ class NeherPortSimulation:
             infection rate (:attr:`EpidemiologyModel.peak_month`).
         """
 
-        from pydemic import date_to_ms
+        from pydemic.models.neher import date_to_ms
         jan_2020 = date_to_ms((2020, 1, 1))
         peak_day = 30 * self.epidemiology.peak_month + 15
         time_offset = (time - jan_2020) / ms_per_day - peak_day

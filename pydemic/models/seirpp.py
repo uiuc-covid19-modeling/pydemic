@@ -463,25 +463,6 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
         return sol
 
 
-class SEIRPlusPlusSimulationHospitalCriticalAndDeath(SEIRPlusPlusSimulation):
-    def __init__(self, *args, **kwargs):
-        from warnings import warn
-        warn("pydemic.SEIRPlusPlusSimulationHospitalCriticalAndDeath is deprecated. "
-             "Use pydemic.SEIRPlusPlusSimulation instead.",
-             DeprecationWarning, stacklevel=2)
-
-        super().__init__(*args, **kwargs)
-
-    @classmethod
-    def get_model_data(cls, *args, **kwargs):
-        from warnings import warn
-        warn("pydemic.SEIRPlusPlusSimulationHospitalCriticalAndDeath is deprecated. "
-             "Use pydemic.SEIRPlusPlusSimulation instead.",
-             DeprecationWarning, stacklevel=2)
-
-        return super().get_model_data(*args, **kwargs)
-
-
 class OldSEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
     """
     .. automethod:: __init__

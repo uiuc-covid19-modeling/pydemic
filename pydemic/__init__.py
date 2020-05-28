@@ -29,80 +29,6 @@ from pydemic.reactions import Reaction, PassiveReaction, ErlangProcess, GammaPro
 from pydemic.mitigation import MitigationModel
 from pydemic.sampling import SampleParameter, LikelihoodEstimator
 
-
-def date_to_ms(date):
-    from datetime import datetime, timezone
-    return int(datetime(*date, tzinfo=timezone.utc).timestamp() * 1000)
-
-
-_ms_per_day = 86400000
-
-
-def days_from(date, relative_to=(2020, 1, 1)):
-    """
-    Converts a date into a number of days.
-
-    :arg date: A :class:`tuple` specifying a date as ``(year, month, day)``.
-
-    :arg relative_to: A :class:`tuple` specifying the date to which ``date``
-        will be compared when computing the number of days.
-        Defaults to ``(2020, 1, 1)``.
-
-    :returns: A :class:`float`.
-    """
-
-    from warnings import warn
-    warn("days_from is deprecated. Use pandas instead.",
-         DeprecationWarning, stacklevel=2)
-
-    return int(date_to_ms(date) - date_to_ms(relative_to)) // _ms_per_day
-
-
-def date_from(days, relative_to=(2020, 1, 1)):
-    """
-    Converts a date into a number of days.
-
-    :arg days: A :class:`float` the number of days since ``relative_to``.
-
-    :arg relative_to: A :class:`tuple` specifying the date to which ``date``
-        will be compared when computing the number of days.
-        Defaults to ``(2020, 1, 1)``.
-
-    :returns: A :class:`tuple` ``(year, month, day)``
-    """
-
-    from warnings import warn
-    warn("date_from is deprecated. Use pandas instead.",
-         DeprecationWarning, stacklevel=2)
-
-    from datetime import datetime, timedelta
-    full_date = datetime(*relative_to) + timedelta(days)
-    return tuple([full_date.year, full_date.month, full_date.day])
-
-
-def days_to_dates(days, relative_to=(2020, 1, 1)):
-    """
-    Converts a list of days (represented in float format) to datetime
-    objects.
-
-    :arg days: A :class:`float` number of days since 2020-01-01.
-
-    :arg relative_to: A :class:`tuple` specifying the date to which ``date``
-        will be compared when computing the number of days.
-        Defaults to ``(2020, 1, 1)``.
-
-    :returns: A :class:`tuple` of datetime objects for each day in the
-        passed array.
-    """
-
-    from warnings import warn
-    warn("days_to_dates is deprecated. Use pandas instead.",
-         DeprecationWarning, stacklevel=2)
-
-    from datetime import datetime, timedelta
-    return [datetime(*relative_to) + timedelta(float(x)) for x in days]
-
-
 __all__ = [
     "Simulation",
     "Reaction",
@@ -116,5 +42,4 @@ __all__ = [
     "MitigationModel",
     "SampleParameter",
     "LikelihoodEstimator",
-    "date_to_ms",
 ]

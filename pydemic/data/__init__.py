@@ -37,46 +37,6 @@ def camel_to_snake(name):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
 
-class CaseData:
-    def __init__(self, t, y):
-        from warnings import warn
-        warn("CaseData is deprecated. Use pandas.DataFrame instead.",
-             DeprecationWarning, stacklevel=2)
-        self.t = t
-        self.y = y
-
-    def copy(self):
-        y_copy = {key: val.copy() for key, val in self.y.items()}
-        return CaseData(self.t.copy(), y_copy)
-
-    def __repr__(self):
-        text = "{0:s} with\n".format(str(type(self)))
-        text += "  - t from {0:g} to {1:g}\n".format(self.t[0], self.t[-1])
-        for key in self.y:
-            text += "  - {0:s} {1:s}\n".format(key,
-                                               str(self.y[key].shape))
-        return text[:-1]
-
-
-def case_data_to_df(case_data, origin='2020-01-01'):
-    from warnings import warn
-    warn("CaseData is deprecated. Use pandas.DataFrame instead.",
-         DeprecationWarning, stacklevel=2)
-    t = pd.to_datetime(case_data.t, origin=origin, unit='D')
-    return pd.DataFrame(index=t, data=case_data.y)
-
-
-def df_to_case_data(df, origin='2020-01-01'):
-    from warnings import warn
-    warn("CaseData is deprecated. Use pandas.DataFrame instead.",
-         DeprecationWarning, stacklevel=2)
-    t = (df.index - pd.to_datetime(origin)) / pd.Timedelta('1D')
-    y = {col: np.nan_to_num(df[col].to_numpy()) for col in df.columns}
-    for col in df.columns:
-        pass
-    return CaseData(t, y)
-
-
 class DataParser:
     _filename = None
     data_url = None
@@ -102,7 +62,7 @@ class DataParser:
         df = self.parse_case_data()
         df.to_hdf(self._filename, 'covid_tracking_data')
 
-    def get_case_data(self, region, return_df=True):
+    def get_case_data(self, region):
         import os.path
         if not os.path.isfile(self._filename):
             self.scrape_case_data()
@@ -112,10 +72,7 @@ class DataParser:
         df.date = pd.to_datetime(df.date.astype(str)).dt.normalize()
         df = df.set_index('date')
         df = df.sort_index()
-        if return_df:
-            return df
-        else:
-            return df_to_case_data(df)
+        return df
 
     def get_population(self, name):
         with open(self._popdata_filename, 'r') as f:
@@ -181,9 +138,6 @@ def get_age_distribution_model(name):
 
 __all__ = [
     "camel_to_snake",
-    "CaseData",
-    "case_data_to_df",
-    "df_to_case_data",
     "DataParser",
     "scrape_all_data",
     "get_population_model",

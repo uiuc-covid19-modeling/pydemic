@@ -59,11 +59,11 @@ class UnitedStatesDataParser(DataParser):
         self.abbreviations = dict(zip(df.name, df.state))
         self.inverse_abbreviations = dict(zip(df.state, df.name))
 
-    def get_case_data(self, region, return_df=True):
+    def get_case_data(self, region):
         if region in self.abbreviations:
             region = self.abbreviations[region]
 
-        return super().get_case_data(region, return_df=return_df)
+        return super().get_case_data(region)
 
     def get_population(self, name='United States of America'):
         if name != 'United States of America':

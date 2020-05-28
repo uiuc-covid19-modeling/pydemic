@@ -28,7 +28,7 @@ import pandas as pd
 import pytest
 from pydemic.models.neher import (PopulationModel, AgeDistribution, SeverityModel,
                                   EpidemiologyModel)
-from pydemic import date_to_ms
+from pydemic.models.neher import date_to_ms
 from neher_port import NeherPortSimulation
 from pydemic.models import NeherModelSimulation
 
