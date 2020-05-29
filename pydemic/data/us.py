@@ -24,7 +24,6 @@ THE SOFTWARE.
 """
 
 import os
-import numpy as np
 import pandas as pd
 from pydemic.data import DataParser
 
@@ -72,10 +71,5 @@ class UnitedStatesDataParser(DataParser):
             name = 'USA-' + name
         return super().get_population(name)
 
-    def get_age_distribution_model(self):
-        return super().get_age_distribution_model('United States of America')
-
     def get_age_distribution(self):
-        model = self.get_age_distribution_model()
-        counts = np.array(model.counts)
-        return counts / np.sum(counts)
+        return super().get_age_distribution('United States of America')

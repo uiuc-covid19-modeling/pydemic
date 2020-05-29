@@ -79,19 +79,12 @@ class DataParser:
             populations = json.load(f)
         return populations[name]['populationServed']
 
-    def get_age_distribution_model(self, name):
+    def get_age_distribution(self, name):
         with open(self._agedata_filename, 'r') as f:
             age_data = json.load(f)
 
-        age_data = list(age_data[name].values())
-        from pydemic.models.neher import AgeDistribution
-        bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
-        return AgeDistribution(bin_edges=bin_edges, counts=age_data)
-
-    def get_age_distribution(self, name):
-        model = self.get_age_distribution_model(name)
-        counts = np.array(model.counts)
-        return counts / np.sum(counts)
+        counts = list(age_data[name].values())
+        return np.array(counts) / np.sum(counts)
 
 
 from pydemic.data.us import UnitedStatesDataParser
@@ -107,39 +100,8 @@ def scrape_all_data():
         parser.scrape_case_data()
 
 
-def get_population_model(name):
-    with open(DataParser._popdata_filename, 'r') as f:
-        _populations = json.load(f)
-
-    data = _populations[name]
-    data_translated = {}
-    for key, val in data.items():
-        if key == 'ICUBeds':
-            key2 = 'ICU_beds'
-        elif key == 'suspectedCasesToday':
-            key2 = 'initial_cases'
-        else:
-            key2 = camel_to_snake(key)
-        data_translated[key2] = val
-
-    from pydemic.models.neher import PopulationModel
-    return PopulationModel(**data_translated)
-
-
-def get_age_distribution_model(name):
-    with open(DataParser._agedata_filename, 'r') as f:
-        age_data = json.load(f)
-
-    age_data = list(age_data[name].values())
-    from pydemic.models.neher import AgeDistribution
-    bin_edges = [0, 10, 20, 30, 40, 50, 60, 70, 80]
-    return AgeDistribution(bin_edges=bin_edges, counts=age_data)
-
-
 __all__ = [
     "camel_to_snake",
     "DataParser",
     "scrape_all_data",
-    "get_population_model",
-    "get_age_distribution_model",
 ]

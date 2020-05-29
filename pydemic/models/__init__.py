@@ -28,14 +28,12 @@ from pydemic.models.seir import SEIRModelSimulation
 from pydemic.models.seirpp import (
     SEIRPlusPlusSimulation, SEIRPlusPlusSimulationOnsetAndDeath,
 )
-from pydemic.models.neher import NeherModelSimulation
 
 __doc__ = """
 .. currentmodule:: pydemic.models.seirpp
 .. autoclass:: NonMarkovianSEIRSimulationBase
 .. currentmodule:: pydemic.models
 .. autoclass:: SEIRPlusPlusSimulation
-.. autoclass:: SEIRPlusPlusSimulationOnsetAndDeath
 .. currentmodule:: pydemic
 """
 
@@ -43,5 +41,4 @@ __all__ = [
     "SEIRModelSimulation",
     "SEIRPlusPlusSimulation",
     "SEIRPlusPlusSimulationOnsetAndDeath",
-    "NeherModelSimulation",
 ]

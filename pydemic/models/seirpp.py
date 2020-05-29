@@ -148,7 +148,17 @@ class NonMarkovianSEIRSimulationBase:
             proceeds along the first axis.
         """
 
-        start_time, end_time = tspan
+        def to_days(date):
+            if isinstance(date, str):
+                date = pd.to_datetime(date)
+            if isinstance(date, pd.Timestamp):
+                days = (date - pd.to_datetime('2020-01-01')) / pd.Timedelta('1D')
+            else:
+                days = date
+            return days
+
+        start_time, end_time = [to_days(x) for x in tspan]
+
         times = np.arange(start_time, end_time + dt, dt)
         n_steps = times.shape[0]
         pdf = self.serial_dist.pdf(times[1:] - start_time, method='diff')

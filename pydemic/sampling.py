@@ -37,9 +37,6 @@ Likelihood norms
 
 .. currentmodule:: pydemic.sampling
 .. autofunction:: poisson_norm
-.. autofunction:: poisson_norm_diff
-.. autofunction:: l2_log_norm
-.. autofunction:: clipped_l2_log_norm
 .. currentmodule:: pydemic
 """
 

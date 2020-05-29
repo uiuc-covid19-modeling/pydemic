@@ -26,6 +26,23 @@ THE SOFTWARE.
 from pydemic import Reaction, GammaProcess, Simulation
 
 
+class SIRModelSimulation(Simulation):
+    def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1):
+        self.avg_infection_rate = avg_infection_rate
+
+        reactions = (
+            Reaction("susceptible", "infectious",
+                     lambda t, y: (self.beta(t, y) * y.susceptible
+                                   * y.infectious.sum() / y.sum())),
+            Reaction("infectious", "removed",
+                     lambda t, y: removal_rate * y.infectious),
+        )
+        super().__init__(reactions)
+
+    def beta(self, t, y):
+        return self.avg_infection_rate
+
+
 class SEIRModelSimulation(Simulation):
     def __init__(self, avg_infection_rate=10, infectious_rate=5, removal_rate=1):
         self.avg_infection_rate = avg_infection_rate
@@ -45,7 +62,7 @@ class SEIRModelSimulation(Simulation):
         return self.avg_infection_rate
 
 
-class ExtendedSimulation(Simulation):
+class SEIRHospitalCriticalDeathSimulation(Simulation):
     def __init__(self, avg_infection_rate, *args):
         reactions = (
             Reaction('susceptible', 'exposed',
