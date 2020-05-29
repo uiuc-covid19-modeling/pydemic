@@ -35,7 +35,7 @@ jobs:
             run: |
                 python setup.py develop
                 pip install pylint pytest matplotlib
-                pylint --rcfile=setup.cfg test/test_*.py examples/*.py
+                pylint --rcfile=setup.cfg pydemic test/test_*.py examples/*.py
     pytest:
         name: Pytest
         runs-on: ubuntu-latest
