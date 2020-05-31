@@ -50,23 +50,33 @@ def write_git_revision(package_name):
 
 write_git_revision(package)
 
-
-setup(name=package,
-      version="2020.1",
-      description="A python driver for epidemic modeling and inference",
-      long_description=open("README.rst", "rt").read(),
-      long_description_content_type='text/markdown',
-
-      install_requires=[
-          "numpy",
-          "scipy",
-          "pandas",
-          "emcee",
-          "h5py",
-          "tables",
-      ],
-
-      # author="George Wong",
-      license="MIT",
-      packages=find_packages(),
-      )
+setup(
+    name=package,
+    version="2020.1",
+    description="A python driver for epidemic modeling and inference",
+    long_description=open("README.rst", "rt").read(),
+    long_description_content_type='text/markdown',
+    install_requires=[
+        "numpy",
+        "scipy",
+        "pandas",
+        "emcee",
+        "h5py",
+        "tables",
+    ],
+    url='https://github.com/uiuc-covid19-modeling/pydemic',
+    # author="George N Wong, Zachary J Weiner",
+    license="MIT",
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3',
+    ],
+    packages=find_packages(),
+    python_requires='>=3',
+    project_urls={
+        'Documentation': 'https://pydemic.readthedocs.io/en/latest/',
+        'Source': 'https://github.com/uiuc-covid19-modeling/pydemic',
+    },
+)
