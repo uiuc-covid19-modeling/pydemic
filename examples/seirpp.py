@@ -33,10 +33,10 @@ plt.rcParams['font.family'] = [u'serif']
 plt.rcParams['font.size'] = 16
 
 state = "Illinois"
-from pydemic.data import united_states
-data = united_states.get_case_data(state)
-total_population = united_states.get_population(state)
-age_distribution = united_states.get_age_distribution()
+from pydemic.data.united_states import nyt, get_population, get_age_distribution
+data = nyt.__call__(state)
+total_population = get_population(state)
+age_distribution = get_age_distribution()
 
 tspan = ('2020-02-15', '2020-05-30')
 
@@ -107,11 +107,11 @@ import matplotlib.gridspec as gridspec
 gspec = gridspec.GridSpec(ncols=1, nrows=3, figure=fig)
 ax = [fig.add_subplot(gspec[:2, 0]), fig.add_subplot(gspec[2, 0])]
 
-ax[0].semilogy(data.index, data.dead,
+ax[0].semilogy(data.index, data.all_dead,
                'x', c='r', ms=4, markeredgewidth=2,
                label='reported daily deaths')
 
-ax[0].semilogy(result.t, result.y['dead'].sum(axis=1),
+ax[0].semilogy(result.t, result.y['all_dead'].sum(axis=1),
                '-', linewidth=1.5, label='simulated daily deaths')
 
 ax[1].plot(_t, parameters['r0'] * mitigation(_t), '-', linewidth=1.5)

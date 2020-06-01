@@ -23,37 +23,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import pandas as pd
+import pytest
+import pydemic.data.united_states as us
+
+parsers = [us.covid_tracking, us.nyt]
 
 
-def camel_to_snake(name):
-    import re
-    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+@pytest.mark.parametrize("parser", parsers)
+def test_parsers(parser):
+    for region in [None, 'Illinois', 'IL', 'New York', 'NY', 'WA']:
+        _ = parser(region)
 
 
-class DataParser:
-    data_url = None
-    date_column = 'date'
-    region_column = 'region'
-    translation = {}
+def test_us():
+    _ = us.get_age_distribution()
+    _ = us.get_population()
 
-    def translate_columns(self, key):
-        _key = camel_to_snake(key)
-        return self.translation.get(_key, _key)
-
-    def __call__(self, region=None):
-        df = pd.read_csv(self.data_url, parse_dates=[self.date_column],
-                         index_col=[self.region_column, self.date_column])
-        df = df.rename(columns=self.translate_columns)
-
-        if region is not None:
-            df = df.sort_index().loc[region]
-
-        return df
+    for region in ['Illinois', 'IL', 'New York', 'NY', 'WA']:
+        _ = us.get_age_distribution(region)
+        _ = us.get_population(region)
 
 
-__all__ = [
-    "camel_to_snake",
-    "DataParser",
-]
+if __name__ == "__main__":
+    for parser in parsers:
+        test_parsers(parser)
+
+    test_us()
