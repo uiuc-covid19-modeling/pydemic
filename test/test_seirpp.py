@@ -255,7 +255,7 @@ def test_seirpp_call(case, params):
 def test_seirpp_get_model_data(case, params):
     df = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
 
-    max_rtol = 1.e-9
+    max_rtol = 1.e-8
     avg_rtol = 1.e-10
 
     if overwrite:
