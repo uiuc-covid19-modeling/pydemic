@@ -60,9 +60,9 @@ class SampleParameter:
         A :class:`tuple` ``(lower, upper)`` specifying the range of permitted values
         for the parameter.
 
-    .. attribute:: guess
+    .. attribute:: mean
 
-        The best value of the parameter according to the prior.
+        The mean of the prior for the parameter.
         If *None*, no prior is assummed for the parameter.
 
     .. attribute:: sigma
@@ -71,9 +71,13 @@ class SampleParameter:
         If *None*, no prior is assummed for the parameter.
     """
 
-    def __init__(self, name, bounds, guess=None, uncertainty=None, sigma=None):
+    def __init__(self, name, bounds, mean=None, uncertainty=None, sigma=None,
+                 guess=None):
         self.name = name
         self.bounds = bounds
+        self.mean = mean
+        if guess is not None:
+            self.mean = guess
         self.guess = guess
         self.uncertainty = uncertainty
         self.sigma = sigma
@@ -81,7 +85,7 @@ class SampleParameter:
     def __repr__(self):
         text = "SampleParameter<"
         text += "{0:s}, {1:s}, ".format(str(self.name), str(self.bounds))
-        text += "{0:s}, {1:s}>".format(str(self.guess), str(self.uncertainty))
+        text += "{0:s}, {1:s}>".format(str(self.mean), str(self.uncertainty))
         return text
 
 
@@ -155,7 +159,7 @@ class LikelihoodEstimator:
     """
     Driver for likelihood estimation.
 
-    :arg fit_parameters: A :class:`list` of :class:`SampleParameter`'s
+    :arg sample_parameters: A :class:`list` of :class:`SampleParameter`'s
         for sampling.
 
     :arg fixed_values: A :class:`dict` of values fixed for non-sample parameters.
@@ -166,7 +170,7 @@ class LikelihoodEstimator:
         used for sampling.
         ``get_model_data`` must have signature ``(t, **kwargs)`` where
         ``t`` is a :class:`pandas.DateTimeIndex` and paramter values
-        (from ``fixed_values`` and the particular sample of ``fit_parameters``)
+        (from ``fixed_values`` and the particular sample of ``sample_parameters``)
         are passed through ``**kwargs``.
 
     :arg norms: A :class:`dict` specifying the columns of ``data`` (and of the
@@ -183,9 +187,9 @@ class LikelihoodEstimator:
     .. automethod:: sample_emcee
     """
 
-    def __init__(self, fit_parameters, fixed_values, data, simulator, norms={}):
-        self.fit_parameters = fit_parameters
-        self.fit_names = tuple(par.name for par in fit_parameters)
+    def __init__(self, sample_parameters, fixed_values, data, simulator, norms={}):
+        self.sample_parameters = sample_parameters
+        self.fit_names = tuple(par.name for par in self.sample_parameters)
         self.fixed_values = fixed_values
         self.data = data.copy()
         self._original_data = self.data
@@ -208,12 +212,12 @@ class LikelihoodEstimator:
 
     def get_log_prior(self, theta):
         log_prior = 0
-        for par, value in zip(self.fit_parameters, theta):
+        for par, value in zip(self.sample_parameters, theta):
             bounds = par.bounds
             if not bounds[0] <= value <= bounds[1]:
                 log_prior += - np.inf
-            elif par.sigma is not None and par.guess is not None:
-                guess = par.guess
+            elif par.sigma is not None and par.mean is not None:
+                guess = par.mean
                 sigma = par.sigma
                 log_prior += (- np.log(2 * np.pi * sigma**2)
                               - (value - guess)**2 / 2 / sigma**2)
@@ -226,7 +230,7 @@ class LikelihoodEstimator:
         ``theta`` (e.g., by :mod:`emcee`).
 
         :arg theta: A :class:`numpy.ndarray` of parameter values (with order
-            specified by :attr:`fit_parameters`).
+            specified by :attr:`sample_parameters`).
 
         :returns: The likelihood.
         """
@@ -248,7 +252,7 @@ class LikelihoodEstimator:
     def get_log_likelihood(self, parameters):
         """
         :arg parameters: A :class:`dict` of parameter values for those specified
-            specified by :attr:`fit_parameters`, to be passed to
+            specified by :attr:`sample_parameters`, to be passed to
             :attr`simulator.get_model_data` (along with :attr:`fixed_values`).
 
         :returns: The likelihood.
@@ -275,15 +279,15 @@ class LikelihoodEstimator:
         :arg walkers: The number of walkers used in sampling.
 
         :returns: A :class:`numpy.ndarray` of initial walker positions with shape
-            ``(walkers, len(fit_parameters))``.
+            ``(walkers, len(sample_parameters))``.
         """
 
         if method == 'uniform':
             init = np.array([np.random.uniform(par.bounds[0], par.bounds[1], walkers)
-                             for par in self.fit_parameters])
+                             for par in self.sample_parameters])
         else:
-            init = np.array([par.guess + np.random.randn(walkers) * par.uncertainty
-                             for par in self.fit_parameters])
+            init = np.array([par.mean + np.random.randn(walkers) * par.uncertainty
+                             for par in self.sample_parameters])
         return init.T
 
     def minimizer(self, theta):
@@ -291,9 +295,9 @@ class LikelihoodEstimator:
 
     def basinhopping(self, x0=None, bounds=None, **kwargs):
         if x0 is None:
-            x0 = [par.guess for par in self.fit_parameters]
+            x0 = [par.mean for par in self.sample_parameters]
         if bounds is None:
-            bounds = [par.bounds for par in self.fit_parameters]
+            bounds = [par.bounds for par in self.sample_parameters]
 
         xmin = np.array(bounds)[:, 0]
         xmax = np.array(bounds)[:, 1]
@@ -308,19 +312,19 @@ class LikelihoodEstimator:
         sol = basinhopping(
             self.minimizer, x0, accept_test=bounds_enforcer, **kwargs
         )
-        sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
+        sol.x = dict(zip([par.name for par in self.sample_parameters], sol.x))
         return sol
 
     def differential_evolution(self, bounds=None, workers=-1, progress=True,
                                backend=None, backend_filename=None, **kwargs):
         if bounds is None:
-            bounds = [par.bounds for par in self.fit_parameters]
+            bounds = [par.bounds for par in self.sample_parameters]
 
         if backend is None and backend_filename is not None:
             from pydemic.hdf import HDFOptimizationBackend
             backend = HDFOptimizationBackend(
                 backend_filename,
-                fit_parameters=self.fit_parameters,
+                sample_parameters=self.sample_parameters,
                 fixed_values=self.fixed_values,
                 data=self._original_data,
                 simulator=self.simulator
@@ -344,15 +348,15 @@ class LikelihoodEstimator:
 
     def dual_annealing(self, bounds=None, **kwargs):
         if bounds is None:
-            bounds = [par.bounds for par in self.fit_parameters]
-        bounds = [par.bounds for par in self.fit_parameters]
+            bounds = [par.bounds for par in self.sample_parameters]
+        bounds = [par.bounds for par in self.sample_parameters]
 
         from scipy.optimize import dual_annealing
         sol = dual_annealing(
             self.minimizer, bounds=bounds,
             **kwargs
         )
-        sol.x = dict(zip([par.name for par in self.fit_parameters], sol.x))
+        sol.x = dict(zip([par.name for par in self.sample_parameters], sol.x))
         return sol
 
     def sample_uniform(self, num_points, pool=None):
@@ -375,11 +379,11 @@ class LikelihoodEstimator:
         """
 
         if not isinstance(num_points, dict):
-            num_points = {par.name: num_points for par in self.fit_parameters}
+            num_points = {par.name: num_points for par in self.sample_parameters}
 
         samples = {
             par.name: list(np.linspace(*par.bounds, num_points[par.name]))
-            for par in self.fit_parameters
+            for par in self.sample_parameters
         }
 
         all_value_sets = product(*[sample for sample in samples.values()])
@@ -430,7 +434,7 @@ class LikelihoodEstimator:
         elif backend_filename is not None:
             from pydemic.hdf import HDFBackend
             backend = HDFBackend(backend_filename,
-                                 fit_parameters=self.fit_parameters,
+                                 sample_parameters=self.sample_parameters,
                                  fixed_values=self.fixed_values,
                                  data=self._original_data,
                                  simulator=self.simulator)

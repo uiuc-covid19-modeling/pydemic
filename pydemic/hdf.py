@@ -44,20 +44,24 @@ class BackendMixIn:
             for key, value in fixed_values.items():
                 f['fixed_values'][key] = value
 
-    def set_fit_parameters(self, fit_parameters):
+    def set_sample_parameters(self, sample_parameters):
         with self.open('a') as f:
             def nanify(x):
                 return x if x is not None else np.nan
 
             f.create_group('fit_parameters')
             f['fit_parameters/names'] = np.array(
-                [par.name for par in fit_parameters], dtype=string_dt
+                [par.name for par in sample_parameters], dtype=string_dt
             )
-            f['fit_parameters/bounds'] = [par.bounds for par in fit_parameters]
-            f['fit_parameters/guess'] = [nanify(par.guess) for par in fit_parameters]
+            f['fit_parameters/bounds'] = [par.bounds for par in sample_parameters]
+            f['fit_parameters/mean'] = [nanify(par.mean)
+                                        for par in sample_parameters]
+            f['fit_parameters/guess'] = [nanify(par.guess)
+                                         for par in sample_parameters]
             f['fit_parameters/uncertainty'] = [nanify(par.uncertainty)
-                                               for par in fit_parameters]
-            f['fit_parameters/sigma'] = [nanify(par.sigma) for par in fit_parameters]
+                                               for par in sample_parameters]
+            f['fit_parameters/sigma'] = [nanify(par.sigma)
+                                         for par in sample_parameters]
 
     def set_simulator(self, simulator):
         with self.open('a') as f:
@@ -73,7 +77,7 @@ class BackendMixIn:
             return {key: val[()] for key, val in f['fixed_values'].items()}
 
     @property
-    def fit_parameters(self):
+    def sample_parameters(self):
         from pydemic.sampling import SampleParameter
         with self.open() as f:
             def denanify(x):
@@ -84,7 +88,8 @@ class BackendMixIn:
             for i, name in enumerate(names):
                 args = [f['fit_parameters/bounds'][i]]
                 args += [denanify(f['fit_parameters'][key][i])
-                         for key in ('guess', 'uncertainty', 'sigma')]
+                         for key in ('mean', 'uncertainty', 'sigma', 'guess')
+                         if key in f['fit_parameters'].keys()]
                 pars.append(SampleParameter(name, *args))
             return pars
 
@@ -133,7 +138,7 @@ class HDFBackend(emcee.backends.HDFBackend, BackendMixIn):
     The following optional parameters (corresponding to those passed to
     :class:`pydemic.LikelihoodEstimator`) will be stored in the file if passed.
 
-    :arg fit_parameters:
+    :arg sample_parameters:
 
     :arg fixed_values:
 
@@ -149,20 +154,20 @@ class HDFBackend(emcee.backends.HDFBackend, BackendMixIn):
     the file, and may be used to resume sampling:
 
     .. autoattribute:: fixed_values
-    .. autoattribute:: fit_parameters
+    .. autoattribute:: sample_parameters
     .. autoattribute:: data
     .. autoattribute:: simulator
     """
 
-    def __init__(self, filename, fit_parameters=None, fixed_values=None, data=None,
-                 simulator=None, **kwargs):
+    def __init__(self, filename, sample_parameters=None,
+                 fixed_values=None, data=None, simulator=None, **kwargs):
 
         super().__init__(filename, **kwargs)
 
         if fixed_values is not None:
             self.set_fixed_values(fixed_values)
-        if fit_parameters is not None:
-            self.set_fit_parameters(fit_parameters)
+        if sample_parameters is not None:
+            self.set_sample_parameters(sample_parameters)
         if simulator is not None:
             self.set_simulator(simulator)
         if data is not None:
@@ -183,7 +188,7 @@ class HDFOptimizationBackend(BackendMixIn):
     The following optional parameters (corresponding to those passed to
     :class:`pydemic.LikelihoodEstimator`) will be stored in the file if passed.
 
-    :arg fit_parameters:
+    :arg sample_parameters:
 
     :arg fixed_values:
 
@@ -199,13 +204,13 @@ class HDFOptimizationBackend(BackendMixIn):
     the file, and may be used to resume sampling:
 
     .. autoattribute:: fixed_values
-    .. autoattribute:: fit_parameters
+    .. autoattribute:: sample_parameters
     .. autoattribute:: data
     .. autoattribute:: simulator
     """
 
     def __init__(self, filename, name="_optimizer", read_only=False, dtype=None,
-                 fit_parameters=None, fixed_values=None, data=None,
+                 sample_parameters=None, fixed_values=None, data=None,
                  simulator=None, **kwargs):
         self.filename = filename
         self.name = name
@@ -219,8 +224,8 @@ class HDFOptimizationBackend(BackendMixIn):
 
         if fixed_values is not None:
             self.set_fixed_values(fixed_values)
-        if fit_parameters is not None:
-            self.set_fit_parameters(fit_parameters)
+        if sample_parameters is not None:
+            self.set_sample_parameters(sample_parameters)
         if simulator is not None:
             self.set_simulator(simulator)
         if data is not None:
@@ -291,7 +296,7 @@ class HDFOptimizationBackend(BackendMixIn):
 
     @property
     def best_fit(self):
-        fit_pars = self.fit_parameters
+        fit_pars = self.sample_parameters
         with self.open() as f:
             if fit_pars is not None:
                 names = [par.name for par in fit_pars]
