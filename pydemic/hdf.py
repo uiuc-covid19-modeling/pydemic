@@ -31,6 +31,9 @@ import h5py
 string_dt = h5py.string_dtype(encoding='ascii')
 
 __doc__ = """
+Backends with HDF5
+------------------
+
 .. currentmodule:: pydemic.hdf
 .. autoclass:: HDFBackend
 .. currentmodule:: pydemic

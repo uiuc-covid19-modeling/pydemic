@@ -159,10 +159,12 @@ class LikelihoodEstimator:
     """
     Driver for likelihood estimation.
 
+    The following keyword-only arguments are required:
+
     :arg simulator: A :class:`class` with a ``get_model_data`` method to be
         used for sampling.
         ``get_model_data`` must have signature ``(t, **kwargs)`` where
-        ``t`` is a :class:`pandas.DateTimeIndex` and paramter values
+        ``t`` is a :class:`pandas.DatetimeIndex` and paramter values
         (from ``fixed_values`` and the particular sample of ``sample_parameters``)
         are passed through ``**kwargs``.
 
@@ -178,7 +180,9 @@ class LikelihoodEstimator:
         estimator to use for that dataset.
         The values may be ``'poisson'`` (specifying usage of
         :func:`~pydemic.sampling.poisson_norm`)
-        or a function with signature ``(model, data)``.
+        or a function with signature ``(model, data, **kwargs)``.
+        Values for sample parameters and :attr:`fixed_values`
+        are propagated to norm functions by keyword.
 
     .. automethod:: __call__
     .. automethod:: get_log_likelihood
@@ -312,10 +316,28 @@ class LikelihoodEstimator:
         sol.x = dict(zip([par.name for par in self.sample_parameters], sol.x))
         return sol
 
-    def differential_evolution(self, bounds=None, workers=-1, progress=True,
+    def differential_evolution(self, workers=-1, progress=True,
                                backend=None, backend_filename=None, **kwargs):
-        if bounds is None:
-            bounds = [par.bounds for par in self.sample_parameters]
+        """
+        Performs global optimization using
+        :meth:`scipy.optimize.differential_evolution`.
+
+        In addition to the arguments recognized by
+        :meth:`scipy.optimize.differential_evolution`
+        (which must be passed by keyword), the following arguments are recognized:
+
+        :arg progress: Whether to display a progress bar.
+
+        :arg backend: The :class:`pydemic.hdf.HDFBackend` to use for sampling.
+            Defaults to *None*, i.e., no backend.
+
+        :arg backend_filename: The filename to use to create a
+            :class:`pydemic.hdf.HDFBackend`.
+            Defaults to *None*, in which case no backend file is created.
+
+        """
+
+        bounds = [par.bounds for par in self.sample_parameters]
 
         if backend is None and backend_filename is not None:
             from pydemic.hdf import HDFOptimizationBackend
@@ -368,11 +390,6 @@ class LikelihoodEstimator:
 
         :returns: A :class:`tuple` of two :class:`numpy.ndarray`'s containing the
             sample parameter values and the likelihoods.
-
-        .. warning::
-
-            It is not recommended to sample uniformly over parameter spaces with
-            dimension higher than two or three.
         """
 
         if not isinstance(num_points, dict):
