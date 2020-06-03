@@ -12,7 +12,6 @@ Please check :ref:`installation` to get started.
 .. toctree::
     :maxdepth: 2
 
-    ref_simulation
     ref_models
     ref_sampling
     installation
