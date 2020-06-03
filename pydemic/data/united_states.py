@@ -166,7 +166,7 @@ class COVIDTrackingDataParser(DataParser):
 
     translation = {
         'death': 'all_dead',
-        'hospitalizedCurrently': 'hospitalized',
+        'hospitalized_currently': 'hospitalized',
         'in_icu_currently': 'critical',
     }
 
