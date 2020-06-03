@@ -34,7 +34,7 @@ plt.rcParams['font.size'] = 16
 
 state = "Illinois"
 from pydemic.data.united_states import nyt, get_population, get_age_distribution
-data = nyt.__call__(state)
+data = nyt(state)
 total_population = get_population(state)
 age_distribution = get_age_distribution()
 
@@ -74,11 +74,15 @@ fig, ax = plt.subplots(figsize=(12, 4))
 _t = np.linspace(t0, tf, 1000)
 ax.plot(_t, mitigation(_t))
 
-sim = SEIRPlusPlusSimulation(
-    mitigation=mitigation, age_distribution=age_distribution, **parameters)
+sim = SEIRPlusPlusSimulation(total_population, age_distribution,
+                             mitigation=mitigation, **parameters)
 
 initial_cases = 10
-y0 = sim.get_y0(total_population, initial_cases, age_distribution)
+y0 = {}
+y0['infected'] = initial_cases * np.array(age_distribution)
+y0['susceptible'] = (
+    total_population * np.array(age_distribution) - y0['infected']
+)
 
 result = sim(tspan, y0, .05)
 _t = result.t

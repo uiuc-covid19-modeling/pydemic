@@ -192,12 +192,21 @@ regression_path = os.path.join(dir_path, 'regression.h5')
 @pytest.mark.parametrize("case, params", cases_call.items())
 def test_seirpp_call(case, params):
     def get_df(**params):
-        total_population = params.pop('total_population')
+        total_population = params.get('total_population')
         initial_cases = params.pop('initial_cases')
-        age_distribution = params.pop('age_distribution')
+        age_distribution = params.get('age_distribution')
 
-        sim = SEIRPlusPlusSimulation(**params, age_distribution=age_distribution)
-        y0 = sim.get_y0(total_population, initial_cases, age_distribution)
+        sim = SEIRPlusPlusSimulation(**params)
+
+        y0 = {}
+        for key in ('susceptible', 'infected'):
+            y0[key] = np.zeros_like(age_distribution)
+
+        y0['infected'][...] = initial_cases * np.array(age_distribution)
+        y0['susceptible'][...] = (
+            total_population * np.array(age_distribution) - y0['infected']
+        )
+
         result = sim(tspan, y0)
 
         from scipy.interpolate import interp1d

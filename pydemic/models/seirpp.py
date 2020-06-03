@@ -44,7 +44,34 @@ class NonMarkovianSEIRSimulationBase:
     Main driver for non-Markovian simulations, used as a base class for
     SEIR++ variants.
 
-    .. automethod:: __init__
+    The following arguments are required:
+
+    :arg total_population: The total size of the population.
+
+    The following keyword-only arguments are recognized:
+
+    :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
+        fraction of the population in various age groups.
+        Defaults to ``1``, i.e., no age grouping.
+
+    :arg mitigation: A function of time specifying a multiplicative factor.
+        Defaults to ``lambda t: 1``.
+
+    :arg r0: The basic reproduction number.
+
+    :arg serial_dist: The serial interval distribution, i.e.,
+        an instance of (a subclass of)
+        :class:`~pydemic.distributions.DistributionBase`).
+
+    :arg hetero_lambda: The depletion coefficient that scales the effect
+        changes in the susceptible population fraction have on infectivity.
+        Defaults to ``1``.
+
+    :arg seasonal_forcing_amp: The amplitude (i.e., maximum fractional change)
+        in the force of infection due to seasonal effects.
+
+    :arg peak_day: The day of the year at which seasonal forcing is greatest.
+
     .. automethod:: get_y0
     .. automethod:: __call__
     .. automethod:: get_model_data
@@ -56,31 +83,13 @@ class NonMarkovianSEIRSimulationBase:
         phase = 2 * np.pi * (t - self.peak_day) / 365
         return (1 + self.seasonal_forcing_amp * np.cos(phase))
 
-    def __init__(self, mitigation=None, *, age_distribution=None,
-                 r0=3.2, serial_dist=default_serial,
+    def __init__(self, total_population, age_distribution=1, *,
+                 r0=3.2, serial_dist=default_serial, mitigation=None,
                  hetero_lambda=1.,
                  seasonal_forcing_amp=.2, peak_day=15):
-        """
-        The following keyword-only arguments are recognized:
-
-        :arg mitigation: A function of time specifying a multiplicative factor.
-            Defaults to ``lambda t: 1``.
-
-        :arg r0: The basic reproduction number.
-
-        :arg serial_dist: The serial interval distribution, i.e.,
-            an instance of (a subclass of)
-            :class:`~pydemic.distributions.DistributionBase`).
-
-        :arg hetero_lambda: The depletion coefficient that scales the effect
-            changes in the susceptible population fraction have on infectivity.
-            Defaults to ``1``.
-
-        :arg seasonal_forcing_amp: The amplitude (i.e., maximum fractional change)
-            in the force of infection due to seasonal effects.
-
-        :arg peak_day: The day of the year at which seasonal forcing is greatest.
-        """
+        self.total_population = total_population
+        self.age_distribution = np.array(age_distribution)
+        self.population = self.total_population * self.age_distribution
 
         if mitigation is not None:
             self.mitigation = mitigation
@@ -110,39 +119,11 @@ class NonMarkovianSEIRSimulationBase:
             state.y['susceptible'][..., count-1] - new_infected_i
         )
 
-    def get_y0(self, total_population, initial_cases, age_distribution):
-        """
-        Initializes a population with a number ``initial_cases`` of initial
-        infectious individuals distributed in proportion to ``age_distribution``.
-
-        :arg total_population: The total size of the population.
-
-        :arg initial_cases: The total numnber of initial cases.
-
-        :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
-            fraction of the population in various age groups.
-
-        :returns: A :class:`dict` containing the initial conditions for the
-            ``'infected'`` and ``'susceptible'`` compartments.
-        """
-
-        # FIXME: shouldn't be set here
-        self.total_population = total_population
-        self.population = total_population * np.array(age_distribution)
-        n_demographics = len(age_distribution)
-
-        y0 = {}
-        for key in ('susceptible', 'infected'):
-            y0[key] = np.zeros((n_demographics,))
-
-        y0['infected'][...] = initial_cases * np.array(age_distribution)
-        y0['susceptible'][...] = self.population - y0['infected']
-
-        return y0
-
     def __call__(self, tspan, y0, dt=.05):
         """
-        :arg tspan: A :class:`tuple` specifying the initiala and final times.
+        :arg tspan: A :class:`tuple` specifying the initiala and final times
+            (as :class:`pandas.Timestamp`'s or as :class:`float`'s specifying
+            the number of days since Jan 1, 2020).
 
         :arg y0: A :class:`dict` with the initial values
             (as :class:`numpy.ndarray`'s) for the
@@ -287,7 +268,6 @@ class NonMarkovianSEIRSimulationBase:
                 )
 
         for key in ('symptomatic', 'positive', 'hospitalized', 'critical', 'dead'):
-            # FIXME: decide on default behavior here
             prefactor = kwargs.pop('p_'+key+'_prefactor', None)
             if prefactor is not None:
                 prob = np.array(kwargs.get('p_'+key, 1.)).copy()
@@ -297,10 +277,19 @@ class NonMarkovianSEIRSimulationBase:
         initial_cases = kwargs.pop('initial_cases')
 
         sim = cls(
-            mitigation=mitigation, age_distribution=age_distribution, **kwargs
+            total_population, age_distribution,
+            mitigation=mitigation, **kwargs
         )
 
-        y0 = sim.get_y0(total_population, initial_cases, age_distribution)
+        y0 = {}
+        for key in ('susceptible', 'infected'):
+            y0[key] = np.zeros_like(age_distribution)
+
+        y0['infected'][...] = initial_cases * np.array(age_distribution)
+        y0['susceptible'][...] = (
+            total_population * np.array(age_distribution) - y0['infected']
+        )
+
         result = sim((t0, tf), y0)
 
         y = {}
@@ -325,16 +314,64 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
                             -> critical -> dead -> all_dead
                                         -> hospitalized -> recovered
 
-    .. automethod:: __init__
+    In addition to the arguments recognized by
+    :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
+    following keyword-only arguments are recognized:
+
+    :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
+        fraction of the population in various age groups.
+
+    :arg ifr: The infection fatality ratio, i.e., the proportion of the infected
+        population who eventually die.
+        If not *None*, will rescale ``p_symptomatic`` to effect the passed value.
+
+    :arg p_symptomatic: The distribution of the proportion of infected
+        individuals who become symptomatic.
+
+    :arg incubation_dist: The delay-time distribution
+        for developing symptoms after being infected.
+
+    :arg p_positive: The fraction of symptomatic individuals who are tested and
+        test positive.
+
+    :arg p_hospitalized: The distribution of the proportion of symptomatic
+        individuals who enter the hospital.
+
+    :arg hospitalized_dist: The delay-time distribution of
+        entering the hospital after becoming symptomatic.
+
+    :arg discharged_dist: The delay-time distribution of
+        survivors being discharged after entering the hospital.
+
+    :arg p_critical: The distribution of the proportion of
+        hospitalized individuals who become critical.
+
+    :arg critical_dist: The delay-time distribution
+        of hospitalized individuals entering the ICU.
+
+    :arg p_dead: The distribution of the proportion of
+        ICU patients who die.
+
+    :arg dead_dist: The delay-time distribution of ICU patients dying.
+
+    :arg recovered_dist: The delay-time distribution
+        of ICU patients recovering and returning to the general ward.
+
+    :arg all_dead_multiplier: The ratio of total deaths to deaths occurring
+        in the ICU.
+
+    :arg all_dead_dist: The delay-time distribution
+        between ICU deaths and all reported deaths.
     """
 
     increment_keys = ('infected', 'dead', 'all_dead', 'positive',
                       'admitted_to_hospital', 'total_discharged')
 
-    def __init__(self, mitigation=None, *, age_distribution, ifr=None,
-                 r0=3.2, serial_dist=default_serial,
+    def __init__(self, total_population, age_distribution=1, *,
+                 r0=3.2, serial_dist=default_serial, mitigation=None,
                  hetero_lambda=1.,
                  seasonal_forcing_amp=.2, peak_day=15,
+                 ifr=None,
                  incubation_dist=GammaDistribution(5.5, 2),
                  p_symptomatic=1., p_positive=1.,
                  hospitalized_dist=GammaDistribution(6.5, 4), p_hospitalized=1.,
@@ -343,58 +380,9 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
                  dead_dist=GammaDistribution(7.5, 7.5), p_dead=1.,
                  recovered_dist=GammaDistribution(7.5, 7.5),
                  all_dead_dist=GammaDistribution(2.5, 2.5), all_dead_multiplier=1.):
-        """
-        In addition to the arguments recognized by
-        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
-        following keyword-only arguments are recognized:
-
-        :arg age_distribution: A :class:`numpy.ndarray` specifying the relative
-            fraction of the population in various age groups.
-
-        :arg ifr: The infection fatality ratio, i.e., the proportion of the infected
-            population who eventually die.
-            If not *None*, will rescale ``p_symptomatic`` to effect the passed value.
-
-        :arg p_symptomatic: The distribution of the proportion of infected
-            individuals who become symptomatic.
-
-        :arg incubation_dist: The delay-time distribution
-            for developing symptoms after being infected.
-
-        :arg p_positive: The fraction of symptomatic individuals who are tested and
-            test positive.
-
-        :arg p_hospitalized: The distribution of the proportion of symptomatic
-            individuals who enter the hospital.
-
-        :arg hospitalized_dist: The delay-time distribution of
-            entering the hospital after becoming symptomatic.
-
-        :arg discharged_dist: The delay-time distribution of
-            survivors being discharged after entering the hospital.
-
-        :arg p_critical: The distribution of the proportion of
-            hospitalized individuals who become critical.
-
-        :arg critical_dist: The delay-time distribution
-            of hospitalized individuals entering the ICU.
-
-        :arg p_dead: The distribution of the proportion of
-            ICU patients who die.
-
-        :arg dead_dist: The delay-time distribution of ICU patients dying.
-
-        :arg recovered_dist: The delay-time distribution
-            of ICU patients recovering and returning to the general ward.
-
-        :arg all_dead_multiplier: The ratio of total deaths to deaths occurring
-            in the ICU.
-
-        :arg all_dead_dist: The delay-time distribution
-            between ICU deaths and all reported deaths.
-        """
 
         super().__init__(
+            total_population, age_distribution,
             mitigation=mitigation, r0=r0,
             serial_dist=serial_dist,
             hetero_lambda=hetero_lambda,
@@ -478,162 +466,6 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
         )
         sol.y['recovered'] = (
             sol.y['infected'] - sol.y['infectious'] - sol.y['all_dead']
-        )
-
-        return sol
-
-
-class OldSEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
-    """
-    .. automethod:: __init__
-    """
-
-    def __init__(self, mitigation=None, *, age_distribution, ifr=0.003,
-                 r0=3.2, serial_dist=default_serial,
-                 seasonal_forcing_amp=.2, peak_day=15,
-                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
-                 icu_dist=GammaDistribution(11, 5), p_icu=1,
-                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
-                 recovered_dist=GammaDistribution(7.5, 7.5),
-                 **kwargs):
-        """
-        In addition to the arguments recognized by
-        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
-        following keyword-only arguments are recognized:
-
-        :arg age_distribution:
-
-        :arg ifr:
-
-        :arg incubation_dist:
-
-        :arg p_observed:
-
-        :arg icu_dist:
-
-        :arg p_icu:
-
-        :arg dead_dist:
-
-        :arg p_dead:
-
-        :arg recovered_dist:
-        """
-
-        super().__init__(
-            mitigation=mitigation, r0=r0,
-            serial_dist=serial_dist,
-            seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
-        )
-
-        p_symptomatic = 1.
-        p_symptomatic = np.array(p_symptomatic)
-        p_observed = np.array(p_observed)
-
-        # FIXME: this is a kludge-y way to set the target ifr
-        # (infection, not just symptomatic)
-        p_dead_all = p_symptomatic * p_observed * p_icu * p_dead
-        synthetic_ifr = (p_dead_all * age_distribution).sum()
-        p_symptomatic *= ifr / synthetic_ifr
-
-        self.readouts = {
-            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
-            "icu": ('observed', p_icu, icu_dist),
-            "dead": ('icu', p_dead, dead_dist),
-            "recovered": ('icu', (1 - p_dead), recovered_dist),
-        }
-
-    def __call__(self, tspan, y0, dt=.05):
-        influxes = super().__call__(tspan, y0, dt=dt)
-        t = influxes.t
-
-        for key, (src, prob, dist) in self.readouts.items():
-            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
-
-        sol = SimulationResult(t, {})
-
-        for key, val in influxes.y.items():
-            if key not in ["susceptible", "population"]:
-                sol.y[key] = np.cumsum(val, axis=0)
-            else:
-                sol.y[key] = val
-
-        infectious_dist = GammaDistribution(mean=5, std=2)
-        sol.y['infectious'] = infectious_dist.convolve_survival(
-            t, influxes.y['infected']
-        )
-        sol.y["critical"] = sol.y["icu"] - sol.y["dead"] - sol.y["recovered"]
-        sol.y['ventilators'] = .73 * sol.y['critical']
-
-        i = np.searchsorted(sol.t, sol.t[0] + 5)
-        sol.y["hospitalized"] = np.zeros_like(sol.y['critical'])
-        sol.y["hospitalized"][:-i] = 2.7241 * sol.y['critical'][i:]
-        sol.y["hospitalized"][-i:] = np.nan
-
-        return sol
-
-
-class SEIRPlusPlusSimulationOnsetAndDeath(NonMarkovianSEIRSimulationBase):
-    """
-    .. automethod:: __init__
-    """
-
-    def __init__(self, mitigation=None, *,
-                 r0=3.2, serial_dist=default_serial,
-                 seasonal_forcing_amp=.2, peak_day=15,
-                 p_symptomatic=1,
-                 incubation_dist=GammaDistribution(5.5, 2), p_observed=1,
-                 dead_dist=GammaDistribution(7.5, 7.5), p_dead=1,
-                 **kwargs):
-        """
-        In addition to the arguments recognized by
-        :class:`~pydemic.models.seirpp.NonMarkovianSEIRSimulationBase`, the
-        following keyword-only arguments are recognized:
-
-        :arg p_symptomatic:
-
-        :arg incubation_dist:
-
-        :arg p_observed:
-
-        :arg dead_dist:
-
-        :arg p_dead:
-        """
-
-        super().__init__(
-            mitigation=mitigation, r0=r0,
-            serial_dist=serial_dist,
-            seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
-        )
-
-        p_symptomatic = np.array(p_symptomatic)
-        p_observed = np.array(p_observed)
-        p_dead = np.array(p_dead)
-
-        self.readouts = {
-            "observed": ('infected', p_observed * p_symptomatic, incubation_dist),
-            "dead": ('observed', p_dead, dead_dist),
-        }
-
-    def __call__(self, tspan, y0, dt=.05):
-        influxes = super().__call__(tspan, y0, dt=dt)
-        t = influxes.t
-
-        for key, (src, prob, dist) in self.readouts.items():
-            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
-
-        sol = SimulationResult(t, {})
-
-        for key, val in influxes.y.items():
-            if key not in ["susceptible", "population"]:
-                sol.y[key] = np.cumsum(val, axis=0)
-            else:
-                sol.y[key] = val
-
-        infectious_dist = GammaDistribution(mean=5, std=2)
-        sol.y['infectious'] = infectious_dist.convolve_survival(
-            t, influxes.y['infected']
         )
 
         return sol

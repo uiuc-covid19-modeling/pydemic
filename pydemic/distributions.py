@@ -84,7 +84,6 @@ class GammaDistribution(DistributionBase):
     def pdf(self, t, method='diff'):
         if method == 'diff':
             cdf = self.cdf(t)
-            # FIXME: prepend or append?
             return np.diff(cdf, prepend=0)
         else:
             from scipy.stats import gamma

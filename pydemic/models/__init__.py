@@ -25,9 +25,7 @@ THE SOFTWARE.
 
 
 from pydemic.models.seir import SEIRModelSimulation
-from pydemic.models.seirpp import (
-    SEIRPlusPlusSimulation, SEIRPlusPlusSimulationOnsetAndDeath,
-)
+from pydemic.models.seirpp import SEIRPlusPlusSimulation
 
 __doc__ = """
 .. currentmodule:: pydemic.models.seirpp
@@ -40,5 +38,4 @@ __doc__ = """
 __all__ = [
     "SEIRModelSimulation",
     "SEIRPlusPlusSimulation",
-    "SEIRPlusPlusSimulationOnsetAndDeath",
 ]
