@@ -166,12 +166,16 @@ class COVIDTrackingDataParser(DataParser):
 
     translation = {
         'death': 'all_dead',
+        'hospitalizedCurrently': 'hospitalized',
         'in_icu_currently': 'critical',
     }
 
     def __call__(self, region=None):
         region = inverse_abbreviations.get(region, region)
-        return super().__call__(region)
+        df = super().__call__(region)
+        for key in ('positive', 'all_dead'):
+            df[key+'_incr'] = df[key].diff()
+        return df
 
 
 class NewYorkTimesDataParser(DataParser):
@@ -186,7 +190,10 @@ class NewYorkTimesDataParser(DataParser):
 
     def __call__(self, region=None):
         region = abbreviations.get(region, region)
-        return super().__call__(region)
+        df = super().__call__(region)
+        for key in ('positive', 'all_dead'):
+            df[key+'_incr'] = df[key].diff()
+        return df
 
 
 covid_tracking = COVIDTrackingDataParser()
