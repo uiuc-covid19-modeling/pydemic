@@ -215,7 +215,7 @@ def test_seirpp_call(case, params):
 
     df = get_df(**params)
 
-    max_rtol = 1.e-9
+    max_rtol = 1.e-8
     avg_rtol = 1.e-10
 
     if overwrite:
