@@ -28,6 +28,7 @@ from pydemic.simulation import (Simulation, SimulationState, StateLogger,
 from pydemic.reactions import Reaction, PassiveReaction, ErlangProcess, GammaProcess
 from pydemic.mitigation import MitigationModel
 from pydemic.sampling import SampleParameter, LikelihoodEstimator
+from pydemic.distributions import DistributionBase, GammaDistribution
 
 __all__ = [
     "Simulation",
@@ -42,4 +43,6 @@ __all__ = [
     "MitigationModel",
     "SampleParameter",
     "LikelihoodEstimator",
+    "DistributionBase",
+    "GammaDistribution",
 ]

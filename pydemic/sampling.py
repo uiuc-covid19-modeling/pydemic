@@ -155,7 +155,27 @@ class LikelihoodEstimator:
     """
     Driver for likelihood estimation.
 
-    .. automethod:: __init__
+    :arg fit_parameters: A :class:`list` of :class:`SampleParameter`'s
+        for sampling.
+
+    :arg fixed_values: A :class:`dict` of values fixed for non-sample parameters.
+
+    :arg data: A :class:`pandas.DataFrame` of the real data to fit against.
+
+    :arg simulator: A :class:`class` with a ``get_model_data`` method to be
+        used for sampling.
+        ``get_model_data`` must have signature ``(t, **kwargs)`` where
+        ``t`` is a :class:`pandas.DateTimeIndex` and paramter values
+        (from ``fixed_values`` and the particular sample of ``fit_parameters``)
+        are passed through ``**kwargs``.
+
+    :arg norms: A :class:`dict` specifying the columns of ``data`` (and of the
+        result of ``simulator.get_model_data``) by key and the likelihood
+        estimator to use for that dataset.
+        The values may be ``'poisson'`` (specifying usage of
+        :func:`~pydemic.sampling.poisson_norm`)
+        or a function with signature ``(model, data)``.
+
     .. automethod:: __call__
     .. automethod:: get_log_likelihood
     .. automethod:: get_initial_positions
@@ -164,29 +184,6 @@ class LikelihoodEstimator:
     """
 
     def __init__(self, fit_parameters, fixed_values, data, simulator, norms={}):
-        """
-        :arg fit_parameters: A :class:`list` of :class:`SampleParameter`'s
-            for sampling.
-
-        :arg fixed_values: A :class:`dict` of values fixed for non-sample parameters.
-
-        :arg data: A :class:`pandas.DataFrame` of the real data to fit against.
-
-        :arg simulator: A :class:`class` with a ``get_model_data`` method to be
-            used for sampling.
-            ``get_model_data`` must have signature ``(t, **kwargs)`` where
-            ``t`` is a :class:`pandas.DateTimeIndex` and paramter values
-            (from ``fixed_values`` and the particular sample of ``fit_parameters``)
-            are passed through ``**kwargs``.
-
-        :arg norms: A :class:`dict` specifying the columns of ``data`` (and of the
-            result of ``simulator.get_model_data``) by key and the likelihood
-            estimator to use for that dataset.
-            The values may be ``'poisson'`` (specifying usage of
-            :func:`~pydemic.sampling.poisson_norm`)
-            or a function with signature ``(model, data)``.
-        """
-
         self.fit_parameters = fit_parameters
         self.fit_names = tuple(par.name for par in fit_parameters)
         self.fixed_values = fixed_values
@@ -240,6 +237,13 @@ class LikelihoodEstimator:
         else:
             parameters = dict(zip(self.fit_names, theta))
             return log_prior + self.get_log_likelihood(parameters)
+
+    def get_model_result(self, theta):
+        parameters = dict(zip(self.fit_names, theta))
+        model_data = self.simulator.get_model_data(
+            self.data.index, **parameters, **self.fixed_values
+        )
+        return model_data
 
     def get_log_likelihood(self, parameters):
         """

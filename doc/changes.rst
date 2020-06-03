@@ -1,7 +1,7 @@
 User-visible Changes
 ====================
 
-Version 2020.1
+Version 2020.2
 --------------
 
 * Initial release.

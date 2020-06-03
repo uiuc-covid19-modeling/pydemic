@@ -37,29 +37,26 @@ class MitigationModel(PchipInterpolator):
     An interface for creating (smooth, monotonic) piecewise linear functions.
     Subclasses :class:`scipy.interpolate.PchipInterpolator`.
 
-    .. automethod:: __init__
+    Constructs the interpolating function which takes the constant values
+    ``factors[0]`` between ``t0`` and ``t[0]`` and ``factors[-1]`` between
+    ``t[-1]`` and ``tf``.
+
+    :arg t0: A :class:`float` representing the first input value for
+        interpolation.
+
+    :arg tf: A :class:`float` representing the last input value for
+        interpolation.
+
+    :arg t: A :class:`numpy.ndarray` of interpolating nodes
+        (between ``t0`` and ``tf``).
+
+    :arg factors: A :class:`numpy.ndarray` of function values to interpolate to
+        at the nodes ``t``.
+
     .. automethod:: init_from_kwargs
     """
 
     def __init__(self, t0, tf, t, factors):
-        """
-        Constructs the interpolating function which takes the constant values
-        ``factors[0]`` between ``t0`` and ``t[0]`` and ``factors[-1]`` between
-        ``t[-1]`` and ``tf``.
-
-        :arg t0: A :class:`float` representing the first input value for
-            interpolation.
-
-        :arg tf: A :class:`float` representing the last input value for
-            interpolation.
-
-        :arg t: A :class:`numpy.ndarray` of interpolating nodes
-            (between ``t0`` and ``tf``).
-
-        :arg factors: A :class:`numpy.ndarray` of function values to interpolate to
-            at the nodes ``t``.
-        """
-
         self.times = t
         self.factors = factors
         if len(t) > 0:

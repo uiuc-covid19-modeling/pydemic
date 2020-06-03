@@ -35,34 +35,32 @@ __doc__ = """
 
 class Reaction:
     """
-    .. automethod:: __init__
+    .. attribute:: lhs
+
+        A :class:`string` specifying the compartment sourcing
+        the reaction.
+        Only valid python identifiers are allowed, as their state is accessed
+        as an attribute.
+
+    .. attribute:: rhs
+
+        A :class:`string` specifying the compartment being sourced
+        by the reaction.
+        Only valid python identifiers are allowed, as their state is accessed
+        as an attribute.
+
+    .. attribute:: evaluator
+
+        A :class:`callable` with signature ``(t, y)``
+        of the time and :class:`SimulationState` returning the rate
+        associated with the reaction.
+        See the documentation of :class:`~pydemic.simulation.SimulationState`
+        for guidance on accessing compartment state information from ``y``.
+
     .. automethod:: get_reactions
     """
 
     def __init__(self, lhs, rhs, evaluator):
-        """
-        .. attribute:: lhs
-
-            A :class:`string` specifying the compartment sourcing
-            the reaction.
-            Only valid python identifiers are allowed, as their state is accessed
-            as an attribute.
-
-        .. attribute:: rhs
-
-            A :class:`string` specifying the compartment being sourced
-            by the reaction.
-            Only valid python identifiers are allowed, as their state is accessed
-            as an attribute.
-
-        .. attribute:: evaluator
-
-            A :class:`callable` with signature ``(t, y)``
-            of the time and :class:`SimulationState` returning the rate
-            associated with the reaction.
-            See the documentation of :class:`~pydemic.simulation.SimulationState`
-            for guidance on accessing compartment state information from ``y``.
-        """
 
         self.lhs = lhs
         self.rhs = rhs
@@ -84,7 +82,6 @@ class PassiveReaction(Reaction):
     """
     A reaction used for bookkeeping purposes.
 
-    .. automethod:: __init__
     .. automethod:: get_reactions
     """
     pass
@@ -92,31 +89,27 @@ class PassiveReaction(Reaction):
 
 class ErlangProcess(Reaction):
     """
-    .. automethod:: __init__
+    .. attribute:: lhs
+
+        A :class:`string` specifying the compartment sourcing
+        the reaction.
+        Only valid python identifiers are allowed, as their state is accessed
+        as an attribute.
+
+    .. attribute:: rhs
+
+        A :class:`string` specifying the compartment being sourced
+        by the reaction.
+        Only valid python identifiers are allowed, as their state is accessed
+        as an attribute.
+
+    .. attribute:: shape
+
+    .. attribute:: scale
     .. automethod:: get_reactions
     """
 
     def __init__(self, lhs, rhs, shape, scale):
-        """
-        .. attribute:: lhs
-
-            A :class:`string` specifying the compartment sourcing
-            the reaction.
-            Only valid python identifiers are allowed, as their state is accessed
-            as an attribute.
-
-        .. attribute:: rhs
-
-            A :class:`string` specifying the compartment being sourced
-            by the reaction.
-            Only valid python identifiers are allowed, as their state is accessed
-            as an attribute.
-
-        .. attribute:: shape
-
-        .. attribute:: scale
-        """
-
         self.lhs = lhs
         self.rhs = rhs
         self.shape = shape

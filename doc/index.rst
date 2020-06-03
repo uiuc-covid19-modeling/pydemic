@@ -18,6 +18,7 @@ Please check :ref:`installation` to get started.
     changes
     license
     faq
+    citing
 
 
 Indices and tables

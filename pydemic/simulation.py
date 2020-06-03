@@ -50,27 +50,24 @@ class SimulationState:
     stochastic samples (see :meth:`Simulation.__call__`).
     Any user-implemented axes occupy all but the first axis of the state arrays.
 
-    .. automethod:: __init__
+    :arg t: The current time.
+
+    :arg compartments: A :class:`dict` of current values
+        (as :class:`numpy.ndarray`'s) of all canonical compartments (the keys).
+
+    :arg hidden_compartments: A :class:`dict` of current values
+        (as :class:`numpy.ndarray`'s) of all compartments (the keys) not present
+        in ``compartments`` (i.e., those used to implement
+        and :class:`ErlangProcess`.)
+
+    :arg passive_compartments: A :class:`tuple` of compartment keys which are
+        computed for :class:`PassiveReaction`'s
+        (i.e., those which do not count toward the total population).
+
     .. automethod:: sum
     """
 
     def __init__(self, t, compartments, hidden_compartments, passive_compartments):
-        """
-        :arg t: The current time.
-
-        :arg compartments: A :class:`dict` of current values
-            (as :class:`numpy.ndarray`'s) of all canonical compartments (the keys).
-
-        :arg hidden_compartments: A :class:`dict` of current values
-            (as :class:`numpy.ndarray`'s) of all compartments (the keys) not present
-            in ``compartments`` (i.e., those used to implement
-            and :class:`ErlangProcess`.)
-
-        :arg passive_compartments: A :class:`tuple` of compartment keys which are
-            computed for :class:`PassiveReaction`'s
-            (i.e., those which do not count toward the total population).
-        """
-
         self.t = t
         self.y = {**compartments, **hidden_compartments}
         self.compartments = list(compartments.keys())
@@ -240,7 +237,10 @@ class Simulation:
     """
     Main driver for compartmental model simulations.
 
-    .. automethod:: __init__
+    :arg reactions: A :class:`list` of :class:`Reaction`'s
+        (or subclasses thereof) used to specify the dynamics of the
+        compartmental model.
+
     .. automethod:: __call__
 
     .. attribute:: compartments
@@ -251,12 +251,6 @@ class Simulation:
     """
 
     def __init__(self, reactions):
-        """
-        :arg reactions: A :class:`list` of :class:`Reaction`'s
-            (or subclasses thereof) used to specify the dynamics of the
-            compartmental model.
-        """
-
         def flatten(items):
             for i in items:
                 if isinstance(i, (list, tuple)):

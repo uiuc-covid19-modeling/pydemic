@@ -128,37 +128,34 @@ class HDFBackend(emcee.backends.HDFBackend, BackendMixIn):
 
         This class requires :mod:`h5py`.
 
+    :arg filename: The name of the HDF5 file to create.
+
+    The following optional parameters (corresponding to those passed to
+    :class:`pydemic.LikelihoodEstimator`) will be stored in the file if passed.
+
+    :arg fit_parameters:
+
+    :arg fixed_values:
+
+    :arg data:
+
+    :arg simulator:
+
+    Any remaining keyword arguments are passed to
+    :class:`emcee.backends.HDFBackend`.
+
     The following attributes will be available if they were passed
-    to :meth:`~pydemic.hdf.HDFBackend.__init__` upon creation of
+    to :meth:`~pydemic.hdf.HDFBackend` upon creation of
     the file, and may be used to resume sampling:
 
     .. autoattribute:: fixed_values
     .. autoattribute:: fit_parameters
     .. autoattribute:: data
     .. autoattribute:: simulator
-
-    .. automethod:: __init__
     """
 
     def __init__(self, filename, fit_parameters=None, fixed_values=None, data=None,
                  simulator=None, **kwargs):
-        """
-        :arg filename: The name of the HDF5 file to create.
-
-        The following optional parameters (corresponding to those passed to
-        :class:`pydemic.LikelihoodEstimator`) will be stored in the file if passed.
-
-        :arg fit_parameters:
-
-        :arg fixed_values:
-
-        :arg data:
-
-        :arg simulator:
-
-        Any remaining keyword arguments are passed to
-        :class:`emcee.backends.HDFBackend`.
-        """
 
         super().__init__(filename, **kwargs)
 
@@ -181,39 +178,35 @@ class HDFOptimizationBackend(BackendMixIn):
 
         This class requires :mod:`h5py`.
 
+    :arg filename: The name of the HDF5 file to create.
+
+    The following optional parameters (corresponding to those passed to
+    :class:`pydemic.LikelihoodEstimator`) will be stored in the file if passed.
+
+    :arg fit_parameters:
+
+    :arg fixed_values:
+
+    :arg data:
+
+    :arg simulator:
+
+    Any remaining keyword arguments are passed to
+    :class:`emcee.backends.HDFBackend`.
+
     The following attributes will be available if they were passed
-    to :meth:`~pydemic.hdf.HDFBackend.__init__` upon creation of
+    to :meth:`~pydemic.hdf.HDFBackend` upon creation of
     the file, and may be used to resume sampling:
 
     .. autoattribute:: fixed_values
     .. autoattribute:: fit_parameters
     .. autoattribute:: data
     .. autoattribute:: simulator
-
-    .. automethod:: __init__
     """
 
     def __init__(self, filename, name="_optimizer", read_only=False, dtype=None,
                  fit_parameters=None, fixed_values=None, data=None,
                  simulator=None, **kwargs):
-        """
-        :arg filename: The name of the HDF5 file to create.
-
-        The following optional parameters (corresponding to those passed to
-        :class:`pydemic.LikelihoodEstimator`) will be stored in the file if passed.
-
-        :arg fit_parameters:
-
-        :arg fixed_values:
-
-        :arg data:
-
-        :arg simulator:
-
-        Any remaining keyword arguments are passed to
-        :class:`emcee.backends.HDFBackend`.
-        """
-
         self.filename = filename
         self.name = name
         self.read_only = read_only

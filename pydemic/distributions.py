@@ -34,6 +34,14 @@ __doc__ = """
 
 
 class DistributionBase:
+    """
+    Base class for distributions.
+
+    .. automethod:: convolve_pdf
+
+    .. automethod:: convolve_survival
+    """
+
     def pdf(self, t):
         raise NotImplementedError
 
@@ -41,6 +49,20 @@ class DistributionBase:
         raise NotImplementedError
 
     def convolve_pdf(self, t, influx, prefactor=1, method='fft'):
+        """
+        Convolves an array ``influx`` with the PDF of the distribution.
+
+        :arg t: The times of evaluation.
+
+        :arg influx: The array to be convolved, :math:`y`.
+
+        :arg prefactor: A multiplicative prefactor, :math:`P`.
+
+        :arg method: A :class:`str` specifying whether to convolve by
+            Fast Fourier Transform (``'fft'``) or via direct covolution
+            (``'direct'``).
+        """
+
         pdf = self.pdf(t[:] - t[0])
         prefactor = prefactor * np.ones_like(influx[0, ...])
 
@@ -57,6 +79,24 @@ class DistributionBase:
         return result
 
     def convolve_survival(self, t, influx, prefactor=1, method='fft'):
+        """
+        Convolves an array ``influx`` with the survival function of the distribution,
+
+        .. math::
+
+            S(x) = 1 - \\int \\mathrm{d} x' \\, f(x').
+
+        :arg t: The times of evaluation.
+
+        :arg influx: The array to be convolved.
+
+        :arg prefactor: A multiplicative prefactor.
+
+        :arg method: A :class:`str` specifying whether to convolve by
+            Fast Fourier Transform (``'fft'``) or via direct covolution
+            (``'direct'``).
+        """
+
         survival = 1 - self.cdf(t - t[0])
 
         prefactor = prefactor * np.ones_like(influx[0, ...])
@@ -70,6 +110,37 @@ class DistributionBase:
 
 
 class GammaDistribution(DistributionBase):
+    """
+    Implements functionality for the gamma distribution, with PDF
+
+    .. math::
+
+        f(x)
+        = \\frac{1}{\\Gamma(k) \\theta^{k}} x^{k-1} e^{- x / \\theta }
+
+    One can specify the distribution by its mean :math:`\\mu`
+    and standard deviation :math:`\\sigma`
+    or by the standard shape and scale parameters :math:`k` and :math:`\\theta`,
+    which are related by
+
+    .. math::
+
+        k = \\frac{\\mu^2}{\\sigma^2}
+
+        \\theta = \\frac{\\sigma^2}{\\mu}.
+
+    :arg mean: The mean, :math:`\\mu`.
+
+    :arg std: The standard derviation, :math:`\\sigma`.
+
+    :arg shape: The shape, :math:`k`.
+
+    :arg scale: The scale, :math:`\\theta`.
+
+    Passed values for ``mean`` and ``std`` take precendece over those for
+    ``shape`` and ``scale``.
+    """
+
     def __init__(self, mean=None, std=None, shape=None, scale=None):
         if shape is None:
             self.shape = mean**2 / std**2
@@ -92,3 +163,6 @@ class GammaDistribution(DistributionBase):
     def cdf(self, t):
         from scipy.stats import gamma
         return gamma.cdf(t, self.shape, scale=self.scale)
+
+    def __repr__(self):
+        return f"<GammaDistribution(shape={self.shape:.3g}, scale={self.scale:.3g})>"

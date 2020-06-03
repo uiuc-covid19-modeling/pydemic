@@ -9,4 +9,6 @@ Reference: Models
 Other utilities for modeling
 ----------------------------
 
+.. automodule:: pydemic.distributions
+
 .. automodule:: pydemic.mitigation
