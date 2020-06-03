@@ -58,6 +58,7 @@ class NonMarkovianSEIRSimulationBase:
 
     def __init__(self, mitigation=None, *, age_distribution=None,
                  r0=3.2, serial_dist=default_serial,
+                 hetero_lambda=1.,
                  seasonal_forcing_amp=.2, peak_day=15):
         """
         The following keyword-only arguments are recognized:
@@ -71,6 +72,10 @@ class NonMarkovianSEIRSimulationBase:
             an instance of (a subclass of)
             :class:`~pydemic.distributions.DistributionBase`).
 
+        :arg hetero_lambda: The depletion coefficient that scales the effect
+            changes in the susceptible population fraction have on infectivity.
+            Defaults to ``1``.
+
         :arg seasonal_forcing_amp: The amplitude (i.e., maximum fractional change)
             in the force of infection due to seasonal effects.
 
@@ -83,6 +88,7 @@ class NonMarkovianSEIRSimulationBase:
             self.mitigation = lambda t: 1
 
         self.serial_dist = serial_dist
+        self.hetero_lambda = hetero_lambda
         self.seasonal_forcing_amp = seasonal_forcing_amp
         self.peak_day = peak_day
         self.r0 = r0
@@ -95,7 +101,9 @@ class NonMarkovianSEIRSimulationBase:
                      self.serial_pdf[:count])
         j_i = j_m.sum()
         S_i = state.y['susceptible'][..., count-1]
-        new_infected_i = dt * Rt * S_i * j_i / self.total_population
+        S_sum = S_i.sum()
+        new_infected_i = dt * Rt * j_i * S_i / S_sum
+        new_infected_i *= np.power(S_sum / self.total_population, self.hetero_lambda)
         state.y['infected'][..., count] = new_infected_i
 
         state.y['susceptible'][..., count] = (
@@ -325,6 +333,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
 
     def __init__(self, mitigation=None, *, age_distribution, ifr=None,
                  r0=3.2, serial_dist=default_serial,
+                 hetero_lambda=1.,
                  seasonal_forcing_amp=.2, peak_day=15,
                  incubation_dist=GammaDistribution(5.5, 2),
                  p_symptomatic=1., p_positive=1.,
@@ -388,6 +397,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
         super().__init__(
             mitigation=mitigation, r0=r0,
             serial_dist=serial_dist,
+            hetero_lambda=hetero_lambda,
             seasonal_forcing_amp=seasonal_forcing_amp, peak_day=peak_day
         )
 
