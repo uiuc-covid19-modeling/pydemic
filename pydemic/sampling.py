@@ -159,19 +159,19 @@ class LikelihoodEstimator:
     """
     Driver for likelihood estimation.
 
-    :arg sample_parameters: A :class:`list` of :class:`SampleParameter`'s
-        for sampling.
-
-    :arg fixed_values: A :class:`dict` of values fixed for non-sample parameters.
-
-    :arg data: A :class:`pandas.DataFrame` of the real data to fit against.
-
     :arg simulator: A :class:`class` with a ``get_model_data`` method to be
         used for sampling.
         ``get_model_data`` must have signature ``(t, **kwargs)`` where
         ``t`` is a :class:`pandas.DateTimeIndex` and paramter values
         (from ``fixed_values`` and the particular sample of ``sample_parameters``)
         are passed through ``**kwargs``.
+
+    :arg fixed_values: A :class:`dict` of values fixed for non-sample parameters.
+
+    :arg sample_parameters: A :class:`list` of :class:`SampleParameter`'s
+        for sampling.
+
+    :arg data: A :class:`pandas.DataFrame` of the real data to fit against.
 
     :arg norms: A :class:`dict` specifying the columns of ``data`` (and of the
         result of ``simulator.get_model_data``) by key and the likelihood
@@ -187,16 +187,13 @@ class LikelihoodEstimator:
     .. automethod:: sample_emcee
     """
 
-    def __init__(self, sample_parameters, fixed_values, data, simulator, norms={}):
+    def __init__(self, *, simulator, fixed_values, sample_parameters, data, norms):
         self.sample_parameters = sample_parameters
         self.fit_names = tuple(par.name for par in self.sample_parameters)
         self.fixed_values = fixed_values
         self.data = data.copy()
         self._original_data = self.data
         self.simulator = simulator
-
-        if len(norms) == 0:
-            raise ValueError('Must fit over at least one dataset.')
 
         self.norms = {}
         for key, norm in norms.items():
@@ -253,7 +250,7 @@ class LikelihoodEstimator:
         """
         :arg parameters: A :class:`dict` of parameter values for those specified
             specified by :attr:`sample_parameters`, to be passed to
-            :attr`simulator.get_model_data` (along with :attr:`fixed_values`).
+            :attr:`simulator.get_model_data` (along with :attr:`fixed_values`).
 
         :returns: The likelihood.
         """
