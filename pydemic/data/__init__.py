@@ -45,6 +45,7 @@ class DataParser:
     def __call__(self, region=None):
         df = pd.read_csv(self.data_url, parse_dates=[self.date_column],
                          index_col=[self.region_column, self.date_column])
+        df = df.drop(columns=set(self.translation.values()) & set(df.columns))
         df = df.rename(columns=self.translate_columns)
 
         if region is not None:
