@@ -52,10 +52,9 @@ write_git_revision(package)
 
 setup(
     name=package,
-    version="2020.1",
+    version="2020.2",
     description="A python driver for epidemic modeling and inference",
     long_description=open("README.rst", "rt").read(),
-    long_description_content_type='text/markdown',
     install_requires=[
         "numpy",
         "scipy",
