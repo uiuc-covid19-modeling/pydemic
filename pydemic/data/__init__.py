@@ -25,6 +25,14 @@ THE SOFTWARE.
 
 import pandas as pd
 
+__doc__ = """
+Currently, two simple parsers are implemented to collect United States data.
+More parsers can be added straightforwardly by subclassing
+:class:`pydemic.data.DataParser`.
+
+.. automodule:: pydemic.data.united_states
+"""
+
 
 def camel_to_snake(name):
     import re

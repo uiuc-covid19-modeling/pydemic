@@ -26,6 +26,13 @@ THE SOFTWARE.
 import numpy as np
 from pydemic.data import DataParser
 
+
+__doc__ = """
+.. autodata:: covid_tracking
+.. autodata:: nyt
+"""
+
+
 state_populations = {
     'Wyoming': 567025,
     'Vermont': 628061,
@@ -196,5 +203,31 @@ class NewYorkTimesDataParser(DataParser):
         return df
 
 
-covid_tracking = COVIDTrackingDataParser()
-nyt = NewYorkTimesDataParser()
+def covid_tracking(state=None):
+    """
+    Returns state-level data as collected by the
+    `COVID Tracking Project <https://covidtracking.com/>`_.
+
+    :arg state: The state whose data shall be returned.
+        May be specified by abbreviation or by full name.
+        Defaults to *None*, in which all data (grouped by state) is returned.
+
+    :returns: A :class:`pandas.DataFrame`.
+    """
+
+    return COVIDTrackingDataParser()(state)
+
+
+def nyt(state=None):
+    """
+    Returns state-level COVID-19 data as collected by the
+    `New York Times <https://github.com/nytimes/covid-19-data>`_.
+
+    :arg state: The state whose data shall be returned.
+        May be specified by abbreviation or by full name.
+        Defaults to *None*, in which all data (grouped by state) is returned.
+
+    :returns: A :class:`pandas.DataFrame`.
+    """
+
+    return NewYorkTimesDataParser()(state)
