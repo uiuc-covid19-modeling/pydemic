@@ -15,6 +15,15 @@ Parameter inference is enabled with interfaces to
 `emcee <https://emcee.readthedocs.io/en/stable/>`_ and SciPy's global optimization
 routines.
 
+To get started, see the example notebook for
+`running simulations <examples/SEIR++.ipynb>`_
+and for `calibrating models to data <examples/calibration.ipynb>`_.
+
+Since ``pydemic`` is available on PyPI, installation is easy::
+
+    pip install pydemic
+
+
 Note that ``pydemic`` is in beta.
 While effort will be made to preserve backwards compatibility with staged
 deprecation, we make no guarantee that features will be preserved nor that
