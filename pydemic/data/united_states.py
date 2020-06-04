@@ -28,8 +28,12 @@ from pydemic.data import DataParser
 
 
 __doc__ = """
-.. autodata:: covid_tracking
-.. autodata:: nyt
+.. currentmodule:: pydemic.data.united_states
+.. autofunction:: covid_tracking
+.. autofunction:: nyt
+.. autofunction:: get_population
+.. autofunction:: get_age_distribution
+.. currentmodule:: pydemic
 """
 
 
@@ -154,7 +158,16 @@ usa_age = np.array([0.12000352, 0.1278914, 0.13925591, 0.13494838,
                     0.03971926])
 
 
-def get_population(region='United States of America'):
+def get_population(region=None):
+    """
+    :arg region: The region whose  shall be returned.
+        May be specified by abbreviation or by full name.
+        Defaults to *None*, in which case the entire population
+        of the United States is returned.
+
+    :returns: The population of ``region``.
+    """
+
     if region in ('United States of America', 'USA'):
         return sum(x for x in state_populations.values())
     else:
@@ -163,6 +176,19 @@ def get_population(region='United States of America'):
 
 
 def get_age_distribution(region=None):
+    """
+    Returns the age distribution, stratified into the bins
+    :math:`[0, 10)`, :math:`[10, 20)`, ..., :math:`[70, 80)`, and
+    :math:`[80, \inf)`.
+
+    :arg region: The region whose  shall be returned.
+        May be specified by abbreviation or by full name.
+        Currently, this argument is ignored and the aggregated
+        age distribution of the United States is returned.
+
+    :returns: The United States age distribution (a :class:`numpy.ndarray`).
+    """
+
     return usa_age
 
 
@@ -203,31 +229,31 @@ class NewYorkTimesDataParser(DataParser):
         return df
 
 
-def covid_tracking(state=None):
+def covid_tracking(region=None):
     """
     Returns state-level data as collected by the
     `COVID Tracking Project <https://covidtracking.com/>`_.
 
-    :arg state: The state whose data shall be returned.
+    :arg region: The state whose data shall be returned.
         May be specified by abbreviation or by full name.
         Defaults to *None*, in which all data (grouped by state) is returned.
 
     :returns: A :class:`pandas.DataFrame`.
     """
 
-    return COVIDTrackingDataParser()(state)
+    return COVIDTrackingDataParser()(region)
 
 
-def nyt(state=None):
+def nyt(region=None):
     """
     Returns state-level COVID-19 data as collected by the
     `New York Times <https://github.com/nytimes/covid-19-data>`_.
 
-    :arg state: The state whose data shall be returned.
+    :arg region: The state whose data shall be returned.
         May be specified by abbreviation or by full name.
         Defaults to *None*, in which all data (grouped by state) is returned.
 
     :returns: A :class:`pandas.DataFrame`.
     """
 
-    return NewYorkTimesDataParser()(state)
+    return NewYorkTimesDataParser()(region)
