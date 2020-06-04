@@ -26,7 +26,8 @@ data sources.
 Pull requests that contribute robust, new parsers are welcome!
 
 We provide a detailed description of our SEIR++ model, along with the results of calibrating it to data from COVID-19 in Illinois, in a
-`recent preprint <https://arxiv.org/abs/2006.02036>`_on the arxiv.
+`recent preprint <https://arxiv.org/abs/2006.02036>`_
+on the arxiv.
 
 ``pydemic`` is in beta.
 While effort will be made to preserve backwards compatibility with staged
@@ -35,16 +36,13 @@ However, we will attempt to ensure that backwards-incompatible changes are demar
 
 ``pydemic`` is `fully documented <https://pydemic.readthedocs.io/en/latest/>`_
 and is licensed under the liberal `MIT license
-<http://en.wikipedia.org/wiki/MIT_License>`_.
-
-See the 
-`docs <https://pydemic.readthedocs.io/en/latest/citing.html>`_
-for citation info.
+<http://en.wikipedia.org/wiki/MIT_License>`_. See the docs for 
+`citation info <https://pydemic.readthedocs.io/en/latest/citing.html>`_.
 
 Getting started
 #####
 
-``pydemic`` is available on PyPI and can be installed via
+``pydemic`` is available on PyPI and can be installed with pip ::
 
     pip install pydemic
 
