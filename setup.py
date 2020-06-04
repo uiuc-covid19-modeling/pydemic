@@ -64,7 +64,7 @@ setup(
         "tables",
     ],
     url='https://github.com/uiuc-covid19-modeling/pydemic',
-    # author="George N Wong, Zachary J Weiner",
+    author="Zachary J Weiner, George N Wong",
     license="MIT",
     classifiers=[
         'Development Status :: 4 - Beta',
