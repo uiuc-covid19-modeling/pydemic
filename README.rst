@@ -22,7 +22,9 @@ Pull requests that contribute new parsers are welcome!
 To get started, see the example notebooks for
 `running simulations <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/SEIR%2B%2B.ipynb>`_
 and for `calibrating models to data <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/calibration.ipynb>`_.
-We describe the "SEIR++" model in depth in a
+We describe
+`the SEIR++ model <https://pydemic.readthedocs.io/en/latest/ref_models.html#pydemic.models.SEIRPlusPlusSimulation>`_
+in depth in a
 `recent preprint <https://arxiv.org/abs/2006.02036>`_.
 
 ``pydemic`` is available on PyPI and can be installed via::
