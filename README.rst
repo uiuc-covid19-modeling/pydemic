@@ -58,4 +58,4 @@ Getting started
 Several examples exhibit how to use ``pydemic``:
 
 * The `SEIR++ tutorial notebook <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/SEIR%2B%2B.ipynb>`_ demonstrates how to set up a simulation object, specify parameters, run the simulation, and visualize the results.
-* An example on `callibration <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/calibration.ipynb>`_ illustrates how to set up likelihood estimation, run Markov chain Monte Carlo, and plot the posterior probability distribution of model parameters, using the SEIR++ model and public Illinois data from the COVID Tracking Project as an example.
+* An example of `callibration <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/calibration.ipynb>`_ illustrates how to set up likelihood estimation, run Markov chain Monte Carlo, and plot the posterior probability distribution of model parameters, using the SEIR++ model and public Illinois data from the COVID Tracking Project as an example.
