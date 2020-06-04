@@ -168,7 +168,7 @@ def get_population(region=None):
     :returns: The population of ``region``.
     """
 
-    if region in ('United States of America', 'USA'):
+    if region is None:
         return sum(x for x in state_populations.values())
     else:
         region = abbreviations.get(region, region)
@@ -179,7 +179,7 @@ def get_age_distribution(region=None):
     """
     Returns the age distribution, stratified into the bins
     :math:`[0, 10)`, :math:`[10, 20)`, ..., :math:`[70, 80)`, and
-    :math:`[80, \inf)`.
+    :math:`[80, \\inf)`.
 
     :arg region: The region whose  shall be returned.
         May be specified by abbreviation or by full name.
