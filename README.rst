@@ -10,24 +10,33 @@ pydemic: a python driver for epidemic modeling and inference
 .. image:: https://badge.fury.io/py/pydemic.svg
     :target: https://badge.fury.io/py/pydemic
 
-The ``pydemic`` package comprises a set of tools for modeling epidemic trajectories. The code in this repository provides implementations of Markovian and non-Markovian 
-`compartmental models <https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology>`_ 
-including (1) the standard SEIR model and (2) our SEIR++ model, which is an extension to the Kermack and McKendrick 
-`age-of-infection model <https://royalsocietypublishing.org/doi/10.1098/rspa.1927.0118>`_
-that tracks the flow of individuals through the healthcare system. ``pydemic`` also provides base reaction and non-Markovian simulation classes that can be extended to implement your own epidemic model. The dynamics of new infections and movement through the healthcare system is set several model parameters that define things like time delays (e.g., the serial interval—time delay between becoming infected and infecting someone) and the severity model (i.e., the likelihood of progressing from one stage of the disease to another). 
+The ``pydemic`` package comprises a set of tools for modeling population dynamics of epidemics and evaluating models against data.
+``pydemic`` provides implementations of various types of
+`compartmental models <https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology>`_,
+including not only SIR/SEIR models and their extensions but also Kermack and McKendrick
+`age-of-infection models <https://royalsocietypublishing.org/doi/10.1098/rspa.1927.0118>`_
+which generalize the former class to model state transitions described by
+arbitrary time-delay distributions.
+More generally, ``pydemic`` provides frameworks for specifying reaction-based and non-Markovian simulations, enabling users to specify custom epidemic models.
 
-Simulations are designed to output time series data for different population states, e.g., the number of infected persons or the number of individuals in the hospital. By comparing the model output data to real world data, the model parameters can be calibrated to real world epidemic dynamics. This parameter inference task is supported by the ``pydemic`` package with interfaces to `emcee <https://emcee.readthedocs.io/en/stable/>`_
-as well as SciPy's global optimization routines. 
+To evalaute a model's applicability to an actual epidemic, its predictions
+(e.g., for the rate of new cases or deaths) must be compared to real world data.
+Parameter inference---the task of calibrating a model's input parameters by likelihood estimation---is supported by ``pydemic``'s interfaces to `emcee <https://emcee.readthedocs.io/en/stable/>`_
+as well as SciPy's global optimization routines.
 
-``pydemic`` provides simple example COVID-19 case data parsers for
+``pydemic`` provides simple parsers for COVID-19 case data sourced by
 the `COVID Tracking Project <https://covidtracking.com/>`_ and
-the `New York Times <https://github.com/nytimes/covid-19-data>`_
-data sources.
+the `New York Times <https://github.com/nytimes/covid-19-data>`_.
 Pull requests that contribute robust, new parsers are welcome!
 
-We provide a detailed description of our SEIR++ model, along with the results of calibrating it to data from COVID-19 in Illinois, in a
-`recent preprint <https://arxiv.org/abs/2006.02036>`_
-on the arxiv.
+As a complete example, the
+`SEIR++ <https://pydemic.readthedocs.io/en/latest/ref_models.html#pydemic.models.SEIRPlusPlusSimulation>`_
+model we implement treats the dynamics of infection and subsequent hospitalization.
+The model is described by a large set of parameters that specify
+the distribution of various time delays (e.g., for the spread of infection, symptom onset, hospitalization, etc.), the severity of infection, and the degree to which non-pharmaceutical interventions mitigate the spread of the disease.
+We calibrate these parameters by comparing the model's predictions
+to COVID-19--related hospitalizations and deaths in Illinois.
+We describe the model and calibration procedure in detail in a `recent preprint <https://arxiv.org/abs/2006.02036>`_ on the arXiv.
 
 ``pydemic`` is in beta.
 While effort will be made to preserve backwards compatibility with staged
@@ -36,22 +45,17 @@ However, we will attempt to ensure that backwards-incompatible changes are demar
 
 ``pydemic`` is `fully documented <https://pydemic.readthedocs.io/en/latest/>`_
 and is licensed under the liberal `MIT license
-<http://en.wikipedia.org/wiki/MIT_License>`_. See the docs for 
+<http://en.wikipedia.org/wiki/MIT_License>`_. See the docs for
 `citation info <https://pydemic.readthedocs.io/en/latest/citing.html>`_.
 
 Getting started
-#####
+---------------
 
-``pydemic`` is available on PyPI and can be installed with pip ::
+``pydemic`` is available on PyPI and can be installed with pip::
 
     pip install pydemic
 
-If you want a feel for how to run the SEIR++ model and simulate epidemic trajectories, see the 
-`SEIR++ simulations <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/SEIR%2B%2B.ipynb>`_
-notebook. This notebook walks you through setting up a simulation object, running the simulation, and visualizing the results.
+Several examples exhibit how to use ``pydemic``:
 
-The `calibrating models to data <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/calibration.ipynb>`_
-notebook provides a quick example of model calibration that shows how to generate the posterior probability distribution for a set of model parameters using public Illinois data from the COVID Tracking Project.
-
-
-
+* The `SEIR++ tutorial notebook <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/SEIR%2B%2B.ipynb>`_ demonstrates how to set up a simulation object, specify parameters, run the simulation, and visualize the results.
+* An example on `callibration <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/calibration.ipynb>`_ illustrates how to set up likelihood estimation, run Markov chain Monte Carlo, and plot the posterior probability distribution of model parameters, using the SEIR++ model and public Illinois data from the COVID Tracking Project as an example.
