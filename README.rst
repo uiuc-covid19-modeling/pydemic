@@ -16,8 +16,8 @@ Parameter inference is enabled with interfaces to
 routines.
 
 To get started, see the example notebook for
-`running simulations <examples/SEIR++.ipynb>`_
-and for `calibrating models to data <examples/calibration.ipynb>`_.
+`running simulations <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/SEIR%2B%2B.ipynb>`_
+and for `calibrating models to data <https://github.com/uiuc-covid19-modeling/pydemic/blob/master/examples/calibration.ipynb>`_.
 
 Since ``pydemic`` is available on PyPI, installation is easy::
 

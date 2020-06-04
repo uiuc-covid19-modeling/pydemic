@@ -189,6 +189,7 @@ class LikelihoodEstimator:
     .. automethod:: get_initial_positions
     .. automethod:: sample_uniform
     .. automethod:: sample_emcee
+    .. automethod:: differential_evolution
     """
 
     def __init__(self, *, simulator, fixed_values, sample_parameters, data, norms):
@@ -334,7 +335,6 @@ class LikelihoodEstimator:
         :arg backend_filename: The filename to use to create a
             :class:`pydemic.hdf.HDFBackend`.
             Defaults to *None*, in which case no backend file is created.
-
         """
 
         bounds = [par.bounds for par in self.sample_parameters]
