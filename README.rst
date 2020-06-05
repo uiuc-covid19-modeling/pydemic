@@ -16,11 +16,11 @@ The ``pydemic`` package comprises a set of tools for modeling the population dyn
 including not only SIR/SEIR models but also the more general Kermack and McKendrick
 `age-of-infection models <https://royalsocietypublishing.org/doi/10.1098/rspa.1927.0118>`_,
 which allow transitions between disease states to be described by arbitrary time-delay distributions.
-More generally, ``pydemic`` provides the framework for users to specify custom epidemic models by extending the base classes for reaction-based and non-Markovian simulations.
+More generally, ``pydemic`` provides a framework for users to specify custom epidemic models by extending the base classes for reaction-based and non-Markovian simulations.
 
 To evaluate a model's applicability to an actual epidemic, its predictions
 (e.g., for the rate of new cases or deaths) can be compared to real world data.
-Parameter inference—the task of calibrating a model's input parameters via likelihood estimation—is supported by ``pydemic``'s interfaces to the Markov chain Monte Carlo package `emcee <https://emcee.readthedocs.io/en/stable/>`_ 
+Parameter inference—the task of calibrating a model's input parameters via likelihood estimation—is supported by ``pydemic``'s interfaces to the Markov chain Monte Carlo package `emcee <https://emcee.readthedocs.io/en/stable/>`_
 and SciPy's global optimization routines.
 
 ``pydemic`` provides simple parsers for COVID-19 case data sourced from
