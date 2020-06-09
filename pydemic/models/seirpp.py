@@ -78,10 +78,6 @@ class NonMarkovianSEIRSimulationBase:
 
     increment_keys = ('infected', 'dead')
 
-    def seasonal_forcing(self, t):
-        phase = 2 * np.pi * (t - self.peak_day) / 365
-        return (1 + self.seasonal_forcing_amp * np.cos(phase))
-
     def __init__(self, total_population, age_distribution=1, *,
                  r0=3.2, serial_dist=default_serial, mitigation=None,
                  hetero_lambda=1.,
@@ -101,12 +97,31 @@ class NonMarkovianSEIRSimulationBase:
         self.peak_day = peak_day
         self.r0 = r0
 
+    def mitigation_factor(self, state, count):
+        """
+        :returns: the mitigation factor :math:`M(t)`.
+        """
+        return self.mitigation(state.t[count])
+
+    def seasonal_forcing(self, t):
+        """
+        :returns: the seasonal forcing factor :math:`F(t)`.
+        """
+        phase = 2 * np.pi * (t - self.peak_day) / 365
+        return (1 + self.seasonal_forcing_amp * np.cos(phase))
+
+    def compute_infection_potential(self, state, count):
+        """
+        :returns: the infection potential :math:`j_m(t)`.
+        """
+        return np.dot(state.y['infected'][..., count-1::-1],
+                      self.serial_pdf[:count])
+
     def step(self, state, count, dt):
         Rt = (self.r0
-              * self.mitigation(state.t[count])
+              * self.mitigation_factor(state, count)
               * self.seasonal_forcing(state.t[count]))
-        j_m = np.dot(state.y['infected'][..., count-1::-1],
-                     self.serial_pdf[:count])
+        j_m = self.compute_infection_potential(state, count)
         j_i = j_m.sum()
         S_i = state.y['susceptible'][..., count-1]
         S_sum = S_i.sum()
