@@ -89,7 +89,7 @@ class NonMarkovianSEIRSimulationBase:
         if mitigation is not None:
             self.mitigation = mitigation
         else:
-            self.mitigation = lambda t: 1
+            self.mitigation = lambda t: np.ones_like(t)
 
         self.serial_dist = serial_dist
         self.hetero_lambda = hetero_lambda
@@ -110,30 +110,31 @@ class NonMarkovianSEIRSimulationBase:
         phase = 2 * np.pi * (t - self.peak_day) / 365
         return (1 + self.seasonal_forcing_amp * np.cos(phase))
 
-    def compute_R_effective(self, state, count):
-        """
-        :returns: R_eff(t)
-        """
-        Rt = (self.r0
-              * self.mitigation_factor(state, count)
-              * self.seasonal_forcing(state.t[count]))
-        S_i = state.y['susceptible'][..., count-1]
-        S_sum = S_i.sum()
-        R_eff = Rt * S_i / S_sum
-        R_eff *= np.power(S_sum / self.total_population, self.hetero_lambda)
-        return R_eff
-
     def compute_infection_potential(self, state, count):
         """
         :returns: the infection potential :math:`j_m(t)`.
         """
-        return np.dot(state.y['infected'][..., count-1::-1],
-                      self.serial_pdf[:count])
+        end = min(self.serial_pdf.shape[0], count)
+        return np.dot(state.y['infected'][..., count-1::-1][..., :end],
+                      self.serial_pdf[:end])
+
+    def compute_R_effective(self, state, count):
+        """
+        :returns: R_eff(t)
+        """
+        S_i = state.y['susceptible'][..., count-1]
+        S_sum = S_i.sum()
+        R_eff = (
+            self.Rt[count] / S_sum
+            * np.power(S_sum / self.total_population, self.hetero_lambda)
+        )
+        R_eff *= S_i
+        return R_eff
 
     def step(self, state, count, dt):
         R_eff = self.compute_R_effective(state, count)
         j_i = self.compute_infection_potential(state, count).sum()
-        new_infected_i = dt * R_eff * j_i
+        new_infected_i = dt * j_i * R_eff
         state.y['infected'][..., count] = new_infected_i
         state.y['susceptible'][..., count] = (
             state.y['susceptible'][..., count-1] - new_infected_i
@@ -170,7 +171,15 @@ class NonMarkovianSEIRSimulationBase:
         self.times = np.arange(start_time, end_time + dt, dt)
         n_steps = self.times.shape[0]
         pdf = self.serial_dist.pdf(self.times[1:] - start_time, method='diff')
+        cdf = np.cumsum(pdf)
         self.serial_pdf = pdf / dt
+        thresh = np.searchsorted(cdf - 1, -1e-12)  # trim tiny tail
+        self.serial_pdf = self.serial_pdf[:thresh]
+
+        # vectorized precompute
+        self.mitigation_factor_eval = self.mitigation(self.times)
+        self.seasonal_forcing_eval = self.seasonal_forcing(self.times)
+        self.Rt = self.r0 * self.mitigation_factor_eval * self.seasonal_forcing_eval
 
         y0_all_t = {}
         for key in y0:
