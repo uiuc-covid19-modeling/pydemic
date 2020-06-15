@@ -167,9 +167,9 @@ class NonMarkovianSEIRSimulationBase:
 
         start_time, end_time = [to_days(x) for x in tspan]
 
-        times = np.arange(start_time, end_time + dt, dt)
-        n_steps = times.shape[0]
-        pdf = self.serial_dist.pdf(times[1:] - start_time, method='diff')
+        self.times = np.arange(start_time, end_time + dt, dt)
+        n_steps = self.times.shape[0]
+        pdf = self.serial_dist.pdf(self.times[1:] - start_time, method='diff')
         self.serial_pdf = pdf / dt
 
         y0_all_t = {}
@@ -177,7 +177,7 @@ class NonMarkovianSEIRSimulationBase:
             y0_all_t[key] = np.zeros(y0[key].shape + (n_steps,))
             y0_all_t[key][..., 0] = y0[key]
 
-        influxes = SimulationResult(times, y0_all_t)
+        influxes = SimulationResult(self.times, y0_all_t)
 
         for count in range(1, n_steps):
             self.step(influxes, count, dt)
