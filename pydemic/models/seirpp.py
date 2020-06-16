@@ -125,7 +125,7 @@ class NonMarkovianSEIRSimulationBase:
         S_i = state.y['susceptible'][..., count-1]
         S_sum = S_i.sum()
         R_eff = (
-            self.Rt[count] / S_sum
+            self.Rt[count-1] / S_sum
             * np.power(S_sum / self.total_population, self.hetero_lambda)
         )
         R_eff *= S_i
