@@ -69,7 +69,11 @@ class BackendMixIn:
     def set_simulator(self, simulator):
         with self.open('a') as f:
             if simulator is not None:
-                f.attrs['simulator'] = simulator.__name__
+                if isinstance(simulator, str):
+                    name = simulator
+                else:
+                    name = simulator.__name__
+                f.attrs['simulator'] = name
 
     def set_data(self, data):
         data.to_hdf(self.filename, 'data')
