@@ -272,6 +272,9 @@ class LikelihoodEstimator:
             likelihood += norm(model_data[key].values, self.data[key].values,
                                **parameters)
 
+        if not np.isfinite(likelihood):
+            likelihood = -np.inf
+
         return likelihood
 
     def get_initial_positions(self, walkers, method='normal'):
