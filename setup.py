@@ -52,7 +52,7 @@ write_git_revision(package)
 
 setup(
     name=package,
-    version="2020.2",
+    version="2020.2.1",
     description="A python driver for epidemic modeling and inference",
     long_description=open("README.rst", "rt").read(),
     install_requires=[
