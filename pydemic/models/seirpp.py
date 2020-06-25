@@ -131,6 +131,13 @@ class NonMarkovianSEIRSimulationBase:
         R_eff *= S_i
         return R_eff
 
+    def compute_R_t(self, times):
+        """
+        :returns: R_0 * (mitigation) * (seasonal forcing)
+        """
+
+        return self.r0 * self.mitigation(times) * self.seasonal_forcing(times)
+
     def step(self, state, count, dt):
         R_eff = self.compute_R_effective(state, count)
         j_i = self.compute_infection_potential(state, count).sum()
@@ -175,11 +182,7 @@ class NonMarkovianSEIRSimulationBase:
         self.serial_pdf = pdf / dt
         thresh = np.searchsorted(cdf - 1, -1e-12)  # trim tiny tail
         self.serial_pdf = self.serial_pdf[:thresh]
-
-        # vectorized precompute
-        self.mitigation_factor_eval = self.mitigation(self.times)
-        self.seasonal_forcing_eval = self.seasonal_forcing(self.times)
-        self.Rt = self.r0 * self.mitigation_factor_eval * self.seasonal_forcing_eval
+        self.Rt = self.compute_R_t(self.times)
 
         y0_all_t = {}
         for key in y0:
