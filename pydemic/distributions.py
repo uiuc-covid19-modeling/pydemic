@@ -48,7 +48,8 @@ class DistributionBase:
     def cdf(self, t):
         raise NotImplementedError
 
-    def convolve_pdf(self, t, influx, prefactor=1, method='fft'):
+    def convolve_pdf(self, t, influx, prefactor=1, profile=None, method='fft',
+                     complement=False):
         """
         Convolves an array ``influx`` with the PDF of the distribution.
 
@@ -63,18 +64,31 @@ class DistributionBase:
             (``'direct'``).
         """
 
-        pdf = self.pdf(t[:] - t[0])
-        prefactor = prefactor * np.ones_like(influx[0, ...])
+        ones = np.ones_like(influx)
+        pdf = (self.pdf(t[:] - t[0]) * ones.T).T
+        prefactor = prefactor * ones
+
+        if profile is not None:
+            prof = profile(t)
+        else:
+            prof = np.ones_like(t)
+
+        prefactor = prefactor.T * prof
+
+        if complement:
+            prefactor = 1 - prefactor
+
+        influx = influx * prefactor.T
 
         end = t.shape[0]
+
         if method == 'fft':
-            kernel = np.outer(pdf, prefactor)
             from scipy.signal import fftconvolve
-            result = fftconvolve(kernel, influx, mode='full', axes=0)[:end]
+            result = fftconvolve(pdf, influx, mode='full', axes=0)[:end]
         elif method == 'direct':
             result = np.zeros_like(influx)
-            for i in range(1, end):
-                result[i, ...] = prefactor * np.dot(influx[i-1::-1].T, pdf[:i])
+            for i in range(end):
+                result[i, ...] = np.einsum('i...,i...', influx[i::-1], pdf[:i+1])
 
         return result
 

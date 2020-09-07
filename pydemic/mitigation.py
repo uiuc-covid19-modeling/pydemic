@@ -56,7 +56,9 @@ class MitigationModel(PchipInterpolator):
     .. automethod:: init_from_kwargs
     """
 
-    def __init__(self, t0, tf, t, factors):
+    def __init__(self, t0, tf, t, factors, multiplier=None):
+        self.init_args = (t0, tf, t, factors)
+
         self.times = t
         self.factors = factors
         if len(t) > 0:
@@ -69,10 +71,11 @@ class MitigationModel(PchipInterpolator):
             t = np.array([t0 - 10, tf + 10])
             factors = np.array([1, 1])
 
+        self.multiplier = multiplier
         super().__init__(t, factors)
 
     @classmethod
-    def init_from_kwargs(cls, t0, tf, **kwargs):
+    def init_from_kwargs(cls, t0, tf, prefix='mitigation', **kwargs):
         """
         A convenience constructor which collects values for ``t`` based on (sorted)
         keyword arguments beginning with ``mitigation_t`` with ``factors``
@@ -80,11 +83,26 @@ class MitigationModel(PchipInterpolator):
         """
 
         factor_keys = sorted([key for key in kwargs.keys()
-                              if key.startswith('mitigation_factor')])
+                              if key.startswith(f'{prefix}_factor')])
         factors = np.array([kwargs.pop(key) for key in factor_keys])
 
         time_keys = sorted([key for key in kwargs.keys()
-                            if key.startswith('mitigation_t')])
+                            if key.startswith(f'{prefix}_t')])
         times = np.array([kwargs.pop(key) for key in time_keys])
 
         return cls(t0, tf, times, factors)
+
+    def __mul__(self, other):
+        if self.multiplier is not None:
+            multiplier = other * self.multiplier
+        else:
+            multiplier = other
+        return MitigationModel(*self.init_args, multiplier=multiplier)
+
+    __rmul__ = __mul__
+
+    def __call__(self, x, **kwargs):
+        res = super().__call__(x, **kwargs)
+        if self.multiplier is not None:
+            res *= self.multiplier(x, **kwargs)
+        return res

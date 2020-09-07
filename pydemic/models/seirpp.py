@@ -35,6 +35,21 @@ class SimulationResult:
         self.y = y
 
 
+class Readout:
+    def __init__(self, influx_key, probability, distribution, profile=None,
+                 complement=False):
+        self.influx_key = influx_key
+        self.probability = probability
+        self.distribution = distribution
+        self.profile = profile
+        self.complement = complement
+
+    def __call__(self, t, influxes):
+        return self.distribution.convolve_pdf(
+            t, influxes[self.influx_key], self.probability, profile=self.profile,
+            complement=self.complement)
+
+
 from pydemic import GammaDistribution
 default_serial = GammaDistribution(mean=4, std=3.25)
 
@@ -80,7 +95,7 @@ class NonMarkovianSEIRSimulationBase:
 
     def __init__(self, total_population, age_distribution=1, *,
                  r0=3.2, serial_dist=default_serial, mitigation=None,
-                 hetero_lambda=1.,
+                 hetero_lambda=1., severity_profiles=None,
                  seasonal_forcing_amp=.2, peak_day=15):
         self.total_population = total_population
         self.age_distribution = np.array(age_distribution)
@@ -271,6 +286,16 @@ class NonMarkovianSEIRSimulationBase:
             for key in list(kwargs.keys()):
                 if 'mitigation_t' in key or 'mitigation_factor' in key:
                     _ = kwargs.pop(key)
+
+            severity_profiles = {}
+            for prefix in ('symptomatic', 'positive', 'hospitalized',
+                           'critical', 'dead'):
+                severity_profiles[prefix] = MitigationModel.init_from_kwargs(
+                    t0, tf, prefix=prefix, **kwargs
+                )
+                for key in list(kwargs.keys()):
+                    if f'{prefix}_t' in key or f'{prefix}_factor' in key:
+                        _ = kwargs.pop(key)
         except ValueError:  # raised by PchipInterpolator when times aren't ordered
             raise InvalidParametersError(
                 "Mitigation times must be ordered within t0 and tf."
@@ -310,7 +335,7 @@ class NonMarkovianSEIRSimulationBase:
 
         sim = cls(
             total_population, age_distribution,
-            mitigation=mitigation, **kwargs
+            mitigation=mitigation, severity_profiles=severity_profiles, **kwargs
         )
 
         y0 = {}
@@ -401,7 +426,7 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
 
     def __init__(self, total_population, age_distribution=1, *,
                  r0=3.2, serial_dist=default_serial, mitigation=None,
-                 hetero_lambda=1.,
+                 hetero_lambda=1., severity_profiles=None,
                  seasonal_forcing_amp=.2, peak_day=15,
                  ifr=None,
                  incubation_dist=GammaDistribution(5.5, 2),
@@ -450,26 +475,40 @@ class SEIRPlusPlusSimulation(NonMarkovianSEIRSimulationBase):
             if p_progression[i].sum() < p_progression[i+1].sum():
                 raise InvalidParametersError("%s is too large" % name)
 
+        if severity_profiles is not None:
+            sps = severity_profiles
+        else:
+            from pydemic import MitigationModel
+            from collections import defaultdict
+            sps = defaultdict(lambda: MitigationModel(-1000, 1000, [], []))
+
         self.readouts = {
-            "symptomatic": ('infected', p_symptomatic, incubation_dist),
-            "positive": ('infected', p_positive * p_symptomatic, incubation_dist),
-            "admitted_to_hospital": ('symptomatic', p_hospitalized,
-                                     hospitalized_dist),
-            "icu": ('admitted_to_hospital', p_critical, critical_dist),
-            "dead": ('icu', p_dead, dead_dist),
-            "general_ward": ('icu', 1.-p_dead, recovered_dist),
-            "hospital_recovered": ('admitted_to_hospital', 1.-p_critical,
-                                   discharged_dist),
-            "general_ward_recovered": ('general_ward', 1., discharged_dist),
-            "all_dead": ('dead', all_dead_multiplier, all_dead_dist),
+            "symptomatic": Readout(
+                'infected', p_symptomatic, incubation_dist, sps['symptomatic']),
+            "positive": Readout(
+                'infected', p_positive * p_symptomatic, incubation_dist,
+                sps['positive'] * sps['symptomatic']),
+            "admitted_to_hospital": Readout(
+                'symptomatic', p_hospitalized, hospitalized_dist,
+                sps['hospitalized']),
+            "icu": Readout(
+                'admitted_to_hospital', p_critical, critical_dist, sps['critical']),
+            "dead": Readout('icu', p_dead, dead_dist, sps['dead']),
+            "general_ward": Readout(
+                'icu', p_dead, recovered_dist, sps['dead'], complement=True),
+            "hospital_recovered": Readout(
+                'admitted_to_hospital', p_critical, discharged_dist,
+                sps['critical'], complement=True),
+            "general_ward_recovered": Readout('general_ward', 1., discharged_dist),
+            "all_dead": Readout('dead', all_dead_multiplier, all_dead_dist),
         }
 
     def __call__(self, tspan, y0, dt=.05):
         influxes = super().__call__(tspan, y0, dt=dt)
         t = influxes.t
 
-        for key, (src, prob, dist) in self.readouts.items():
-            influxes.y[key] = dist.convolve_pdf(t, influxes.y[src], prob)
+        for key, readout in self.readouts.items():
+            influxes.y[key] = readout(t, influxes.y)
 
         sol = SimulationResult(t, {})
 
