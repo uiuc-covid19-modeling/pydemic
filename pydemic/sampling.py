@@ -155,6 +155,43 @@ class PoissonPowerNorm:
         return poisson_norm(model, data, **kwargs) * self.number
 
 
+class NegativeBinomialNorm:
+    """
+    The log-likelihood using a Negative Binomial estimator,
+
+    .. math::
+
+        \\ln P(x)
+        = \\ln \\Gamma(x + k) - \\ln (x!)  - \\ln \\Gamma(k)
+        + k \\ln \\frac{k}{k + m}
+        + x \\ln \\frac{m}{k + m}
+
+    with mean :math:`m`, data :math:`x`, and dispersion :math:`1/k`
+    (i.e., where :math:`k \\to \\infty` recovers the Poisson distribution).
+
+    :arg dispersion: The value of :math:`1/k`.
+
+    .. automethod:: __call__
+    """
+
+    fields = {'dispersion'}
+
+    def __init__(self, dispersion):
+        self.dispersion = dispersion
+
+    def __call__(self, model, data, **kwargs):
+        k = 1 / self.dispersion
+        x = data
+        m = model
+        return np.sum(
+            gammaln(x + k)
+            - gammaln(x + 1)
+            - gammaln(k)
+            + k * np.log(k / (k + m))
+            + x * np.log(m / (k + m))
+        )
+
+
 class LikelihoodEstimator:
     """
     Driver for likelihood estimation.
