@@ -265,7 +265,9 @@ class HDFOptimizationBackend(BackendMixIn):
         with self.open('a') as f:
             if self.name in f:
                 del f[self.name]
-            f.create_dataset(self.name, data=[pickled_obj])
+            from h5py import string_dtype
+            dt = string_dtype(length=len(pickled_obj))
+            f.create_dataset(self.name, data=pickled_obj, dtype=dt)
 
     def load_optimizer(self):
         import pickle
