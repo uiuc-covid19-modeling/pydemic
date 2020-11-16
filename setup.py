@@ -105,7 +105,7 @@ class Flake8Command(Command):
 
 setup(
     name=PACKAGE_NAME,
-    version="2020.2.1",
+    version="2020.2.2",
     description="A python driver for epidemic modeling and inference",
     long_description=open("README.rst", "rt").read(),
     install_requires=[
