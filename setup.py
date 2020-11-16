@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages
+import os
+from setuptools import setup, find_packages, Command
 
-package = "pydemic"
+PACKAGE_NAME = "pydemic"
 
 
 # authoritative version in pytools/__init__.py
@@ -23,9 +24,7 @@ def find_git_revision(tree_root):
               cwd=tree_root)
     (git_rev, _) = p.communicate()
 
-    import sys
-    if sys.version_info >= (3,):
-        git_rev = git_rev.decode()
+    git_rev = git_rev.decode()
 
     git_rev = git_rev.rstrip()
 
@@ -45,13 +44,67 @@ def write_git_revision(package_name):
     git_rev = find_git_revision(dn)
 
     with open(join(dn, package_name, "_git_rev.py"), "w") as outf:
-        outf.write("GIT_REVISION = %s\n" % repr(git_rev))
+        outf.write('GIT_REVISION = "%s"\n' % git_rev)
 
 
-write_git_revision(package)
+write_git_revision(PACKAGE_NAME)
+
+
+class PylintCommand(Command):
+    description = "run pylint on Python source files"
+    user_options = [
+        # The format is (long option, short option, description).
+        ("pylint-rcfile=", None, "path to Pylint config file"),
+    ]
+
+    def initialize_options(self):
+        if os.path.exists("setup.cfg"):
+            self.pylint_rcfile = "setup.cfg"
+        else:
+            self.pylint_rcfile = None
+
+    def finalize_options(self):
+        if self.pylint_rcfile:
+            assert os.path.exists(self.pylint_rcfile)
+
+    def run(self):
+        command = ["pylint"]
+        if self.pylint_rcfile is not None:
+            command.append(f"--rcfile={self.pylint_rcfile}")
+        command.append(PACKAGE_NAME)
+
+        from glob import glob
+        for directory in ["test", "examples", "."]:
+            command.extend(glob(f"{directory}/*.py"))
+
+        from subprocess import run
+        run(command)
+
+
+class Flake8Command(Command):
+    description = "run flake8 on Python source files"
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        command = ["flake8"]
+        command.append(PACKAGE_NAME)
+
+        from glob import glob
+        for directory in ["test", "examples", "."]:
+            command.extend(glob(f"{directory}/*.py"))
+
+        from subprocess import run
+        run(command)
+
 
 setup(
-    name=package,
+    name=PACKAGE_NAME,
     version="2020.2.1",
     description="A python driver for epidemic modeling and inference",
     long_description=open("README.rst", "rt").read(),
@@ -77,5 +130,9 @@ setup(
     project_urls={
         'Documentation': 'https://pydemic.readthedocs.io/en/latest/',
         'Source': 'https://github.com/uiuc-covid19-modeling/pydemic',
+    },
+    cmdclass={
+        "run_pylint": PylintCommand,
+        "run_flake8": Flake8Command,
     },
 )
