@@ -75,19 +75,23 @@ class MitigationModel(PchipInterpolator):
         super().__init__(t, factors)
 
     @classmethod
-    def init_from_kwargs(cls, t0, tf, prefix='mitigation', **kwargs):
+    def init_from_kwargs(cls, t0, tf, prefix="mitigation", **kwargs):
         """
         A convenience constructor which collects values for ``t`` based on (sorted)
         keyword arguments beginning with ``mitigation_t`` with ``factors``
         from those beginning with ``mitigation_factor``.
         """
 
-        factor_keys = sorted([key for key in kwargs.keys()
-                              if key.startswith(f'{prefix}_factor')])
+        factor_keys = sorted(
+            (name for name in kwargs.keys() if name.startswith(f"{prefix}_factor")),
+            key=lambda name: int(name.strip(f"{prefix}_factor"))
+        )
         factors = np.array([kwargs.pop(key) for key in factor_keys])
 
-        time_keys = sorted([key for key in kwargs.keys()
-                            if key.startswith(f'{prefix}_t')])
+        time_keys = sorted(
+            (name for name in kwargs.keys() if name.startswith(f"{prefix}_t")),
+            key=lambda name: int(name.strip(f"{prefix}_t"))
+        )
         times = np.array([kwargs.pop(key) for key in time_keys])
 
         return cls(t0, tf, times, factors)
