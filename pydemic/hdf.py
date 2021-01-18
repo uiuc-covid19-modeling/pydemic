@@ -28,7 +28,7 @@ import pandas as pd
 import emcee
 
 import h5py
-string_dt = h5py.string_dtype(encoding='ascii')
+string_dt = h5py.string_dtype(encoding="ascii")
 
 __doc__ = """
 Backends with HDF5
@@ -42,46 +42,46 @@ Backends with HDF5
 
 class BackendMixIn:
     def set_fixed_values(self, fixed_values):
-        with self.open('a') as f:
-            f.create_group('fixed_values')
+        with self.open("a") as f:
+            f.create_group("fixed_values")
             for key, value in fixed_values.items():
-                f['fixed_values'][key] = value
+                f["fixed_values"][key] = value
 
     def set_sample_parameters(self, sample_parameters):
-        with self.open('a') as f:
+        with self.open("a") as f:
             def nanify(x):
                 return x if x is not None else np.nan
 
-            f.create_group('fit_parameters')
-            f['fit_parameters/names'] = np.array(
+            f.create_group("fit_parameters")
+            f["fit_parameters/names"] = np.array(
                 [par.name for par in sample_parameters], dtype=string_dt
             )
-            f['fit_parameters/bounds'] = [par.bounds for par in sample_parameters]
-            f['fit_parameters/mean'] = [nanify(par.mean)
+            f["fit_parameters/bounds"] = [par.bounds for par in sample_parameters]
+            f["fit_parameters/mean"] = [nanify(par.mean)
                                         for par in sample_parameters]
-            f['fit_parameters/guess'] = [nanify(par.guess)
+            f["fit_parameters/guess"] = [nanify(par.guess)
                                          for par in sample_parameters]
-            f['fit_parameters/uncertainty'] = [nanify(par.uncertainty)
+            f["fit_parameters/uncertainty"] = [nanify(par.uncertainty)
                                                for par in sample_parameters]
-            f['fit_parameters/sigma'] = [nanify(par.sigma)
+            f["fit_parameters/sigma"] = [nanify(par.sigma)
                                          for par in sample_parameters]
 
     def set_simulator(self, simulator):
-        with self.open('a') as f:
+        with self.open("a") as f:
             if simulator is not None:
                 if isinstance(simulator, str):
                     name = simulator
                 else:
                     name = simulator.__name__
-                f.attrs['simulator'] = name
+                f.attrs["simulator"] = name
 
     def set_data(self, data):
-        data.to_hdf(self.filename, 'data')
+        data.to_hdf(self.filename, "data")
 
     @property
     def fixed_values(self):
         with self.open() as f:
-            return {key: val[()] for key, val in f['fixed_values'].items()}
+            return {key: val[()] for key, val in f["fixed_values"].items()}
 
     @property
     def sample_parameters(self):
@@ -90,23 +90,23 @@ class BackendMixIn:
             def denanify(x):
                 return x if np.isfinite(x) else None
 
-            names = [name.decode('utf-8') for name in f['fit_parameters/names'][:]]
+            names = [name.decode("utf-8") for name in f["fit_parameters/names"][:]]
             pars = []
             for i, name in enumerate(names):
-                args = [f['fit_parameters/bounds'][i]]
-                args += [denanify(f['fit_parameters'][key][i])
-                         for key in ('mean', 'uncertainty', 'sigma', 'guess')
-                         if key in f['fit_parameters'].keys()]
+                args = [f["fit_parameters/bounds"][i]]
+                args += [denanify(f["fit_parameters"][key][i])
+                         for key in ("mean", "uncertainty", "sigma", "guess")
+                         if key in f["fit_parameters"].keys()]
                 pars.append(SampleParameter(name, *args))
             return pars
 
     @property
     def data(self):
         with self.open() as f:
-            if 'data' in f.keys():
-                return pd.read_hdf(f.filename, key='data')
-            elif 'df_data' in f.keys():
-                return pd.read_hdf(f.filename, key='df_data')
+            if "data" in f.keys():
+                return pd.read_hdf(f.filename, key="data")
+            elif "df_data" in f.keys():
+                return pd.read_hdf(f.filename, key="df_data")
             else:
                 return None
 
@@ -119,8 +119,8 @@ class BackendMixIn:
         """
 
         with self.open() as f:
-            if 'simulator' in f.attrs:
-                name = f.attrs['simulator']
+            if "simulator" in f.attrs:
+                name = f.attrs["simulator"]
                 try:
                     import pydemic.models as models
                     return getattr(models, name)
@@ -250,8 +250,8 @@ class HDFOptimizationBackend(BackendMixIn):
 
     @property
     def initialized(self):
-        import os
-        if not os.path.exists(self.filename):
+        from pathlib import Path
+        if not Path(self.filename).exists():
             return False
         try:
             with self.open() as f:
@@ -262,7 +262,7 @@ class HDFOptimizationBackend(BackendMixIn):
     def save_optimizer(self, optimizer):
         import pickle
         pickled_obj = pickle.dumps(optimizer)
-        with self.open('a') as f:
+        with self.open("a") as f:
             if self.name in f:
                 del f[self.name]
             from h5py import string_dtype
@@ -271,23 +271,23 @@ class HDFOptimizationBackend(BackendMixIn):
 
     def load_optimizer(self):
         import pickle
-        with self.open('a') as f:
+        with self.open("a") as f:
             string = f[self.name][()]
         optimizer = pickle.loads(string)
         return optimizer
 
     def set_result(self, result, tol=None, popsize=None):
-        with self.open('a') as f:
-            f.attrs['x'] = result.x
-            f.attrs['fun'] = result.fun
-            f.attrs['message'] = np.array(result.message, dtype=string_dt)
-            f.attrs['nfev'] = result.nfev
-            f.attrs['nit'] = result.nit
-            f.attrs['success'] = 1 if result.success else 0
+        with self.open("a") as f:
+            f.attrs["x"] = result.x
+            f.attrs["fun"] = result.fun
+            f.attrs["message"] = np.array(result.message, dtype=string_dt)
+            f.attrs["nfev"] = result.nfev
+            f.attrs["nit"] = result.nit
+            f.attrs["success"] = 1 if result.success else 0
             if tol is not None:
-                f.attrs['tol'] = tol
+                f.attrs["tol"] = tol
             if popsize is not None:
-                f.attrs['popsize'] = popsize
+                f.attrs["popsize"] = popsize
 
     @property
     def result(self):
@@ -295,11 +295,11 @@ class HDFOptimizationBackend(BackendMixIn):
         with self.open() as f:
             res = OptimizeResult(
                 x=self.best_fit,
-                fun=f.attrs['fun'],
-                nfev=f.attrs['nfev'],
-                nit=f.attrs['nit'],
-                message=f.attrs['message'].decode('utf-8'),  # pylint: disable=E1101
-                success=bool(f.attrs['success']),
+                fun=f.attrs["fun"],
+                nfev=f.attrs["nfev"],
+                nit=f.attrs["nit"],
+                message=f.attrs["message"].decode("utf-8"),  # pylint: disable=E1101
+                success=bool(f.attrs["success"]),
             )
         return res
 
@@ -309,11 +309,11 @@ class HDFOptimizationBackend(BackendMixIn):
         with self.open() as f:
             if fit_pars is not None:
                 names = [par.name for par in fit_pars]
-                return dict(zip(names, f.attrs['x']))
+                return dict(zip(names, f.attrs["x"]))
             else:
-                return f.attrs['x']
+                return f.attrs["x"]
 
     @property
     def tol(self):
         with self.open() as f:
-            return f.attrs.get('tol', None)
+            return f.attrs.get("tol", None)

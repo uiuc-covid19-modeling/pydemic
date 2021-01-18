@@ -23,6 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
@@ -33,11 +34,17 @@ from pydemic import MitigationModel
 # WARNING: don't set to True unless you want to change the regression test data!
 overwrite = False
 
+
+def test_overwrite_isnt_true(ctx_factory, grid_shape, proc_shape):
+    # only runs in pytest
+    assert not overwrite
+
+
 tspan = (50, 125)
 t_eval = np.linspace(70, 120, 100)
 
 cases_call = {
-    'defaults': dict(
+    "defaults": dict(
         age_distribution=np.array([1.]),
         total_population=1e6,
         initial_cases=10,
@@ -45,7 +52,7 @@ cases_call = {
         p_dead=.9,
         p_positive=.4,
     ),
-    'no_ifr': dict(
+    "no_ifr": dict(
         age_distribution=np.array([.2, .3, .4, .1]),
         total_population=1e6,
         initial_cases=10,
@@ -55,7 +62,7 @@ cases_call = {
         p_dead=.9,
         p_positive=np.array([.4, .5, .6, .7]),
     ),
-    'log_ifr': dict(
+    "log_ifr": dict(
         age_distribution=np.array([.2, .3, .4, .1]),
         total_population=1e6,
         initial_cases=10,
@@ -65,7 +72,7 @@ cases_call = {
         p_dead=.9,
         p_positive=np.array([.4, .5, .6, .7]),
     ),
-    'change_all_params': dict(
+    "change_all_params": dict(
         mitigation=MitigationModel(*tspan, [70, 80], [1., .4]),
         age_distribution=np.array([.2, .3, .4, .1]),
         total_population=1e6,
@@ -92,7 +99,7 @@ cases_call = {
 }
 
 cases_get_model_data = {
-    'defaults': dict(
+    "defaults": dict(
         start_day=tspan[0],
         age_distribution=np.array([1.]),
         total_population=1e6,
@@ -101,7 +108,7 @@ cases_get_model_data = {
         p_dead=.9,
         p_positive=.4,
     ),
-    'no_ifr': dict(
+    "no_ifr": dict(
         start_day=tspan[0],
         age_distribution=np.array([.2, .3, .4, .1]),
         total_population=1e6,
@@ -112,7 +119,7 @@ cases_get_model_data = {
         p_dead=.9,
         p_positive=np.array([.4, .5, .6, .7]),
     ),
-    'log_ifr': dict(
+    "log_ifr": dict(
         start_day=tspan[0],
         age_distribution=np.array([.2, .3, .4, .1]),
         total_population=1e6,
@@ -123,7 +130,7 @@ cases_get_model_data = {
         p_dead=.9,
         p_positive=np.array([.4, .5, .6, .7]),
     ),
-    'change_all_params': dict(
+    "change_all_params": dict(
         start_day=tspan[0],
         mitigation_t_0=70,
         mitigation_t_1=80,
@@ -162,11 +169,11 @@ cases_get_model_data = {
 }
 
 change_prefactors = {
-    # 'p_symptomatic': .04,
-    'p_positive': .234,
-    'p_hospitalized': .2523,
-    'p_critical': .34,
-    'p_dead': .12,
+    # "p_symptomatic": .04,
+    "p_positive": .234,
+    "p_hospitalized": .2523,
+    "p_critical": .34,
+    "p_dead": .12,
 }
 
 
@@ -184,27 +191,25 @@ def compare_results(a, b):
     return diffs
 
 
-import os
-dir_path = os.path.dirname(os.path.realpath(__file__))
-regression_path = os.path.join(dir_path, 'regression.h5')
+regression_path = Path(__file__).parent / "regression.h5"
 
 
 @pytest.mark.parametrize("case, params", cases_call.items())
 def test_seirpp_call(case, params):
     def get_df(**params):
-        total_population = params.get('total_population')
-        initial_cases = params.pop('initial_cases')
-        age_distribution = params.get('age_distribution')
+        total_population = params.get("total_population")
+        initial_cases = params.pop("initial_cases")
+        age_distribution = params.get("age_distribution")
 
         sim = SEIRPlusPlusSimulation(**params)
 
         y0 = {}
-        for key in ('susceptible', 'infected'):
+        for key in ("susceptible", "infected"):
             y0[key] = np.zeros_like(age_distribution)
 
-        y0['infected'][...] = initial_cases * np.array(age_distribution)
-        y0['susceptible'][...] = (
-            total_population * np.array(age_distribution) - y0['infected']
+        y0["infected"][...] = initial_cases * np.array(age_distribution)
+        y0["susceptible"][...] = (
+            total_population * np.array(age_distribution) - y0["infected"]
         )
 
         result = sim(tspan, y0)
@@ -217,9 +222,9 @@ def test_seirpp_call(case, params):
         for key in sim.increment_keys:
             if key in result.y.keys():
                 spline = interp1d(result.t, result.y[key].sum(axis=-1), axis=0)
-                y[key+'_incr'] = spline(t_eval) - spline(t_eval - 1)
+                y[key+"_incr"] = spline(t_eval) - spline(t_eval - 1)
 
-        _t = pd.to_datetime(t_eval, origin='2020-01-01', unit='D')
+        _t = pd.to_datetime(t_eval, origin="2020-01-01", unit="D")
         return pd.DataFrame(y, index=_t)
 
     df = get_df(**params)
@@ -228,20 +233,20 @@ def test_seirpp_call(case, params):
     avg_rtol = 1.e-10
 
     if overwrite:
-        df.to_hdf(regression_path, 'seirpp_call/'+case)
+        df.to_hdf(regression_path, "seirpp_call/"+case)
     else:
-        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        for group in ("seirpp_call/", "seirpp_get_model_data/"):
             true = pd.read_hdf(regression_path, group+case)
             for key, (max_err, avg_err) in compare_results(true, df).items():
                 assert (max_err < max_rtol and avg_err < avg_rtol), \
                     "case %s: %s failed against %s, %s, %s" % \
                     (case, key, group, max_err, avg_err)
 
-    case2 = case+'_changed_prefactors'
-    if 'ifr' in params:
-        params['ifr'] = None
-    if 'log_ifr' in params:
-        params.pop('log_ifr')
+    case2 = case+"_changed_prefactors"
+    if "ifr" in params:
+        params["ifr"] = None
+    if "log_ifr" in params:
+        params.pop("log_ifr")
     for key, val in change_prefactors.items():
         if key in params:
             params[key] *= val
@@ -250,9 +255,9 @@ def test_seirpp_call(case, params):
 
     df = get_df(**params)
     if overwrite:
-        df.to_hdf(regression_path, 'seirpp_call/'+case2)
+        df.to_hdf(regression_path, "seirpp_call/"+case2)
     else:
-        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        for group in ("seirpp_call/", "seirpp_get_model_data/"):
             true = pd.read_hdf(regression_path, group+case2)
             for key, (max_err, avg_err) in compare_results(true, df).items():
                 assert (max_err < max_rtol and avg_err < avg_rtol), \
@@ -268,24 +273,24 @@ def test_seirpp_get_model_data(case, params):
     avg_rtol = 1.e-10
 
     if overwrite:
-        df.to_hdf(regression_path, 'seirpp_get_model_data/'+case)
+        df.to_hdf(regression_path, "seirpp_get_model_data/"+case)
     else:
-        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        for group in ("seirpp_call/", "seirpp_get_model_data/"):
             true = pd.read_hdf(regression_path, group+case)
             for key, (max_err, avg_err) in compare_results(true, df).items():
                 assert (max_err < max_rtol and avg_err < avg_rtol), \
                     "case %s: %s failed against %s, %s, %s" % \
                     (case, key, group, max_err, avg_err)
 
-    case2 = case+'_changed_prefactors'
-    if 'ifr' in params:
-        params['ifr'] = None
-    if 'log_ifr' in params:
-        params.pop('log_ifr')
+    case2 = case+"_changed_prefactors"
+    if "ifr" in params:
+        params["ifr"] = None
+    if "log_ifr" in params:
+        params.pop("log_ifr")
     check_ps = {}
     for key, val in change_prefactors.items():
         check_ps[key] = np.copy(params.get(key, 1))
-        params[key+'_prefactor'] = val
+        params[key+"_prefactor"] = val
 
     df = SEIRPlusPlusSimulation.get_model_data(t_eval, **params)
 
@@ -294,9 +299,9 @@ def test_seirpp_get_model_data(case, params):
         assert np.allclose(check_ps[key], params.get(key, 1), rtol=1.e-13, atol=0)
 
     if overwrite:
-        df.to_hdf(regression_path, 'seirpp_get_model_data/'+case2)
+        df.to_hdf(regression_path, "seirpp_get_model_data/"+case2)
     else:
-        for group in ('seirpp_call/', 'seirpp_get_model_data/'):
+        for group in ("seirpp_call/", "seirpp_get_model_data/"):
             true = pd.read_hdf(regression_path, group+case2)
             for key, (max_err, avg_err) in compare_results(true, df).items():
                 assert (max_err < max_rtol and avg_err < avg_rtol), \

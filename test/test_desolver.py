@@ -23,17 +23,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import os
+from pathlib import Path
 from pydemic.desolver import differential_evolution
 
 
 def test_desolver():
-    filename = '__test_desolver.h5'
-    if os.path.exists(filename):
-        os.remove(filename)
+    path = Path("__test_desolver.h5")
+    if path.exists():
+        path.unlink()
 
     from pydemic.hdf import HDFOptimizationBackend
-    backend = HDFOptimizationBackend(filename)
+    backend = HDFOptimizationBackend(path)
 
     from scipy.optimize import rosen
     bounds = [(0, 2), (0, 2), (0, 2)]
@@ -51,16 +51,16 @@ def test_desolver():
         correct_nit = (sol.nit == (i+1) * maxiter)
 
         if not correct_nit:
-            os.remove(filename)
+            path.unlink()
 
         assert correct_nit, \
             "number of iterations (%s) should be %s" % (sol.nit, (i+1) * maxiter)
 
     if not sol.success:
-        os.remove(filename)
+        path.unlink()
 
     assert sol.success, "solver should have succeeded"
-    os.remove(filename)
+    path.unlink()
 
 
 if __name__ == "__main__":
